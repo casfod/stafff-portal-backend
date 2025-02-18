@@ -1,0 +1,243 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Islamic Guidance Academy",
+    "description": "Comprehensive API documentation for Islamic Guidance Aacademy",
+    "version": "1.0.0"
+  },
+  "host": "islamic-guidance-academy-station.onrender.com",
+  "basePath": "/api/v1/islamic-guidance-academy/",
+  "schemes": ["https"],
+  "consumes": ["application/json", "multipart/form-data"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Enter your bearer token in the format **Bearer &lt;token&gt;**"
+    }
+  },
+  "security": [{ "Bearer": [] }],
+  "paths": {
+    "/stations/signup": {
+      "post": {
+        "tags": ["Station Auth"],
+        "description": "Create a station.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Station details including name, email, userName, station, phone, password, and passwordConfirm.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "email": { "type": "string" },
+                "userName": { "type": "string" },
+                "station": {
+                  "type": "string",
+                  "description": "Station ID (dropdown)"
+                },
+                "phone": { "type": "string" },
+                "password": { "type": "string" },
+                "passwordConfirm": { "type": "string" }
+              },
+              "example": {
+                "name": "Company name",
+                "email": "company@gmail.com",
+                "userName": "companyAAA",
+                "station": "63Kw-1446-2401",
+                "phone": "12345678901",
+                "password": "11111111",
+                "passwordConfirm": "11111111"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": { "description": "Station created." },
+          "400": { "description": "Invalid credentials." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations/login": {
+      "post": {
+        "tags": ["Station Auth"],
+        "description": "Authenticate a station and return a JWT token. The token should be included in the Authorization header for subsequent requests.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Station login credentials including email and password (`jwt` token is saved in cookies when successful).",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": { "type": "string" },
+                "password": { "type": "string" }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Login successful." },
+          "400": { "description": "Invalid login credentials." },
+          "404": { "description": "Station not found." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations/logout": {
+      "post": {
+        "tags": ["Station Auth"],
+        "description": "Log out station. The station has to be logged in to log out (`jwt` token is deleted from cookies when successful).",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "responses": {
+          "200": { "description": "Station logged out successfully." },
+          "404": { "description": "Station has to be logged in to log out." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations/updateStationPassword/{id}": {
+      "patch": {
+        "tags": ["Station Auth"],
+        "description": "Update a station's password.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Station ID is needed to update a station's password."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Station details including the new password.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "newPassword": { "type": "string" }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Station password updated successfully." },
+          "404": { "description": "Station not found." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations/{id}": {
+      "get": {
+        "tags": ["Station"],
+        "description": "Retrieve a station.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Station ID is needed to retrieve a station."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Station retrieved successfully." },
+          "401": { "description": "Unauthorized access." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations": {
+      "get": {
+        "tags": ["Station"],
+        "description": "Retrieve all stations.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "responses": {
+          "200": { "description": "Success." },
+          "401": { "description": "Unauthorized access." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations/update/{id}": {
+      "patch": {
+        "tags": ["Station"],
+        "description": "Update a station.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Station ID is needed to update a station."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Station details including name, email, userName, station, and phone.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "email": { "type": "string" },
+                "userName": { "type": "string" },
+                "station": {
+                  "type": "string",
+                  "description": "Station ID (dropdown)"
+                },
+                "phone": { "type": "string" }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Station updated successfully." },
+          "404": { "description": "Station not found." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    },
+    "/stations/delete/{id}": {
+      "delete": {
+        "tags": ["Station"],
+        "description": "Delete a station.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Station ID is needed to delete a station."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Station deleted successfully." },
+          "400": { "description": "Invalid station ID." },
+          "404": { "description": "Station not found." },
+          "500": { "description": "Internal server error." }
+        }
+      }
+    }
+  }
+}
