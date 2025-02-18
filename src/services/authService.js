@@ -4,7 +4,29 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/UserModel");
 const AppError = require("../utils/appError");
 const Email = require("../utils/sendMail");
+const catchAsync = require("../utils/catchAsync");
+
 const createSendToken = require("../utils/createSendToken");
+
+exports.seedSuperUser = catchAsync(async (req, res, next) => {
+  // Check if a SUPER-ADMIN user already exists
+  const existingSuperUser = await User.findOne({ role: "SUPER-ADMIN" });
+
+  if (!existingSuperUser) {
+    await User.create({
+      first_name: "Charles",
+      last_name: "Yaya",
+      email: "calebcharles343@gmail.com",
+      role: "SUPER-ADMIN",
+      password: "11111111",
+      passwordConfirm: "11111111",
+    });
+
+    console.log("Super admin created successfully");
+  } else {
+    console.log("Super admin already exists");
+  }
+});
 
 exports.signupUser = async (userData) => {
   const newUser = await User.create(userData);
