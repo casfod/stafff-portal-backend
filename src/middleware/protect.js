@@ -16,10 +16,12 @@ const protect = catchAsync(async (req, res, next) => {
     token = req.headers.authorization.split(" ")[1];
   }
 
-  console.log(req.headers.authorization, token);
-
   if (!token) {
-    return handleResponse(res, 401, "Invalid Token");
+    return handleResponse(
+      res,
+      401,
+      "You are not logged in! Please log in to get access."
+    );
   }
 
   // 2) Verifying the token
@@ -36,6 +38,12 @@ const protect = catchAsync(async (req, res, next) => {
     return handleResponse(res, 401, "User no longer exists");
   }
 
+  // 4) Check if user changed password after the token was issued
+  if (currentUser.changedPasswordAfter(decoded.iat)) {
+    return next(
+      new AppError("User recently changed password! Please log in again.", 401)
+    );
+  }
   // console.log(currentUser);
 
   // Granting access to the protected route

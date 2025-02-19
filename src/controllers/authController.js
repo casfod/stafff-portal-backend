@@ -2,6 +2,7 @@ const catchAsync = require("../utils/catchAsync");
 const authService = require("../services/authService");
 const createSendToken = require("../middleware/createSendToken");
 const handleResponse = require("../utils/handleResponse");
+const userByToken = require("../utils/UserByToken");
 
 const signup = catchAsync(async (req, res, next) => {
   const newUser = await authService.signupUserService({
@@ -57,8 +58,10 @@ const resetPassword = catchAsync(async (req, res, next) => {
 });
 
 const updatePassword = catchAsync(async (req, res, next) => {
+  const currentUser = await userByToken(req, res);
+
   const user = await authService.updatePasswordService(
-    req.user.id,
+    currentUser.id,
     req.body.passwordCurrent,
     req.body.password,
     req.body.passwordConfirm
