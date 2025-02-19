@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Islamic Guidance Academy",
-    "description": "Comprehensive API documentation for Islamic Guidance Aacademy",
+    "title": "Casfod Staff Portal",
+    "description": "Comprehensive API documentation for Casfod Staff portal",
     "version": "1.0.0"
   },
-  "host": "islamic-guidance-academy-station.onrender.com",
-  "basePath": "/api/v1/islamic-guidance-academy/",
+  "host": "casfod.onrender.com",
+  "basePath": "/api/v1/casfod/",
   "schemes": ["https"],
   "consumes": ["application/json", "multipart/form-data"],
   "produces": ["application/json"],
