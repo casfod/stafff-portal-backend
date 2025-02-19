@@ -29,7 +29,11 @@ const protect = catchAsync(async (req, res, next) => {
   try {
     decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   } catch (err) {
-    return handleResponse(res, 401, "Token verification failed");
+    return handleResponse(
+      res,
+      401,
+      "Token verification failed! Please log in agains."
+    );
   }
 
   // 3) Checking if the S still exists

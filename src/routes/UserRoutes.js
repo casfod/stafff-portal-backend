@@ -6,7 +6,12 @@ const restrictTo = require("../middleware/restrictTo");
 
 const router = express.Router();
 
-router.post("/signup", restrictTo("SUPER-ADMIN"), authController.signup);
+router.post(
+  "/signup",
+  protect,
+  restrictTo("SUPER-ADMIN"),
+  authController.signup
+);
 router.post("/login", authController.login);
 router.get("/logout", authController.logout);
 
