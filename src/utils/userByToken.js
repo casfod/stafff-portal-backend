@@ -1,10 +1,11 @@
 const { promisify } = require("util");
 
 const jwt = require("jsonwebtoken");
-const { getStationByIdService } = require("../services/stationService");
-const handleResponse = require("./handleResponse");
 
-const stationByToken = async (req, res) => {
+const handleResponse = require("./handleResponse");
+const { getUserByIdService } = require("../services/userService");
+
+const userByToken = async (req, res) => {
   let token;
 
   if (
@@ -28,13 +29,13 @@ const stationByToken = async (req, res) => {
 
   // 3) Checking if the station still exists
 
-  const currentStation = await getStationByIdService(decoded.id);
+  const currentUser = await getUserByIdService(decoded.id);
 
-  if (!currentStation) {
+  if (!currentUser) {
     return handleResponse(res, 401, "station no longer exists");
   }
 
-  return currentStation;
+  return currentUser;
 };
 
-module.exports = stationByToken;
+module.exports = userByToken;

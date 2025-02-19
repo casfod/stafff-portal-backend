@@ -1,9 +1,10 @@
 const catchAsync = require("../utils/catchAsync");
 const authService = require("../services/authService");
-const createSendToken = require("../utils/createSendToken");
+const createSendToken = require("../middleware/createSendToken");
+const handleResponse = require("../utils/handleResponse");
 
 const signup = catchAsync(async (req, res, next) => {
-  const newUser = await authService.signupUser({
+  const newUser = await authService.signupUserService({
     first_name: req.body.first_name,
     last_name: req.body.last_name,
     email: req.body.email,
@@ -17,20 +18,25 @@ const signup = catchAsync(async (req, res, next) => {
 });
 
 const login = catchAsync(async (req, res, next) => {
-  const user = await authService.loginUser(req.body.email, req.body.password);
-  createSendToken(user, 200, req, res);
+  const user = await authService.loginUserService(
+    req.body.email,
+    req.body.password
+  );
+  createSendToken(user, 200, res);
 });
 
+// Logout user
 const logout = (req, res) => {
-  res.cookie("jwt", "loggedout", {
-    expires: new Date(Date.now() + 10 * 1000),
+  console.log("out");
+  res.cookie("jwt", "", {
     httpOnly: true,
+    expires: new Date(Date.now() + 10 * 1000),
   });
-  res.status(200).json({ status: "success" });
+  handleResponse(res, 200, "Logged out successfully");
 };
 
 const forgotPassword = catchAsync(async (req, res, next) => {
-  await authService.forgotPassword(
+  await authService.forgotPasswordService(
     req.body.email,
     req.protocol,
     req.get("host")
@@ -42,23 +48,23 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 });
 
 const resetPassword = catchAsync(async (req, res, next) => {
-  const user = await authService.resetPassword(
+  const user = await authService.resetPasswordService(
     req.params.token,
     req.body.password,
     req.body.passwordConfirm
   );
-  createSendToken(user, 200, req, res);
+  createSendToken(user, 200, res);
 });
 
 const updatePassword = catchAsync(async (req, res, next) => {
-  const user = await authService.updatePassword(
+  const user = await authService.updatePasswordService(
     req.user.id,
     req.body.passwordCurrent,
     req.body.password,
     req.body.passwordConfirm
   );
 
-  createSendToken(user, 200, req, res);
+  createSendToken(user, 200, res);
 });
 
 module.exports = {

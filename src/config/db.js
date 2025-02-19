@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const { seedSuperUser } = require("../services/authService");
+const { seedSuperUserService } = require("../services/authService");
 
 dotenv.config({ path: "./config.env" });
 
@@ -15,7 +15,7 @@ const connectDB = async () => {
       .connect(DB, {})
       .then(() => console.log("DB connection successful!"));
 
-    await seedSuperUser();
+    await seedSuperUserService();
     console.log("MongoDB connected successfully");
   } catch (error) {
     console.error("MongoDB connection error:", error);

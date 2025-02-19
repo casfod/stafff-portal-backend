@@ -1,11 +1,12 @@
 const express = require("express");
-// const userController = require("./../controllers/userController");
+const userController = require("./../controllers/userController");
 const authController = require("./../controllers/authController");
 const protect = require("../middleware/protect");
+const restrictTo = require("../middleware/restrictTo");
 
 const router = express.Router();
 
-router.post("/signup", authController.signup);
+router.post("/signup", restrictTo("SUPER-ADMIN"), authController.signup);
 router.post("/login", authController.login);
 router.get("/logout", authController.logout);
 
@@ -16,7 +17,7 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 router.use(protect);
 
 // router.patch("/updateMyPassword", authController.updatePassword);
-// router.get("/me", userController.getMe, userController.getUser);
+router.get("/user", userController.getUserByToken);
 // router.patch(
 //   "/updateMe",
 //   userController.uploadUserPhoto,

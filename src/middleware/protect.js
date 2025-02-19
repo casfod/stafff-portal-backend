@@ -16,6 +16,8 @@ const protect = catchAsync(async (req, res, next) => {
     token = req.headers.authorization.split(" ")[1];
   }
 
+  console.log(req.headers.authorization, token);
+
   if (!token) {
     return handleResponse(res, 401, "Invalid Token");
   }
@@ -34,7 +36,7 @@ const protect = catchAsync(async (req, res, next) => {
     return handleResponse(res, 401, "User no longer exists");
   }
 
-  console.log(currentUser);
+  // console.log(currentUser);
 
   // Granting access to the protected route
   req.User = currentUser;

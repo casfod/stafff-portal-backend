@@ -3,12 +3,13 @@ const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
 const User = require("../models/UserModel");
 const AppError = require("../utils/appError");
-const Email = require("../utils/sendMail");
+const sendMail = require("../utils/sendMail");
 const catchAsync = require("../utils/catchAsync");
+const generateResetToken = require("../utils/generateResetToken");
 
-const createSendToken = require("../utils/createSendToken");
+// const createSendToken = require("../utils/createSendToken");
 
-exports.seedSuperUser = catchAsync(async (req, res, next) => {
+const seedSuperUserService = catchAsync(async (req, res, next) => {
   // Check if a SUPER-ADMIN user already exists
   const existingSuperUser = await User.findOne({ role: "SUPER-ADMIN" });
 
@@ -28,14 +29,14 @@ exports.seedSuperUser = catchAsync(async (req, res, next) => {
   }
 });
 
-exports.signupUser = async (userData) => {
+const signupUserService = async (userData) => {
   const newUser = await User.create(userData);
   // const url = `${userData.protocol}://${userData.host}/me`;
   // await new Email(newUser, url).sendWelcome();
   return newUser;
 };
 
-exports.loginUser = async (email, password) => {
+const loginUserService = async (email, password) => {
   if (!email || !password) {
     throw new AppError("Please provide email and password!", 400);
   }
@@ -48,7 +49,7 @@ exports.loginUser = async (email, password) => {
   return user;
 };
 
-exports.protectRoute = async (token) => {
+const protectRoute = async (token) => {
   if (!token) {
     throw new AppError(
       "You are not logged in! Please log in to get access.",
@@ -76,31 +77,57 @@ exports.protectRoute = async (token) => {
   return user;
 };
 
-exports.checkUserRole = (user, roles) => {
-  if (!roles.includes(user.role)) {
+// const checkUserRole = (user, roles) => {
+//   if (!roles.includes(user.role)) {
+//     throw new AppError(
+//       "You do not have permission to perform this action",
+//       403
+//     );
+//   }
+// };
+
+const sendResetEmail = async (user, resetToken, req) => {
+  console.log(user);
+  const resetURL = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
+
+  await sendMail({
+    userMail: user.email,
+    resetURL,
+  });
+};
+
+const forgotPasswordService = async (email, req) => {
+  const user = await User.findOne({ email });
+  console.log(email, user);
+
+  if (!user) {
     throw new AppError(
-      "You do not have permission to perform this action",
-      403
+      `There is no user registered with the email: ${email}`,
+      404
+    );
+  }
+
+  const { resetToken, hashedToken, resetExpires } = generateResetToken();
+  await User.updateOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: resetExpires,
+  });
+
+  try {
+    await sendResetEmail(user, resetToken, req);
+  } catch (err) {
+    await User.updateOne({
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    });
+    throw new AppError(
+      "There was an error sending the email. Please try again later.",
+      500
     );
   }
 };
 
-exports.forgotPassword = async (email, protocol, host) => {
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new AppError("There is no user with this email address.", 404);
-  }
-
-  const resetToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
-
-  const resetURL = `${protocol}://${host}/api/v1/users/resetPassword/${resetToken}`;
-  await new Email(user, resetURL).sendPasswordReset();
-
-  return resetToken;
-};
-
-exports.resetPassword = async (token, newPassword, confirmPassword) => {
+const resetPasswordService = async (token, newPassword, confirmPassword) => {
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
   const user = await User.findOne({
@@ -121,7 +148,7 @@ exports.resetPassword = async (token, newPassword, confirmPassword) => {
   return user;
 };
 
-exports.updatePassword = async (
+const updatePasswordService = async (
   userId,
   currentPassword,
   newPassword,
@@ -138,4 +165,13 @@ exports.updatePassword = async (
   await user.save();
 
   return user;
+};
+
+module.exports = {
+  seedSuperUserService,
+  signupUserService,
+  loginUserService,
+  resetPasswordService,
+  forgotPasswordService,
+  updatePasswordService,
 };
