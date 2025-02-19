@@ -20,7 +20,7 @@ router.post("/add-user", restrictTo("SUPER-ADMIN"), authController.addUser);
 router.get("/", restrictTo("SUPER-ADMIN", "ADMIN"), userController.getAllUsers);
 
 router.patch("/updatePassword", authController.updatePassword);
-router.get("/user", userController.getUserByToken);
+router.get("/me", userController.getUserByToken);
 // router.patch(
 //   "/updateMe",
 //   userController.uploadUserPhoto,
