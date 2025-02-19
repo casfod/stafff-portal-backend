@@ -1,7 +1,7 @@
 const { getAllUsersService } = require("../services/userService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
-const userByToken = require("../utils/UserByToken");
+const userByToken = require("../utils/userByToken");
 
 const getAllUsers = catchAsync(async (req, res, next) => {
   const Users = await getAllUsersService(req, res);
