@@ -29,7 +29,7 @@ const seedSuperUserService = catchAsync(async (req, res, next) => {
   }
 });
 
-const signupUserService = async (userData) => {
+const addUserService = async (userData) => {
   const newUser = await User.create(userData);
   // const url = `${userData.protocol}://${userData.host}/me`;
   // await new Email(newUser, url).sendWelcome();
@@ -169,7 +169,7 @@ const updatePasswordService = async (
 
 module.exports = {
   seedSuperUserService,
-  signupUserService,
+  addUserService,
   loginUserService,
   resetPasswordService,
   forgotPasswordService,

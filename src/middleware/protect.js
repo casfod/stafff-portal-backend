@@ -32,7 +32,7 @@ const protect = catchAsync(async (req, res, next) => {
     return handleResponse(
       res,
       401,
-      "Token verification failed! Please log in agains."
+      "Token verification failed! Please log in again."
     );
   }
 

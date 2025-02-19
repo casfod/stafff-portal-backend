@@ -1,5 +1,9 @@
 const User = require("../models/UserModel");
 
+const getAllUsersService = async (id, req) => {
+  const users = await User.find();
+  return users;
+};
 const getUserByIdService = async (id, req) => {
   const user = await User.findById(id);
 
@@ -10,4 +14,4 @@ const getUserByIdService = async (id, req) => {
   return user;
 };
 
-module.exports = { getUserByIdService };
+module.exports = { getUserByIdService, getAllUsersService };

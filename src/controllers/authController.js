@@ -4,8 +4,8 @@ const createSendToken = require("../middleware/createSendToken");
 const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/UserByToken");
 
-const signup = catchAsync(async (req, res, next) => {
-  const newUser = await authService.signupUserService({
+const addUser = catchAsync(async (req, res, next) => {
+  const newUser = await authService.addUserService({
     first_name: req.body.first_name,
     last_name: req.body.last_name,
     email: req.body.email,
@@ -15,7 +15,7 @@ const signup = catchAsync(async (req, res, next) => {
     // host: req.get("host"),
   });
 
-  createSendToken(newUser, 201, res);
+  handleResponse(res, 200, "User created successfully", newUser);
 });
 
 const login = catchAsync(async (req, res, next) => {
@@ -71,7 +71,7 @@ const updatePassword = catchAsync(async (req, res, next) => {
 });
 
 module.exports = {
-  signup,
+  addUser,
   login,
   logout,
   forgotPassword,

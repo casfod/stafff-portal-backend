@@ -29,11 +29,7 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 // Swagger Documentation
-app.use(
-  "/islamic-guidance-academy/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument)
-);
+app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
 app.use("/api/v1/casfod/users", userRouter);
