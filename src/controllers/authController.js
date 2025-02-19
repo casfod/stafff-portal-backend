@@ -2,7 +2,7 @@ const catchAsync = require("../utils/catchAsync");
 const authService = require("../services/authService");
 const createSendToken = require("../middleware/createSendToken");
 const handleResponse = require("../utils/handleResponse");
-const userByToken = require("../utils/UserByToken");
+const userByToken = require("../utils/userByToken");
 
 const addUser = catchAsync(async (req, res, next) => {
   const newUser = await authService.addUserService({
