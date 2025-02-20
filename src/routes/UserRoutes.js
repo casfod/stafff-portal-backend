@@ -6,7 +6,6 @@ const restrictTo = require("../middleware/restrictTo");
 
 const router = express.Router();
 
-// router.post("/signup", restrictTo("SUPER-ADMIN"), authController.signup);
 router.post("/login", authController.login);
 router.get("/logout", authController.logout);
 
@@ -16,7 +15,17 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 // Protect all routes after this middleware
 router.use(protect);
 
-router.post("/add-user", restrictTo("SUPER-ADMIN"), authController.addUser);
+router.post("/addUser", restrictTo("SUPER-ADMIN"), authController.addUser);
+router.patch(
+  "/deleteUser/:userID",
+  restrictTo("SUPER-ADMIN"),
+  userController.deleteUser
+);
+router.patch(
+  "/updateUserRole/:userID",
+  restrictTo("SUPER-ADMIN"),
+  userController.updateRole
+);
 router.get("/", restrictTo("SUPER-ADMIN", "ADMIN"), userController.getAllUsers);
 
 router.patch("/updatePassword", authController.updatePassword);

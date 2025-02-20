@@ -11,8 +11,6 @@ const addUser = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
-    // protocol: req.protocol,
-    // host: req.get("host"),
   });
 
   handleResponse(res, 200, "User created successfully", newUser);
