@@ -6,16 +6,17 @@ const handleCastErrorDB = (err) => {
 };
 
 const handleDuplicateFieldsDB = (err) => {
-  // const value = err.errmsg.match(/(["'])(\\?.)*?\1/)[0]
+  // Extract the key-value pair from the error response
+  const keyValue = err.errorResponse.keyValue;
 
-  const message = `Already Exits`;
-  return new AppError(message, 400);
-};
+  // Get the first key and its value from the keyValue object
+  const key = Object.keys(keyValue)[0]; // e.g., "email"
+  // const value = keyValue[key]; // e.g., "test@example.com"
 
-const handleValidationErrorDB = (err) => {
-  const errors = Object.values(err.errors).map((el) => el.message);
+  // Construct the error message dynamically
+  const message = `This ${key} already exists`;
 
-  const message = `Invalid input data. ${errors.join(". ")}`;
+  // Return a new AppError with the custom message and status code
   return new AppError(message, 400);
 };
 
