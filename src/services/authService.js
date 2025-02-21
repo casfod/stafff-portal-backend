@@ -42,11 +42,12 @@ const loginUserService = async (email, password) => {
   }
 
   const user = await User.findOne({ email }).select("+password");
-  if (user.isDeleted) {
-    throw new AppError("This account is no longer active", 401);
-  }
   if (!user || !(await user.correctPassword(password, user.password))) {
     throw new AppError("Incorrect email or password", 401);
+  }
+
+  if (user.isDeleted) {
+    throw new AppError("This account is no longer active", 401);
   }
 
   return user;
