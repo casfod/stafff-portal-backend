@@ -8,8 +8,9 @@ const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
 
 const getAllUsers = catchAsync(async (req, res) => {
-  const Users = await getAllUsersService(req, res);
-  handleResponse(res, 200, "Users fetched successfully", Users);
+  const { search, role, sort, page, limit } = req.query;
+  const result = await getAllUsersService({ search, role, sort, page, limit });
+  handleResponse(res, 200, "Users fetched successfully", result);
 });
 const getUserByToken = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
