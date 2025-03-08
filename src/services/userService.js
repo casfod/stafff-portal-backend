@@ -22,7 +22,7 @@ const getAllUsersService = async (queryParams) => {
     total,
     totalPages,
     currentPage,
-  } = await paginate(User, query, { page, limit }, sortQuery);
+  } = await paginate(User, query, { page, limit }, sortQuery); // No populateOptions
 
   return {
     users,

@@ -22,48 +22,77 @@ const saveAndSendPurchaseRequest = async (data) => {
 };
 
 // Get all purchase requests
-const getPurchaseRequests = async (currentUser) => {
-  let query = {};
+const getPurchaseRequests = async (queryParams, currentUser) => {
+  const { search, sort, page = 1, limit = 8 } = queryParams;
 
-  // Role-based filtering
+  // Define the fields you want to search in
+  const searchFields = [
+    "department",
+    "suggestedSupplier",
+    "accountCode",
+    "status",
+    "requestedBy",
+    "finalDeliveryPoint",
+    "expenseChargedTo",
+    "address",
+  ];
+
+  // Build the search query
+  const searchTerms = search ? search.trim().split(/\s+/) : [];
+  let query = buildQuery(searchTerms, searchFields);
+
+  // Add role-based filtering to the query
   switch (currentUser.role) {
     case "STAFF":
-      // STAFF can only see their own purchase requests
-      query = { createdBy: currentUser._id };
+      query.createdBy = currentUser._id; // STAFF can only see their own requests
       break;
 
     case "ADMIN":
-      // ADMIN can see their own requests or requests they reviewed
-      query = {
-        $or: [
-          { createdBy: currentUser._id }, // Requests they created
-          { reviewedBy: currentUser._id }, // Requests they reviewed
-        ],
-      };
+      query.$or = [
+        { createdBy: currentUser._id }, // Requests they created
+        { reviewedBy: currentUser._id }, // Requests they reviewed
+      ];
       break;
 
     case "SUPER-ADMIN":
-      // SUPER-ADMIN can see everything except "draft" status
-      query = { status: { $ne: "draft" } }; // Exclude "draft" status
+      query.status = { $ne: "draft" }; // SUPER-ADMIN can see everything except "draft"
       break;
 
     default:
       throw new Error("Invalid user role");
   }
 
-  // Fetch purchase requests based on the query
-  return await PurchaseRequest.find(query).populate(
-    "createdBy",
-    "username email"
+  // Build the sort object
+  const sortQuery = buildSortQuery(sort);
+
+  // Define populate options
+  const populateOptions = { path: "createdBy", select: "email" };
+
+  // Fetch purchase requests with filters, sorting, pagination, and populate
+  const {
+    results: purchaseRequests,
+    total,
+    totalPages,
+    currentPage,
+  } = await paginate(
+    PurchaseRequest,
+    query,
+    { page, limit },
+    sortQuery,
+    populateOptions
   );
+
+  return {
+    purchaseRequests,
+    total,
+    totalPages,
+    currentPage,
+  };
 };
 
 // Get a single purchase request by ID
 const getPurchaseRequestById = async (id) => {
-  return await PurchaseRequest.findById(id).populate(
-    "createdBy",
-    "username email"
-  );
+  return await PurchaseRequest.findById(id).populate("createdBy", "email");
 };
 
 // Update a purchase request

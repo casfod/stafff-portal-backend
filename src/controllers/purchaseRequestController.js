@@ -52,9 +52,13 @@ const saveAndSend = catchAsync(async (req, res) => {
 
 // Get all purchase requests
 const getAll = catchAsync(async (req, res) => {
+  const { search, sort, page, limit } = req.query;
   const currentUser = await userByToken(req, res);
 
-  const purchaseRequests = await getPurchaseRequests(currentUser);
+  const purchaseRequests = await getPurchaseRequests(
+    { search, sort, page, limit },
+    currentUser
+  );
 
   handleResponse(
     res,
