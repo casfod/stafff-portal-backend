@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db.js");
 const userRouter = require("./routes/UserRoutes.js");
+const purchaseRequestRoutes = require("./routes/purchaseRequestRoutes.js");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const swaggerDocument = require("../swagger.json");
@@ -30,6 +31,7 @@ app.use("/api", limiter);
 
 // Swagger Documentation
 app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api/purchase-requests", purchaseRequestRoutes);
 
 // Routes
 app.use("/api/v1/casfod/users", userRouter);
