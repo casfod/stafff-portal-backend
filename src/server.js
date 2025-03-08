@@ -31,10 +31,10 @@ app.use("/api", limiter);
 
 // Swagger Documentation
 app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-app.use("/api/purchase-requests", purchaseRequestRoutes);
 
 // Routes
 app.use("/api/v1/casfod/users", userRouter);
+app.use("/api/purchase-requests", purchaseRequestRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
