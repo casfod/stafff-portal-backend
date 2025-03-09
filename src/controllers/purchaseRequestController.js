@@ -27,6 +27,10 @@ const create = catchAsync(async (req, res) => {
 // Save a purchase request (draft)
 const save = catchAsync(async (req, res) => {
   const data = req.body;
+  const currentUser = await userByToken(req, res);
+
+  data.createdBy = currentUser._id;
+
   const purchaseRequest = await savePurchaseRequest(data);
 
   handleResponse(

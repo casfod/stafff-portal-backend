@@ -9,7 +9,6 @@ const itemGroupSchema = new mongoose.Schema({
   unitCost: { type: Number, required: true },
   total: { type: Number, required: true },
 });
-
 const purchaseRequestSchema = new mongoose.Schema(
   {
     department: { type: String, required: true },
@@ -23,18 +22,19 @@ const purchaseRequestSchema = new mongoose.Schema(
     expenseChargedTo: { type: String, required: true },
     accountCode: { type: String, required: true },
     reviewedBy: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: function () {
-        // Required only when status is "pending" (i.e., "Save and Send" is used)
+        // Required only when status is "pending"
         return this.status === "pending";
       },
-      default: "",
+      default: null,
     },
-    itemGroups: [itemGroupSchema], // Array of item groups
+    itemGroups: [itemGroupSchema],
     status: {
       type: String,
-      enum: ["draft", "pending", "approved", "rejected"], // All possible statuses
-      default: "draft", // Default status
+      enum: ["draft", "pending", "approved", "rejected"],
+      default: "draft",
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -12,7 +12,15 @@ const paginate = async (
 
   // Apply populate if options are provided
   if (populateOptions) {
-    baseQuery = baseQuery.populate(populateOptions);
+    if (Array.isArray(populateOptions)) {
+      // If populateOptions is an array, apply each populate
+      populateOptions.forEach((option) => {
+        baseQuery = baseQuery.populate(option);
+      });
+    } else {
+      // If populateOptions is a single object, apply it directly
+      baseQuery = baseQuery.populate(populateOptions);
+    }
   }
 
   // Execute the query

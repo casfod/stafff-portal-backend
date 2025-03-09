@@ -1,4 +1,7 @@
-const PurchaseRequest = require("../models/PurchaseRequest");
+const PurchaseRequest = require("../models/PurchaseRequestModel");
+const buildQuery = require("../utils/buildQuery");
+const buildSortQuery = require("../utils/buildSortQuery");
+const paginate = require("../utils/paginate");
 
 // Create a new purchase request
 const createPurchaseRequest = async (data) => {
@@ -41,7 +44,6 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
-  // Add role-based filtering to the query
   switch (currentUser.role) {
     case "STAFF":
       query.createdBy = currentUser._id; // STAFF can only see their own requests
@@ -55,7 +57,10 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
       break;
 
     case "SUPER-ADMIN":
-      query.status = { $ne: "draft" }; // SUPER-ADMIN can see everything except "draft"
+      query.$or = [
+        { status: { $ne: "draft" } }, // All requests except drafts
+        { createdBy: currentUser._id, status: "draft" }, // Their own drafts
+      ];
       break;
 
     default:
@@ -65,10 +70,13 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
 
-  // Define populate options
-  const populateOptions = { path: "createdBy", select: "email" };
+  // Define populate options for both createdBy and reviewedBy
+  const populateOptions = [
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
+  ];
 
-  // Fetch purchase requests with filters, sorting, pagination, and populate
+  // Filters, sorting, pagination, and populate
   const {
     results: purchaseRequests,
     total,
@@ -79,7 +87,7 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
     query,
     { page, limit },
     sortQuery,
-    populateOptions
+    populateOptions // Pass the populate options
   );
 
   return {
