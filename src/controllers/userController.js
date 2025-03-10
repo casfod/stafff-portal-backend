@@ -2,11 +2,16 @@ const {
   getAllUsersService,
   deleteUserService,
   updateUserRoleService,
+  getAllAdminService,
 } = require("../services/userService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
 
+const getAllAdmins = catchAsync(async (req, res) => {
+  const result = await getAllAdminService();
+  handleResponse(res, 200, "Admins fetched successfully", result);
+});
 const getAllUsers = catchAsync(async (req, res) => {
   const { search, role, sort, page, limit } = req.query;
   const result = await getAllUsersService({ search, role, sort, page, limit });
@@ -28,4 +33,10 @@ const updateRole = catchAsync(async (req, res) => {
   handleResponse(res, 204, "User deleted successfully");
 });
 
-module.exports = { getUserByToken, getAllUsers, deleteUser, updateRole };
+module.exports = {
+  getUserByToken,
+  getAllAdmins,
+  getAllUsers,
+  deleteUser,
+  updateRole,
+};

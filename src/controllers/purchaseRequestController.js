@@ -1,5 +1,4 @@
 const {
-  createPurchaseRequest,
   savePurchaseRequest,
   saveAndSendPurchaseRequest,
   getPurchaseRequests,
@@ -11,18 +10,18 @@ const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
 
-// Create a new purchase request
-const create = catchAsync(async (req, res) => {
-  const data = req.body;
-  const purchaseRequest = await createPurchaseRequest(data);
+// // Create a new purchase request
+// const create = catchAsync(async (req, res) => {
+//   const data = req.body;
+//   const purchaseRequest = await createPurchaseRequest(data);
 
-  handleResponse(
-    res,
-    201,
-    "Purchase request created successfully",
-    purchaseRequest
-  );
-});
+//   handleResponse(
+//     res,
+//     201,
+//     "Purchase request created successfully",
+//     purchaseRequest
+//   );
+// });
 
 // Save a purchase request (draft)
 const save = catchAsync(async (req, res) => {
@@ -44,6 +43,11 @@ const save = catchAsync(async (req, res) => {
 // Save and send a purchase request (pending)
 const saveAndSend = catchAsync(async (req, res) => {
   const data = req.body;
+
+  const currentUser = await userByToken(req, res);
+
+  data.createdBy = currentUser._id;
+
   const purchaseRequest = await saveAndSendPurchaseRequest(data);
 
   handleResponse(
@@ -121,4 +125,4 @@ const remove = catchAsync(async (req, res) => {
   );
 });
 
-module.exports = { create, save, saveAndSend, getAll, getById, update, remove };
+module.exports = { save, saveAndSend, getAll, getById, update, remove };

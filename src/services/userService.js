@@ -3,6 +3,11 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
+const getAllAdminService = async () => {
+  const admins = await User.find({ role: { $ne: "STAFF" } });
+  return admins;
+};
+
 const getAllUsersService = async (queryParams) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
@@ -63,6 +68,7 @@ const updateUserRoleService = async (id, role) => {
 
 module.exports = {
   getUserByIdService,
+  getAllAdminService,
   getAllUsersService,
   deleteUserService,
   updateUserRoleService,

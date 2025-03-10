@@ -1,5 +1,4 @@
 const {
-  create,
   save,
   saveAndSend,
   getAll,
@@ -15,8 +14,8 @@ const purchaseRequestRouter = express.Router();
 // Protect all routes after this middleware
 purchaseRequestRouter.use(protect);
 
-// Create a new purchase request (supports both "save" and "save and send")
-purchaseRequestRouter.post("/", create);
+// // Create a new purchase request (supports both "save" and "save and send")
+// purchaseRequestRouter.post("/", create);
 
 // Save a purchase request (draft)
 purchaseRequestRouter.post("/save", save);

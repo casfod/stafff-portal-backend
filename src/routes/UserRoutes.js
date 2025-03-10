@@ -16,7 +16,7 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 router.use(protect);
 
 router.post("/addUser", restrictTo("SUPER-ADMIN"), authController.addUser);
-router.patch(
+router.delete(
   "/deleteUser/:userID",
   restrictTo("SUPER-ADMIN"),
   userController.deleteUser
@@ -26,6 +26,8 @@ router.patch(
   restrictTo("SUPER-ADMIN"),
   userController.updateRole
 );
+
+router.get("/admins", userController.getAllAdmins);
 router.get("/", restrictTo("SUPER-ADMIN", "ADMIN"), userController.getAllUsers);
 
 router.patch("/updatePassword", authController.updatePassword);
