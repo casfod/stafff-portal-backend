@@ -9,6 +9,7 @@ const itemGroupSchema = new mongoose.Schema({
   unitCost: { type: Number, required: true },
   total: { type: Number, required: true },
 });
+
 const purchaseRequestSchema = new mongoose.Schema(
   {
     department: { type: String, required: true },
@@ -31,6 +32,7 @@ const purchaseRequestSchema = new mongoose.Schema(
       default: null,
     },
     itemGroups: [itemGroupSchema],
+    comments: [{ comment: { type: String, _id: false } }],
     status: {
       type: String,
       enum: ["draft", "pending", "approved", "rejected"],
