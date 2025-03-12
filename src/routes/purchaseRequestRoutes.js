@@ -5,6 +5,7 @@ const {
   getById,
   update,
   remove,
+  updateStatus,
 } = require("../controllers/purchaseRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -31,6 +32,9 @@ purchaseRequestRouter.get("/:id", getById);
 
 // Update a purchase request
 purchaseRequestRouter.put("/:id", update);
+
+// Update purchase request status
+purchaseRequestRouter.patch("/update-status/:id", updateStatus);
 
 // Delete a purchase request
 purchaseRequestRouter.delete("/:id", remove);

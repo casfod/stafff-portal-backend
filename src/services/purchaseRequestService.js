@@ -108,6 +108,10 @@ const updatePurchaseRequest = async (id, data) => {
   return await PurchaseRequest.findByIdAndUpdate(id, data, { new: true });
 };
 
+const updateRequestStatus = async (id, data) => {
+  return await PurchaseRequest.findByIdAndUpdate(id, data, { new: true });
+};
+
 // Delete a purchase request
 const deletePurchaseRequest = async (id) => {
   return await PurchaseRequest.findByIdAndDelete(id);
@@ -120,5 +124,6 @@ module.exports = {
   getPurchaseRequests,
   getPurchaseRequestById,
   updatePurchaseRequest,
+  updateRequestStatus,
   deletePurchaseRequest,
 };

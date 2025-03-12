@@ -32,7 +32,7 @@ const purchaseRequestSchema = new mongoose.Schema(
       default: null,
     },
     itemGroups: [itemGroupSchema],
-    comments: [{ comment: { type: String, _id: false } }],
+    comments: [{ comment: { type: String }, _id: false }],
     status: {
       type: String,
       enum: ["draft", "pending", "approved", "rejected"],

@@ -5,6 +5,7 @@ const {
   getPurchaseRequestById,
   updatePurchaseRequest,
   deletePurchaseRequest,
+  updateRequestStatus,
 } = require("../services/purchaseRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -109,6 +110,18 @@ const update = catchAsync(async (req, res) => {
   );
 });
 
+// UpdateStatus a purchase request
+const updateStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+  const purchaseRequest = await updateRequestStatus(id, data);
+  if (!purchaseRequest) {
+    return handleResponse(res, 404, "Purchase request not found");
+  }
+
+  handleResponse(res, 200, "Purchase request status updated", purchaseRequest);
+});
+
 // Delete a purchase request
 const remove = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -125,4 +138,12 @@ const remove = catchAsync(async (req, res) => {
   );
 });
 
-module.exports = { save, saveAndSend, getAll, getById, update, remove };
+module.exports = {
+  save,
+  saveAndSend,
+  getAll,
+  getById,
+  update,
+  updateStatus,
+  remove,
+};
