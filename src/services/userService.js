@@ -7,6 +7,10 @@ const getAllAdminService = async () => {
   const admins = await User.find({ role: { $ne: "STAFF" } });
   return admins;
 };
+const getAllInspectorsService = async () => {
+  const inspectors = await User.find({ role: "INSPECTOR" });
+  return inspectors;
+};
 
 const getAllUsersService = async (queryParams) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
@@ -69,6 +73,7 @@ const updateUserRoleService = async (id, role) => {
 module.exports = {
   getUserByIdService,
   getAllAdminService,
+  getAllInspectorsService,
   getAllUsersService,
   deleteUserService,
   updateUserRoleService,

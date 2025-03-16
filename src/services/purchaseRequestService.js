@@ -52,6 +52,12 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
     case "ADMIN":
       query.$or = [
         { createdBy: currentUser._id }, // Requests they created
+        { approvedBy: currentUser._id }, // Requests they reviewed
+      ];
+      break;
+    case "INSPECTOR":
+      query.$or = [
+        { createdBy: currentUser._id }, // Requests they created
         { reviewedBy: currentUser._id }, // Requests they reviewed
       ];
       break;
@@ -74,6 +80,7 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
   const populateOptions = [
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
   ];
 
   // Filters, sorting, pagination, and populate

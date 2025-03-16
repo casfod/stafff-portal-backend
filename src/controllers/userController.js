@@ -3,6 +3,7 @@ const {
   deleteUserService,
   updateUserRoleService,
   getAllAdminService,
+  getAllInspectorsService,
 } = require("../services/userService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -11,6 +12,10 @@ const userByToken = require("../utils/userByToken");
 const getAllAdmins = catchAsync(async (req, res) => {
   const result = await getAllAdminService();
   handleResponse(res, 200, "Admins fetched successfully", result);
+});
+const getAllInspectors = catchAsync(async (req, res) => {
+  const result = await getAllInspectorsService();
+  handleResponse(res, 200, "Inspectors fetched successfully", result);
 });
 const getAllUsers = catchAsync(async (req, res) => {
   const { search, role, sort, page, limit } = req.query;
@@ -36,6 +41,7 @@ const updateRole = catchAsync(async (req, res) => {
 module.exports = {
   getUserByToken,
   getAllAdmins,
+  getAllInspectors,
   getAllUsers,
   deleteUser,
   updateRole,

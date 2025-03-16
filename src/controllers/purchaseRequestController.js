@@ -30,6 +30,7 @@ const save = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
 
   data.createdBy = currentUser._id;
+  data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
 
   const purchaseRequest = await savePurchaseRequest(data);
 
@@ -48,6 +49,7 @@ const saveAndSend = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
 
   data.createdBy = currentUser._id;
+  data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
 
   const purchaseRequest = await saveAndSendPurchaseRequest(data);
 

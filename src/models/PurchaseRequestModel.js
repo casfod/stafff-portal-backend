@@ -22,6 +22,15 @@ const purchaseRequestSchema = new mongoose.Schema(
     activityDescription: { type: String, default: "" },
     expenseChargedTo: { type: String, required: true },
     accountCode: { type: String, required: true },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: function () {
+        // Required only when status is "pending"
+        return this.status === "reviewed";
+      },
+      default: null,
+    },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -35,7 +44,7 @@ const purchaseRequestSchema = new mongoose.Schema(
     comments: [{ comment: { type: String }, _id: false }],
     status: {
       type: String,
-      enum: ["draft", "pending", "approved", "rejected"],
+      enum: ["draft", "pending", "reviewed", "approved", "rejected"],
       default: "draft",
     },
     createdBy: {
