@@ -75,12 +75,11 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
 
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
-
-  // Define populate options for both createdBy and reviewedBy
   const populateOptions = [
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
   ];
 
   // Filters, sorting, pagination, and populate

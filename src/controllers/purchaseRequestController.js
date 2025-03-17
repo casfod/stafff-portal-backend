@@ -113,15 +113,78 @@ const update = catchAsync(async (req, res) => {
 });
 
 // UpdateStatus a purchase request
+// const updateStatus = catchAsync(async (req, res) => {
+//   const { id } = req.params;
+//   const currentUser = await userByToken(req, res);
+
+//   const data = req.body;
+
+//   const purchaseRequest = await updateRequestStatus(id, data);
+//   if (!purchaseRequest) {
+//     return handleResponse(res, 404, "Purchase request not found");
+//   }
+
+//   handleResponse(res, 200, "Purchase request status updated", purchaseRequest);
+// });
+
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const purchaseRequest = await updateRequestStatus(id, data);
-  if (!purchaseRequest) {
+
+  // Fetch the existing purchase request
+  const existingPurchaseRequest = await getPurchaseRequestById(id);
+  if (!existingPurchaseRequest) {
     return handleResponse(res, 404, "Purchase request not found");
   }
 
-  handleResponse(res, 200, "Purchase request status updated", purchaseRequest);
+  // Fetch the current user
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) {
+    return handleResponse(res, 401, "Unauthorized");
+  }
+
+  // Add a new comment if it exists in the request body
+  if (data.comment) {
+    // Initialize comments as an empty array if it doesn't exist
+    if (!existingPurchaseRequest.comments) {
+      existingPurchaseRequest.comments = [];
+    }
+
+    // Add the new comment to the top of the comments array
+    existingPurchaseRequest.comments.unshift({
+      user: currentUser.id, // Add the current user's ID
+      text: data.comment, // Add the comment text (using the new `text` field)
+    });
+
+    // Update the data object to include the modified comments
+    data.comments = existingPurchaseRequest.comments;
+  }
+
+  // Update the status and other fields
+  if (data.status) {
+    existingPurchaseRequest.status = data.status;
+
+    // // Update `reviewedBy` if the status is "reviewed"
+    // if (data.status === "reviewed") {
+    //   existingPurchaseRequest.reviewedBy = currentUser.id;
+    // }
+
+    // // Update `approvedBy` if the status is "approved"
+    // if (data.status === "approved") {
+    //   existingPurchaseRequest.approvedBy = currentUser.id;
+    // }
+  }
+
+  // Save the updated purchase request
+  const updatedPurchaseRequest = await existingPurchaseRequest.save();
+
+  // Send success response
+  handleResponse(
+    res,
+    200,
+    "Purchase request status updated",
+    updatedPurchaseRequest
+  );
 });
 
 // Delete a purchase request

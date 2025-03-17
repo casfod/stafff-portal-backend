@@ -9,6 +9,7 @@ const addUser = catchAsync(async (req, res, next) => {
     first_name: req.body.first_name,
     last_name: req.body.last_name,
     email: req.body.email,
+    role: req.body.role,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
   });

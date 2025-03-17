@@ -4,7 +4,9 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
 const getAllAdminService = async () => {
-  const admins = await User.find({ role: { $ne: "STAFF" } });
+  const admins = await User.find({
+    role: { $nin: ["STAFF", "INSPECTOR"] },
+  });
   return admins;
 };
 const getAllInspectorsService = async () => {
