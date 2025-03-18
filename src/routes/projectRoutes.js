@@ -14,7 +14,7 @@ projectRouter.get("/", projectController.getAllProjects);
 // Get a project by ID
 projectRouter.get("/:id", projectController.getProjectById);
 
-projectRouter.use(restrictTo("SUPER-ADMIN", "ADMIN"));
+projectRouter.use(restrictTo("SUPER-ADMIN"));
 
 // Create a new project
 projectRouter.post("/", projectController.createProject);
