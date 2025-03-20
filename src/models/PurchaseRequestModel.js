@@ -66,6 +66,15 @@ const purchaseRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+purchaseRequestSchema.set("toJSON", {
+  virtuals: true,
+  transform: (document, returnedObject) => {
+    returnedObject.id = returnedObject._id.toString();
+    delete returnedObject._id;
+    delete returnedObject.__v;
+  },
+});
+
 const PurchaseRequest = mongoose.model(
   "PurchaseRequest",
   purchaseRequestSchema

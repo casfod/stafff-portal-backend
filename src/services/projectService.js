@@ -4,9 +4,19 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
+const getProjectsStats = async () => {
+  // 1. Total number of requests
+  const totalProjects = await Project.countDocuments();
+
+  // Return the stats
+  return {
+    totalProjects,
+  };
+};
+
 // Get all projects with filtering, sorting, and pagination
 const getAllProjects = async (queryParams) => {
-  const { search, sort, page = 1, limit = 10 } = queryParams;
+  const { search, sort, page = 1, limit = Infinity } = queryParams;
 
   // Define the fields you want to search in
   const searchFields = ["project_title", "donor", "project_code"];
@@ -69,6 +79,7 @@ const deleteProject = async (id) => {
 
 module.exports = {
   createProject,
+  getProjectsStats,
   getAllProjects,
   getProjectById,
   updateProject,

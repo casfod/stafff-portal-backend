@@ -55,7 +55,7 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
         { approvedBy: currentUser._id }, // Requests they reviewed
       ];
       break;
-    case "INSPECTOR":
+    case "REVIEWER":
       query.$or = [
         { createdBy: currentUser._id }, // Requests they created
         { reviewedBy: currentUser._id }, // Requests they reviewed
@@ -104,6 +104,25 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
   };
 };
 
+// Get purchase request stats
+const getPurchaseRequestStats = async () => {
+  // 1. Total number of requests
+  const totalRequests = await PurchaseRequest.countDocuments({
+    status: { $ne: "draft" },
+  });
+
+  // 2. Total number of approved requests
+  const totalApprovedRequests = await PurchaseRequest.countDocuments({
+    status: "approved",
+  });
+
+  // Return the stats
+  return {
+    totalRequests,
+    totalApprovedRequests,
+  };
+};
+
 // Get a single purchase request by ID
 const getPurchaseRequestById = async (id) => {
   return await PurchaseRequest.findById(id).populate("createdBy", "email");
@@ -127,6 +146,7 @@ module.exports = {
   createPurchaseRequest,
   savePurchaseRequest,
   saveAndSendPurchaseRequest,
+  getPurchaseRequestStats,
   getPurchaseRequests,
   getPurchaseRequestById,
   updatePurchaseRequest,

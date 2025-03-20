@@ -6,6 +6,7 @@ const {
   update,
   remove,
   updateStatus,
+  getStats,
 } = require("../controllers/purchaseRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -24,6 +25,8 @@ purchaseRequestRouter.post("/save", save);
 // Save and send a purchase request (pending)
 purchaseRequestRouter.post("/save-and-send", saveAndSend);
 
+// Get all purchase requests stats
+purchaseRequestRouter.get("/stats", getStats);
 // Get all purchase requests
 purchaseRequestRouter.get("/", getAll);
 

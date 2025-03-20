@@ -21,6 +21,13 @@ const getAllProjects = catchAsync(async (req, res) => {
   handleResponse(res, 200, "All projects fetched successfully", projects);
 });
 
+//Get stats
+const getStats = catchAsync(async (req, res) => {
+  const stats = await projectService.getProjectsStats();
+
+  handleResponse(res, 200, "Project stats fetched successfully", stats);
+});
+
 // Get a project by ID
 const getProjectById = catchAsync(async (req, res) => {
   const project = await projectService.getProjectById(req.params.id);
@@ -41,6 +48,7 @@ const deleteProject = catchAsync(async (req, res) => {
 
 module.exports = {
   createProject,
+  getStats,
   getAllProjects,
   getProjectById,
   updateProject,

@@ -6,25 +6,12 @@ const {
   updatePurchaseRequest,
   deletePurchaseRequest,
   updateRequestStatus,
+  getPurchaseRequestStats,
 } = require("../services/purchaseRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
 
-// // Create a new purchase request
-// const create = catchAsync(async (req, res) => {
-//   const data = req.body;
-//   const purchaseRequest = await createPurchaseRequest(data);
-
-//   handleResponse(
-//     res,
-//     201,
-//     "Purchase request created successfully",
-//     purchaseRequest
-//   );
-// });
-
-// Save a purchase request (draft)
 const save = catchAsync(async (req, res) => {
   const data = req.body;
   const currentUser = await userByToken(req, res);
@@ -58,6 +45,18 @@ const saveAndSend = catchAsync(async (req, res) => {
     201,
     "Purchase request saved and sent successfully",
     purchaseRequest
+  );
+});
+
+//Get stats
+const getStats = catchAsync(async (req, res) => {
+  const stats = await getPurchaseRequestStats();
+
+  handleResponse(
+    res,
+    200,
+    "Purchase requests stats fetched successfully",
+    stats
   );
 });
 
@@ -112,21 +111,6 @@ const update = catchAsync(async (req, res) => {
   );
 });
 
-// UpdateStatus a purchase request
-// const updateStatus = catchAsync(async (req, res) => {
-//   const { id } = req.params;
-//   const currentUser = await userByToken(req, res);
-
-//   const data = req.body;
-
-//   const purchaseRequest = await updateRequestStatus(id, data);
-//   if (!purchaseRequest) {
-//     return handleResponse(res, 404, "Purchase request not found");
-//   }
-
-//   handleResponse(res, 200, "Purchase request status updated", purchaseRequest);
-// });
-
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
@@ -163,16 +147,6 @@ const updateStatus = catchAsync(async (req, res) => {
   // Update the status and other fields
   if (data.status) {
     existingPurchaseRequest.status = data.status;
-
-    // // Update `reviewedBy` if the status is "reviewed"
-    // if (data.status === "reviewed") {
-    //   existingPurchaseRequest.reviewedBy = currentUser.id;
-    // }
-
-    // // Update `approvedBy` if the status is "approved"
-    // if (data.status === "approved") {
-    //   existingPurchaseRequest.approvedBy = currentUser.id;
-    // }
   }
 
   // Save the updated purchase request
@@ -207,6 +181,7 @@ module.exports = {
   save,
   saveAndSend,
   getAll,
+  getStats,
   getById,
   update,
   updateStatus,

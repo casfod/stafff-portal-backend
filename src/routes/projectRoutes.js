@@ -8,6 +8,9 @@ const projectRouter = express.Router();
 
 projectRouter.use(protect);
 
+// Get all projects stats
+projectRouter.get("/stats", projectController.getStats);
+
 // Get all projects
 projectRouter.get("/", projectController.getAllProjects);
 

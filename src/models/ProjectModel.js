@@ -12,6 +12,13 @@ const projectSchema = new mongoose.Schema(
       to: { type: String, required: true },
     },
     project_budget: { type: Number, required: true },
+
+    account_code: [
+      {
+        name: { type: String, required: true },
+        code: { type: String, required: true },
+      },
+    ],
     sectors: [
       {
         name: {
@@ -29,12 +36,13 @@ const projectSchema = new mongoose.Schema(
       },
     ],
     project_locations: [{ type: String }],
-    target_beneficiaries: {
-      women: { type: Number, required: true },
-      girls: { type: Number, required: true },
-      boys: { type: Number, required: true },
-      men: { type: Number, required: true },
-    },
+    target_beneficiaries: [{ type: String }],
+    // target_beneficiaries: {
+    //   women: { type: Number, required: true },
+    //   girls: { type: Number, required: true },
+    //   boys: { type: Number, required: true },
+    //   men: { type: Number, required: true },
+    // },
     project_objectives: { type: String, required: true, maxlength: 400 },
     project_summary: { type: String, required: true, maxlength: 4000 },
     status: {
@@ -45,6 +53,15 @@ const projectSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+projectSchema.set("toJSON", {
+  virtuals: true,
+  transform: (document, returnedObject) => {
+    returnedObject.id = returnedObject._id.toString();
+    delete returnedObject._id;
+    delete returnedObject.__v;
+  },
+});
 
 const Project = mongoose.model("Project", projectSchema);
 

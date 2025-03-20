@@ -5,13 +5,13 @@ const paginate = require("../utils/paginate");
 
 const getAllAdminService = async () => {
   const admins = await User.find({
-    role: { $nin: ["STAFF", "INSPECTOR"] },
+    role: { $nin: ["STAFF", "REVIEWER"] },
   });
   return admins;
 };
-const getAllInspectorsService = async () => {
-  const inspectors = await User.find({ role: "INSPECTOR" });
-  return inspectors;
+const getAllReviewersService = async () => {
+  const reviewers = await User.find({ role: "REVIEWER" });
+  return reviewers;
 };
 
 const getAllUsersService = async (queryParams) => {
@@ -75,7 +75,7 @@ const updateUserRoleService = async (id, role) => {
 module.exports = {
   getUserByIdService,
   getAllAdminService,
-  getAllInspectorsService,
+  getAllReviewersService,
   getAllUsersService,
   deleteUserService,
   updateUserRoleService,
