@@ -27,7 +27,6 @@ const login = catchAsync(async (req, res, next) => {
 
 // Logout user
 const logout = (req, res) => {
-  console.log("out");
   res.cookie("jwt", "", {
     httpOnly: true,
     expires: new Date(Date.now() + 10 * 1000),

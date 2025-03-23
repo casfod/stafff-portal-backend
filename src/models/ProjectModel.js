@@ -16,9 +16,15 @@ const projectSchema = new mongoose.Schema(
     account_code: [
       {
         name: { type: String, required: true },
-        code: { type: String, required: true },
+        // code: { type: String, required: true },
       },
     ],
+    // account_code: [
+    //   {
+    //     name: { type: String, required: true },
+    //     code: { type: String, required: true },
+    //   },
+    // ],
     sectors: [
       {
         name: {
