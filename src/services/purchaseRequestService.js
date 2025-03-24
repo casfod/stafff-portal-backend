@@ -76,6 +76,7 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
   const populateOptions = [
+    { path: "project", select: "project_code account_code" },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },

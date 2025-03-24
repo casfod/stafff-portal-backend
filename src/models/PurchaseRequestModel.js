@@ -22,6 +22,15 @@ const purchaseRequestSchema = new mongoose.Schema(
     activityDescription: { type: String, default: "" },
     expenseChargedTo: { type: String, required: true },
     accountCode: { type: String, required: true },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      // required: function () {
+      //   // Required only when status is "pending"
+      //   return this.status === "pending";
+      // },
+      default: null,
+    },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
