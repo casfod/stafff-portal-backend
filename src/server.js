@@ -38,7 +38,7 @@ app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use("/api/v1/casfod/users", userRouter);
 app.use("/api/v1/casfod/projects", projectRoutes);
 app.use("/api/v1/casfod/purchase-requests", purchaseRequestRoutes);
-app.use("/api/v1/casfod/concept_notes", conceptNoteRoutes);
+app.use("/api/v1/casfod/concept-notes", conceptNoteRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

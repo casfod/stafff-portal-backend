@@ -20,7 +20,7 @@ const getConceptNoteStats = async () => {
   };
 };
 
-const getAllConceptNotes = async (queryParams) => {
+const getAllConceptNotes = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = Infinity } = queryParams;
 
   // Define the fields you want to search in
@@ -30,19 +30,59 @@ const getAllConceptNotes = async (queryParams) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   const query = buildQuery(searchTerms, searchFields);
 
+  switch (currentUser.role) {
+    case "STAFF":
+      query.preparedBy = currentUser._id; // STAFF can only see their own requests
+      break;
+
+    case "ADMIN":
+      query.$or = [
+        { preparedBy: currentUser._id }, // Requests they created
+        { approvedBy: currentUser._id }, // Requests they reviewed
+      ];
+      break;
+
+    case "REVIEWER":
+      query.$or = [
+        { preparedBy: currentUser._id }, // Requests they created
+      ];
+      break;
+
+    case "SUPER-ADMIN":
+      query.$or = [
+        { status: { $ne: "draft" } }, // All requests except drafts
+        { preparedBy: currentUser._id, status: "draft" }, // Their own drafts
+      ];
+      break;
+
+    default:
+      throw new Error("Invalid user role");
+  }
+
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
 
+  const populateOptions = [
+    { path: "preparedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+  ];
+
   // Fetch projects with filters, sorting, and pagination
   const {
-    results: conceptNote,
+    results: conceptNotes,
     total,
     totalPages,
     currentPage,
-  } = await paginate(ConceptNote, query, { page, limit }, sortQuery);
+  } = await paginate(
+    ConceptNote,
+    query,
+    { page, limit },
+    sortQuery,
+    populateOptions
+  );
 
   return {
-    conceptNote,
+    conceptNotes,
     totalConceptNote: total,
     totalPages,
     currentPage,
@@ -50,7 +90,23 @@ const getAllConceptNotes = async (queryParams) => {
 };
 
 const createConceptNote = async (conceptNoteData) => {
-  const conceptNote = new ConceptNote(conceptNoteData);
+  const conceptNote = new ConceptNote({
+    ...conceptNoteData,
+    status: "pending",
+  });
+  await conceptNote.save();
+  return conceptNote;
+};
+
+// // Create a new Concept Note
+// const createPurchaseRequest = async (data) => {
+//   const purchaseRequest = new PurchaseRequest(data);
+//   return await purchaseRequest.save();
+// };
+
+// Save a Concept Note (draft)
+const saveConceptNote = async (conceptNoteData) => {
+  const conceptNote = new ConceptNote({ ...conceptNoteData, status: "draft" });
   await conceptNote.save();
   return conceptNote;
 };
@@ -82,6 +138,7 @@ const deleteConceptNote = async (id) => {
 };
 
 module.exports = {
+  saveConceptNote,
   createConceptNote,
   getConceptNoteStats,
   getAllConceptNotes,
