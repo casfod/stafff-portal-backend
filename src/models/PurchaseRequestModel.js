@@ -2,26 +2,26 @@
 const mongoose = require("mongoose");
 
 const itemGroupSchema = new mongoose.Schema({
-  description: { type: String, required: true },
-  frequency: { type: Number, required: true },
-  quantity: { type: Number, required: true },
+  description: { type: String, required: true, trim: true },
+  frequency: { type: Number, required: true, trim: true },
+  quantity: { type: Number, required: true, trim: true },
   unit: { type: String, default: "" },
-  unitCost: { type: Number, required: true },
-  total: { type: Number, required: true },
+  unitCost: { type: Number, required: true, trim: true },
+  total: { type: Number, required: true, trim: true },
 });
 
 const purchaseRequestSchema = new mongoose.Schema(
   {
-    department: { type: String, required: true },
-    suggestedSupplier: { type: String, required: true },
-    requestedBy: { type: String, required: true },
-    address: { type: String, required: true },
-    finalDeliveryPoint: { type: String, required: true },
-    city: { type: String, required: true },
-    periodOfActivity: { type: String, required: true },
+    department: { type: String, required: true, trim: true },
+    suggestedSupplier: { type: String, required: true, trim: true },
+    requestedBy: { type: String, required: true, trim: true },
+    address: { type: String, required: true, trim: true },
+    finalDeliveryPoint: { type: String, required: true, trim: true },
+    city: { type: String, required: true, trim: true },
+    periodOfActivity: { type: String, required: true, trim: true },
     activityDescription: { type: String, default: "" },
-    expenseChargedTo: { type: String, required: true },
-    accountCode: { type: String, required: true },
+    expenseChargedTo: { type: String, required: true, trim: true },
+    accountCode: { type: String, required: true, trim: true },
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
@@ -57,7 +57,7 @@ const purchaseRequestSchema = new mongoose.Schema(
           ref: "User",
           default: null,
         },
-        text: { type: String, required: true }, // Rename `type` to `text` for clarity
+        text: { type: String, required: true, trim: true }, // Rename `type` to `text` for clarity
         _id: false,
       },
     ],

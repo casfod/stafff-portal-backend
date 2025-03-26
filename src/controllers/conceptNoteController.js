@@ -18,9 +18,9 @@ const createConceptNote = catchAsync(async (req, res) => {
   // Prepare concept note data
   const conceptNoteData = {
     ...req.body,
-    staff_Name: `${currentUser.first_name} ${currentUser.last_name}`,
+    staff_name: `${currentUser.first_name} ${currentUser.last_name}`,
     staff_role: currentUser.role,
-    prepared_by: currentUser.id,
+    preparedBy: currentUser.id,
   };
 
   // Create concept note
@@ -101,6 +101,25 @@ const updateConceptNote = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Concept note updated successfully", conceptNote);
 });
 
+const updateStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+  const currentUser = await userByToken(req, res);
+
+  const updatedPurchaseRequest = await conceptNoteService.updateRequestStatus(
+    id,
+    data,
+    currentUser
+  );
+
+  handleResponse(
+    res,
+    200,
+    "Concept Note status updated",
+    updatedPurchaseRequest
+  );
+});
+
 // Delete concept note
 const deleteConceptNote = catchAsync(async (req, res) => {
   await conceptNoteService.deleteConceptNote(req.params.id);
@@ -109,6 +128,7 @@ const deleteConceptNote = catchAsync(async (req, res) => {
 
 module.exports = {
   getStats,
+  updateStatus,
   createConceptNote,
   saveConceptNote,
   getConceptNoteStats,

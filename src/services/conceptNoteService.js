@@ -6,7 +6,9 @@ const paginate = require("../utils/paginate");
 
 const getConceptNoteStats = async () => {
   // 1. Total number of ConceptNote
-  const totalConceptNotes = await ConceptNote.countDocuments();
+  const totalConceptNotes = await ConceptNote.countDocuments({
+    status: { $ne: "draft" },
+  });
 
   // 2. Total number of approved ConceptNote
   const totalApprovedConceptNotes = await ConceptNote.countDocuments({
@@ -65,6 +67,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   const populateOptions = [
     { path: "preparedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
   ];
 
   // Fetch projects with filters, sorting, and pagination
@@ -111,23 +114,29 @@ const saveConceptNote = async (conceptNoteData) => {
   return conceptNote;
 };
 
+// Get a single purchase request by ID
 const getConceptNoteById = async (id) => {
-  const conceptNote = await ConceptNote.findById(id);
+  return await ConceptNote.findById(id).populate("preparedBy", "email");
+};
+
+const updateConceptNote = async (id, updateData) => {
+  if (updateData.approvedBy) {
+    updateData = { ...updateData, status: "pending" };
+  }
+
+  const conceptNote = await ConceptNote.findByIdAndUpdate(id, updateData, {
+    new: true,
+  });
+
   if (!conceptNote) {
     throw new Error("Concept Note not found");
   }
   return conceptNote;
 };
 
-const updateConceptNote = async (id, updateData) => {
-  const conceptNote = await ConceptNote.findByIdAndUpdate(id, updateData, {
-    new: true,
-  });
-  if (!conceptNote) {
-    throw new Error("Concept Note not found");
-  }
-  return conceptNote;
-};
+// const updateRequestStatus = async (id, data) => {
+//   return await ConceptNote.findByIdAndUpdate(id, data, { new: true });
+// };
 
 const deleteConceptNote = async (id) => {
   const conceptNote = await ConceptNote.findByIdAndDelete(id);
@@ -137,6 +146,43 @@ const deleteConceptNote = async (id) => {
   return conceptNote;
 };
 
+const updateRequestStatus = async (id, data, currentUser) => {
+  // Fetch the existing Concept Note
+  const existingConceptNote = await ConceptNote.findById(id);
+  if (!existingConceptNote) {
+    throw new Error("Concept Note not found");
+  }
+
+  if (!currentUser) {
+    throw new Error("Unauthorized");
+  }
+
+  // Add a new comment if it exists in the request body
+  if (data.comment) {
+    // Initialize comments as an empty array if it doesn't exist
+    if (!existingConceptNote.comments) {
+      existingConceptNote.comments = [];
+    }
+
+    // Add the new comment to the top of the comments array
+    existingConceptNote.comments.unshift({
+      user: currentUser.id,
+      text: data.comment,
+    });
+
+    // Update the data object to include the modified comments
+    data.comments = existingConceptNote.comments;
+  }
+
+  // Update the status and other fields
+  if (data.status) {
+    existingConceptNote.status = data.status;
+  }
+
+  // Save and return the updated Concept Note
+  return await existingConceptNote.save();
+};
+
 module.exports = {
   saveConceptNote,
   createConceptNote,
@@ -144,5 +190,6 @@ module.exports = {
   getAllConceptNotes,
   getConceptNoteById,
   updateConceptNote,
+  updateRequestStatus,
   deleteConceptNote,
 };

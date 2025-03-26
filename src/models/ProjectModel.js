@@ -3,19 +3,19 @@ const mongoose = require("mongoose");
 
 const projectSchema = new mongoose.Schema(
   {
-    project_title: { type: String, required: true, maxlength: 200 },
-    donor: { type: String, required: true, maxlength: 50 },
+    project_title: { type: String, required: true, maxlength: 200, trim: true },
+    donor: { type: String, required: true, maxlength: 50, trim: true },
     project_partners: [{ type: String }],
-    project_code: { type: String, required: true, maxlength: 50 },
+    project_code: { type: String, required: true, maxlength: 50, trim: true },
     implementation_period: {
-      from: { type: String, required: true },
-      to: { type: String, required: true },
+      from: { type: String, required: true, trim: true },
+      to: { type: String, required: true, trim: true },
     },
     project_budget: { type: Number, required: true },
 
     account_code: [
       {
-        name: { type: String, required: true },
+        name: { type: String, required: true, trim: true },
         // code: { type: String, required: true },
       },
     ],
@@ -41,16 +41,26 @@ const projectSchema = new mongoose.Schema(
         percentage: { type: Number, min: 0, max: 100, required: true },
       },
     ],
-    project_locations: [{ type: String }],
-    target_beneficiaries: [{ type: String }],
+    project_locations: [{ type: String, trim: true }],
+    target_beneficiaries: [{ type: String, trim: true }],
     // target_beneficiaries: {
     //   women: { type: Number, required: true },
     //   girls: { type: Number, required: true },
     //   boys: { type: Number, required: true },
     //   men: { type: Number, required: true },
     // },
-    project_objectives: { type: String, required: true, maxlength: 400 },
-    project_summary: { type: String, required: true, maxlength: 4000 },
+    project_objectives: {
+      type: String,
+      required: true,
+      maxlength: 400,
+      trim: true,
+    },
+    project_summary: {
+      type: String,
+      required: true,
+      maxlength: 4000,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ["ongoing", "completed", "cancelled"],
