@@ -106,18 +106,13 @@ const updateStatus = catchAsync(async (req, res) => {
   const data = req.body;
   const currentUser = await userByToken(req, res);
 
-  const updatedPurchaseRequest = await conceptNoteService.updateRequestStatus(
+  const updatedConceptNote = await conceptNoteService.updateRequestStatus(
     id,
     data,
     currentUser
   );
 
-  handleResponse(
-    res,
-    200,
-    "Concept Note status updated",
-    updatedPurchaseRequest
-  );
+  handleResponse(res, 200, "Concept Note status updated", updatedConceptNote);
 });
 
 // Delete concept note

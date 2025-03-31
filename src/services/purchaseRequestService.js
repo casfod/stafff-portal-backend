@@ -3,27 +3,6 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
-// Create a new purchase request
-const createPurchaseRequest = async (data) => {
-  const purchaseRequest = new PurchaseRequest(data);
-  return await purchaseRequest.save();
-};
-
-// Save a purchase request (draft)
-const savePurchaseRequest = async (data) => {
-  const purchaseRequest = new PurchaseRequest({ ...data, status: "draft" });
-  return await purchaseRequest.save();
-};
-
-// Save and send a purchase request (pending)
-const saveAndSendPurchaseRequest = async (data) => {
-  if (!data.reviewedBy) {
-    throw new Error("ReviewedBy field is required for submission.");
-  }
-  const purchaseRequest = new PurchaseRequest({ ...data, status: "pending" });
-  return await purchaseRequest.save();
-};
-
 // Get all purchase requests
 const getPurchaseRequests = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
@@ -103,6 +82,33 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
     totalPages,
     currentPage,
   };
+};
+
+// Create a new purchase request
+const createPurchaseRequest = async (data) => {
+  const purchaseRequest = new PurchaseRequest(data);
+  return await purchaseRequest.save();
+};
+
+// Save a purchase request (draft)
+const savePurchaseRequest = async (data, currentUser) => {
+  data.createdBy = currentUser._id;
+  data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
+
+  const purchaseRequest = new PurchaseRequest({ ...data, status: "draft" });
+  return await purchaseRequest.save();
+};
+
+// Save and send a purchase request (pending)
+const saveAndSendPurchaseRequest = async (data, currentUser) => {
+  data.createdBy = currentUser._id;
+  data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
+
+  if (!data.reviewedBy) {
+    throw new Error("ReviewedBy field is required for submission.");
+  }
+  const purchaseRequest = new PurchaseRequest({ ...data, status: "pending" });
+  return await purchaseRequest.save();
 };
 
 // Get purchase request stats
