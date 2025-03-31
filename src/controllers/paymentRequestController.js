@@ -45,7 +45,7 @@ const getStats = catchAsync(async (req, res) => {
   handleResponse(
     res,
     200,
-    "Purchase requests stats fetched successfully",
+    "Payment requests stats fetched successfully",
     stats
   );
 });
