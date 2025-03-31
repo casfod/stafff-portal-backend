@@ -1,5 +1,5 @@
 // services/projectService.js
-const ConceptNote = require("../models/conceptNoteModel.js");
+const ConceptNote = require("../models/ConceptNoteModel.js");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
