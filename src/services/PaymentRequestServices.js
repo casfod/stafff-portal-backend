@@ -46,27 +46,27 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   // Role-based filtering
   switch (currentUser.role) {
     case "STAFF":
-      query.requestedBy = currentUser._id;
+      query.requestedBy = currentUser._id; // Only their own requests
       break;
 
     case "ADMIN":
       query.$or = [
-        { requestedBy: currentUser._id },
-        { approvedBy: currentUser._id },
+        { requestedBy: currentUser._id }, // Their own requests
+        { approvedBy: currentUser._id }, // Requests they approved
       ];
       break;
 
     case "REVIEWER":
       query.$or = [
-        { requestedBy: currentUser._id },
-        { reviewedBy: currentUser._id },
+        { requestedBy: currentUser._id }, // Their own requests
+        { reviewedBy: currentUser._id }, // Requests they reviewed
       ];
       break;
 
     case "SUPER-ADMIN":
       query.$or = [
-        { status: { $ne: "draft" } },
-        { requestedBy: currentUser._id, status: "draft" },
+        { status: { $ne: "draft" } }, // All non-draft requests
+        { requestedBy: currentUser._id, status: "draft" }, // Their own drafts
       ];
       break;
 
@@ -138,7 +138,14 @@ const getPaymentRequestById = async (id) => {
 
 // Update a Payment request
 const updatePaymentRequest = async (id, data) => {
-  return await PaymentRequest.findByIdAndUpdate(id, data, { new: true });
+  const request = await PaymentRequest.findById(id);
+  if (!request) throw new Error("Payment request not found");
+
+  // Update fields
+  Object.assign(request, data);
+
+  // This will trigger the pre('save') middleware
+  return await request.save();
 };
 
 const updateRequestStatus = async (id, data, currentUser) => {
@@ -179,7 +186,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
 };
 
 // Delete a Payment request
-const deletePaymentRequest = async (id) => {
+const deleteRequest = async (id) => {
   return await PaymentRequest.findByIdAndDelete(id);
 };
 
@@ -205,7 +212,7 @@ module.exports = {
   getPaymentRequestById,
   updatePaymentRequest,
   updateRequestStatus,
-  deletePaymentRequest,
+  deleteRequest,
 };
 
 /*
