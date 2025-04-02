@@ -46,27 +46,27 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   // Role-based filtering
   switch (currentUser.role) {
     case "STAFF":
-      query.requestedBy = currentUser._id; // Only their own requests
+      query.requestedBy = currentUser._id;
       break;
 
     case "ADMIN":
       query.$or = [
-        { requestedBy: currentUser._id }, // Their own requests
-        { approvedBy: currentUser._id }, // Requests they approved
+        { requestedBy: currentUser._id },
+        { approvedBy: currentUser._id },
       ];
       break;
 
     case "REVIEWER":
       query.$or = [
-        { requestedBy: currentUser._id }, // Their own requests
-        { reviewedBy: currentUser._id }, // Requests they reviewed
+        { requestedBy: currentUser._id },
+        { reviewedBy: currentUser._id },
       ];
       break;
 
     case "SUPER-ADMIN":
       query.$or = [
-        { status: { $ne: "draft" } }, // All non-draft requests
-        { requestedBy: currentUser._id, status: "draft" }, // Their own drafts
+        { status: { $ne: "draft" } },
+        { requestedBy: currentUser._id, status: "draft" },
       ];
       break;
 
