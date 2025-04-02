@@ -10,7 +10,7 @@ const {
   savePaymentRequest,
   saveAndSendPaymentRequest,
   updateRequestStatus,
-} = require("../services/PaymentRequestServices.js");
+} = require("../services/paymentRequestServices.js");
 
 // Get all payment requests
 const getAll = catchAsync(async (req, res) => {
