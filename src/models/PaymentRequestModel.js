@@ -5,7 +5,7 @@ const paymentRequestSchema = new mongoose.Schema(
     requestBy: { type: String, required: true, trim: true },
     amountInFigure: { type: Number, required: true },
     amountInWords: { type: String, required: true },
-    PurposeOfExpense: { type: String, required: true },
+    purposeOfExpense: { type: String, required: true },
     grantCode: { type: String, required: true, trim: true },
     dateOfExpense: { type: String, required: true, trim: true },
     specialInstruction: { type: String, required: true, trim: true },

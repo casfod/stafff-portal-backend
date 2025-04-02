@@ -138,7 +138,14 @@ const getPaymentRequestById = async (id) => {
 
 // Update a Payment request
 const updatePaymentRequest = async (id, data) => {
-  return await PaymentRequest.findByIdAndUpdate(id, data, { new: true });
+  const request = await PaymentRequest.findById(id);
+  if (!request) throw new Error("Payment request not found");
+
+  // Update fields
+  Object.assign(request, data);
+
+  // This will trigger the pre('save') middleware
+  return await request.save();
 };
 
 const updateRequestStatus = async (id, data, currentUser) => {
@@ -179,7 +186,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
 };
 
 // Delete a Payment request
-const deletePaymentRequest = async (id) => {
+const deleteRequest = async (id) => {
   return await PaymentRequest.findByIdAndDelete(id);
 };
 
@@ -205,7 +212,7 @@ module.exports = {
   getPaymentRequestById,
   updatePaymentRequest,
   updateRequestStatus,
-  deletePaymentRequest,
+  deleteRequest,
 };
 
 /*

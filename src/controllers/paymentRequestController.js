@@ -10,6 +10,7 @@ const {
   savePaymentRequest,
   saveAndSendPaymentRequest,
   updateRequestStatus,
+  deleteRequest,
 } = require("../services/PaymentRequestServices.js");
 
 // Get all payment requests
@@ -103,7 +104,7 @@ const updateStatus = catchAsync(async (req, res) => {
 });
 
 const deletePaymentRequest = catchAsync(async (req, res) => {
-  deletePaymentRequest(req.params.id);
+  deleteRequest(req.params.id);
   handleResponse(res, 200, "Payment request deleted successfully");
 });
 
