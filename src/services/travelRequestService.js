@@ -4,7 +4,7 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
 // Get all travel requests
-const gettravelRequests = async (queryParams, currentUser) => {
+const getTravelRequests = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
   // Define the fields you want to search in
@@ -60,7 +60,7 @@ const gettravelRequests = async (queryParams, currentUser) => {
     totalPages,
     currentPage,
   } = await paginate(
-    travelRequests,
+    TravelRequest,
     query,
     { page, limit },
     sortQuery,
@@ -145,7 +145,7 @@ module.exports = {
   saveTravelRequest,
   saveAndSendTravelRequest,
   getTravelRequestStats,
-  gettravelRequests,
+  getTravelRequests,
   getTravelRequestById,
   updateTravelRequest,
   updateRequestStatus,
