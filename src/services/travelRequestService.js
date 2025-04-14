@@ -45,6 +45,7 @@ const getTravelRequests = async (queryParams, currentUser) => {
 
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
+
   const populateOptions = [
     // { path: "project", select: "project_code account_code" },
     { path: "createdBy", select: "email first_name last_name role" },

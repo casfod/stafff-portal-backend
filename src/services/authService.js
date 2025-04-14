@@ -81,15 +81,6 @@ const protectRoute = async (token) => {
   return user;
 };
 
-// const checkUserRole = (user, roles) => {
-//   if (!roles.includes(user.role)) {
-//     throw new AppError(
-//       "You do not have permission to perform this action",
-//       403
-//     );
-//   }
-// };
-
 const sendResetEmail = async (user, resetToken, req) => {
   console.log(user);
   const resetURL = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;

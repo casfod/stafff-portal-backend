@@ -22,6 +22,7 @@ const login = catchAsync(async (req, res, next) => {
     req.body.email,
     req.body.password
   );
+
   createSendToken(user, 200, res);
 });
 
