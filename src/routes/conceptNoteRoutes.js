@@ -1,7 +1,7 @@
 // routes/projectRoutes.js
 const express = require("express");
 const conceptNoteController = require("../controllers/conceptNoteController.js");
-const protect = require("../middleware/protect");
+const protect = require("../middleware/protect.js");
 
 const conceptNoteRouter = express.Router();
 
