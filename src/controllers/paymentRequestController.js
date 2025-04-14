@@ -26,7 +26,7 @@ const save = catchAsync(async (req, res) => {
   handleResponse(res, 201, "Payment request saved as draft", paymentRequest);
 });
 
-// Submit for review
+// Submit for review /
 const saveAndSend = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
   const paymentRequest = await saveAndSendPaymentRequest(req.body, currentUser);
