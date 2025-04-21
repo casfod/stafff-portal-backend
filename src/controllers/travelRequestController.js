@@ -39,7 +39,9 @@ const saveAndSend = catchAsync(async (req, res) => {
 
 //Get stats
 const getStats = catchAsync(async (req, res) => {
-  const stats = await getTravelRequestStats();
+  const currentUser = await userByToken(req, res);
+
+  const stats = await getTravelRequestStats(currentUser);
 
   handleResponse(res, 200, "Travel requests stats fetched successfully", stats);
 });

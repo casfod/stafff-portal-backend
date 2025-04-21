@@ -110,21 +110,47 @@ const saveAndSendAdvanceRequest = async (data, currentUser) => {
 };
 
 // Get advance request stats
-const getAdvanceRequestStats = async () => {
-  // 1. Total number of requests
-  const totalRequests = await AdvanceRequest.countDocuments({
+const getAdvanceRequestStats = async (currentUser) => {
+  if (!currentUser?._id) {
+    throw new Error("Invalid user information");
+  }
+
+  // Initialize base match conditions
+  const baseMatch = {
     status: { $ne: "draft" },
-  });
+  };
 
-  // 2. Total number of approved requests
-  const totalApprovedRequests = await AdvanceRequest.countDocuments({
-    status: "approved",
-  });
+  // Role-based filtering using switch
+  switch (currentUser.role) {
+    case "SUPER-ADMIN":
+    case "ADMIN":
+      // No additional filters for admin roles
+      break;
 
-  // Return the stats
+    default:
+      // For all other roles, only count their own requests
+      baseMatch.createdBy = currentUser._id;
+      break;
+  }
+
+  const stats = await AdvanceRequest.aggregate([
+    {
+      $match: baseMatch,
+    },
+    {
+      $facet: {
+        totalRequests: [{ $count: "count" }],
+        totalApprovedRequests: [
+          { $match: { status: "approved" } },
+          { $count: "count" },
+        ],
+      },
+    },
+  ]);
+
   return {
-    totalRequests,
-    totalApprovedRequests,
+    totalRequests: stats[0].totalRequests[0]?.count || 0,
+    totalApprovedRequests: stats[0].totalApprovedRequests[0]?.count || 0,
   };
 };
 

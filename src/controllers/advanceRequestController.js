@@ -44,7 +44,9 @@ const saveAndSend = catchAsync(async (req, res) => {
 
 //Get stats
 const getStats = catchAsync(async (req, res) => {
-  const stats = await getAdvanceRequestStats();
+  const currentUser = await userByToken(req, res);
+
+  const stats = await getAdvanceRequestStats(currentUser);
 
   handleResponse(
     res,

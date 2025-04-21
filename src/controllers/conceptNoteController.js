@@ -5,7 +5,8 @@ const userByToken = require("../utils/userByToken");
 
 //Get stats
 const getStats = catchAsync(async (req, res) => {
-  const stats = await conceptNoteService.getConceptNoteStats();
+  const currentUser = await userByToken(req, res);
+  const stats = await conceptNoteService.getConceptNoteStats(currentUser);
 
   handleResponse(res, 200, "Concept notes stats fetched successfully", stats);
 });
@@ -53,17 +54,6 @@ const saveConceptNote = catchAsync(async (req, res) => {
     201,
     "Concept note draft created successfully",
     conceptNote
-  );
-});
-
-// Get concept note statistics
-const getConceptNoteStats = catchAsync(async (req, res) => {
-  const stats = await conceptNoteService.getConceptNoteStats();
-  handleResponse(
-    res,
-    200,
-    "Concept note statistics fetched successfully",
-    stats
   );
 });
 
@@ -126,7 +116,6 @@ module.exports = {
   updateStatus,
   createConceptNote,
   saveConceptNote,
-  getConceptNoteStats,
   getAllConceptNotes,
   getConceptNoteById,
   updateConceptNote,
