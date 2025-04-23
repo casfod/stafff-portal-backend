@@ -18,21 +18,21 @@ const advanceRequestSchema = new mongoose.Schema(
     address: { type: String, required: true, trim: true },
     finalDeliveryPoint: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
-
     accountNumber: { type: String, required: true, trim: true },
     accountName: { type: String, required: true, trim: true },
     bankName: { type: String, required: true, trim: true },
-
+    expenseChargedTo: { type: String, required: true, trim: true },
+    accountCode: { type: String, required: true, trim: true },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
+    },
     periodOfActivity: {
       from: { type: String, required: true, trim: true },
       to: { type: String, required: true, trim: true },
     },
     activityDescription: { type: String, default: "" },
-    // project: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "Project",
-    //   default: null,
-    // },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
