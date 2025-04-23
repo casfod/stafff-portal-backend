@@ -5,7 +5,7 @@ const {
   getTravelRequestById,
   updateTravelRequest,
   deleteTravelRequest,
-  updateRequestStatus,
+  // updateRequestStatus,
   getTravelRequestStats,
 } = require("../services/travelRequestService");
 const catchAsync = require("../utils/catchAsync");
