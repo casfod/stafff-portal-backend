@@ -18,6 +18,7 @@ const traveRequestSchema = new mongoose.Schema(
     },
     project: { type: String, required: true, trim: true },
     budget: { type: Number, required: true },
+    amountInWords: { type: String, required: true },
     travelReason: { type: String, required: true, trim: true },
     dayOfDeparture: { type: String, required: true, trim: true },
     dayOfReturn: { type: String, required: true, trim: true },
