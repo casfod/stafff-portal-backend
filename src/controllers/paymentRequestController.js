@@ -10,6 +10,7 @@ const {
   savePaymentRequest,
   saveAndSendPaymentRequest,
   updateRequestStatus,
+  deleteRequest,
 } = require("../services/paymentRequestService.js");
 
 // Get all payment requests
@@ -103,9 +104,24 @@ const updateStatus = catchAsync(async (req, res) => {
   );
 });
 
-const deletePaymentRequest = catchAsync(async (req, res) => {
-  deletePaymentRequest(req.params.id);
-  handleResponse(res, 200, "Payment request deleted successfully");
+// const deletePaymentRequest = catchAsync(async (req, res) => {
+//   deletePaymentRequest(req.params.id);
+//   handleResponse(res, 200, "Payment request deleted successfully");
+// });
+
+const remove = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const paymentRequest = deleteRequest(id);
+  if (!paymentRequest) {
+    return handleResponse(res, 404, "PaymentRequest not found");
+  }
+
+  handleResponse(
+    res,
+    200,
+    "Payment Request deleted successfully",
+    paymentRequest
+  );
 });
 
 module.exports = {
@@ -116,7 +132,7 @@ module.exports = {
   saveAndSend,
   update,
   updateStatus,
-  deletePaymentRequest,
+  remove,
 };
 
 /*

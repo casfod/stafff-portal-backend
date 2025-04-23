@@ -4,7 +4,7 @@ const {
   getAll,
   getById,
   update,
-  deletePaymentRequest,
+  remove,
   updateStatus,
   getStats,
 } = require("../controllers/paymentRequestController");
@@ -40,6 +40,6 @@ paymentRequestRouter.put("/:id", update);
 paymentRequestRouter.patch("/update-status/:id", updateStatus);
 
 // Delete a payment request
-paymentRequestRouter.delete("/:id", deletePaymentRequest);
+paymentRequestRouter.delete("/:id", remove);
 
 module.exports = paymentRequestRouter;

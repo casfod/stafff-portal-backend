@@ -12,13 +12,13 @@ const itemGroupSchema = new mongoose.Schema({
 const expenseClaimsSchema = new mongoose.Schema(
   {
     staffName: { type: String, required: true, trim: true },
-    travelRequest: {
+    expenseClaim: {
       from: { type: String, required: true, trim: true },
       to: { type: String, required: true, trim: true },
     },
     project: { type: String, required: true, trim: true },
     budget: { type: Number, required: true },
-    travelReason: { type: String, required: true, trim: true },
+    expenseReason: { type: String, required: true, trim: true },
     dayOfDeparture: { type: String, required: true, trim: true },
     dayOfReturn: { type: String, required: true, trim: true },
     expenses: {
