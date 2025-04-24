@@ -18,7 +18,7 @@ const sendMail = async (options) => {
     // Define the email options
     const mailOptions = {
       from: {
-        name: "Casfod Staff Portal",
+        name: "Casfod Possibility Hub",
         address: process.env.USER_MAIL,
       }, // sender address
       to: options.userMail, // recipient address
