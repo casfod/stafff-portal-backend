@@ -83,7 +83,7 @@ const protectRoute = async (token) => {
 
 const sendResetEmail = async (user, resetToken, req) => {
   console.log(user);
-  const resetURL = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
+  const resetURL = `${process.env.BASE_URL}/reset-password/${resetToken}`;
 
   await sendMail({
     userMail: user.email,
