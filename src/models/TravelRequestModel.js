@@ -9,7 +9,7 @@ const itemGroupSchema = new mongoose.Schema({
   total: { type: Number, required: true, trim: true },
 });
 
-const traveRequestSchema = new mongoose.Schema(
+const travelRequestSchema = new mongoose.Schema(
   {
     staffName: { type: String, required: true, trim: true },
     travelRequest: {
@@ -72,7 +72,7 @@ const traveRequestSchema = new mongoose.Schema(
   }
 );
 
-traveRequestSchema.set("toJSON", {
+travelRequestSchema.set("toJSON", {
   virtuals: true,
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString();
@@ -81,6 +81,6 @@ traveRequestSchema.set("toJSON", {
   },
 });
 
-const TraveRequest = mongoose.model("TraveRequest", traveRequestSchema);
+const TravelRequest = mongoose.model("TravelRequest", travelRequestSchema);
 
-module.exports = TraveRequest;
+module.exports = TravelRequest;

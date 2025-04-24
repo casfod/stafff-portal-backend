@@ -147,17 +147,17 @@ const getConceptNoteById = async (id) => {
 };
 
 const updateConceptNote = async (id, updateData) => {
-  if (updateData.approvedBy) {
-    updateData = { ...updateData, status: "pending" };
-  }
+  // if (updateData.approvedBy) {
+  //   updateData = { ...updateData, status: "pending" };
+  // }
 
   const conceptNote = await ConceptNote.findByIdAndUpdate(id, updateData, {
     new: true,
   });
 
-  if (!conceptNote) {
-    throw new Error("Concept Note not found");
-  }
+  // if (!conceptNote) {
+  //   throw new Error("Concept Note not found");
+  // }
   return conceptNote;
 };
 
