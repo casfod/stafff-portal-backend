@@ -135,6 +135,7 @@ const createConceptNote = async (conceptNoteData) => {
 
 // Save a Concept Note (draft)
 const saveConceptNote = async (conceptNoteData) => {
+  conceptNoteData.comments = undefined;
   const conceptNote = new ConceptNote({ ...conceptNoteData, status: "draft" });
   await conceptNote.save();
   return conceptNote;

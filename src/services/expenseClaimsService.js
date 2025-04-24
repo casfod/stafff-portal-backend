@@ -86,6 +86,7 @@ const createExpenseClaim = async (data) => {
 const saveExpenseClaim = async (data, currentUser) => {
   data.createdBy = currentUser._id;
   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
+  data.comments = undefined;
 
   const expenseClaims = new ExpenseClaims({ ...data, status: "draft" });
   return await expenseClaims.save();

@@ -29,7 +29,7 @@ app.use(cors());
 
 // Limit requests from same API (bruteforce and denial of service attacks protection)
 const limiter = rateLimit({
-  max: 100,
+  max: 200,
   windowMs: 60 * 60 * 1000,
   message: "Too many requests from this IP, please try again in an hour!",
 });

@@ -86,6 +86,7 @@ const createTravelRequest = async (data) => {
 const saveTravelRequest = async (data, currentUser) => {
   data.createdBy = currentUser._id;
   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
+  data.comments = undefined;
 
   const travelRequest = new TravelRequest({ ...data, status: "draft" });
   return await travelRequest.save();

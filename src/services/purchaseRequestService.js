@@ -94,6 +94,7 @@ const createPurchaseRequest = async (data) => {
 const savePurchaseRequest = async (data, currentUser) => {
   data.createdBy = currentUser._id;
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
+  data.comments = undefined;
 
   const purchaseRequest = new PurchaseRequest({ ...data, status: "draft" });
   return await purchaseRequest.save();

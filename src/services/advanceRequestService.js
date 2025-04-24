@@ -92,6 +92,7 @@ const createAdvanceRequest = async (data) => {
 const saveAdvanceRequest = async (data, currentUser) => {
   data.createdBy = currentUser._id;
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
+  data.comments = undefined;
 
   const advanceRequest = new AdvanceRequest({ ...data, status: "draft" });
   return await advanceRequest.save();

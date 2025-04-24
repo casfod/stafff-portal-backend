@@ -3,14 +3,19 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
-const getAllAdminService = async () => {
+const getAllAdminService = async (currentUser) => {
   const admins = await User.find({
     role: { $nin: ["STAFF", "REVIEWER"] },
+    _id: { $ne: currentUser._id }, // Exclude current user
   });
   return admins;
 };
-const getAllReviewersService = async () => {
-  const reviewers = await User.find({ role: "REVIEWER" });
+
+const getAllReviewersService = async (currentUser) => {
+  const reviewers = await User.find({
+    role: "REVIEWER",
+    _id: { $ne: currentUser._id }, // Exclude current user
+  });
   return reviewers;
 };
 

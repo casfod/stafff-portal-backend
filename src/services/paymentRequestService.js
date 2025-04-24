@@ -140,6 +140,7 @@ const createPaymentRequest = async (data, currentUser) => {
 const savePaymentRequest = async (data, currentUser) => {
   data.requestedBy = currentUser._id;
   data.requestBy = `${currentUser.first_name} ${currentUser.last_name}`;
+  data.comments = undefined;
 
   const paymentRequest = new PaymentRequest({ ...data, status: "draft" });
   return await paymentRequest.save();

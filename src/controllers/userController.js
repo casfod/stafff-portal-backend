@@ -10,11 +10,17 @@ const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
 
 const getAllAdmins = catchAsync(async (req, res) => {
-  const result = await getAllAdminService();
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) return handleResponse(res, 404, "User not found");
+
+  const result = await getAllAdminService(currentUser);
   handleResponse(res, 200, "Admins fetched successfully", result);
 });
 const getAllReviewers = catchAsync(async (req, res) => {
-  const result = await getAllReviewersService();
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) return handleResponse(res, 404, "User not found");
+
+  const result = await getAllReviewersService(currentUser);
   handleResponse(res, 200, "Reviewers fetched successfully", result);
 });
 const getAllUsers = catchAsync(async (req, res) => {
