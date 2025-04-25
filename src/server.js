@@ -33,7 +33,7 @@ const limiter = rateLimit({
   windowMs: 0.5 * 0.5 * 1000,
   message: "Too many requests from this IP, please try again in an hour!",
 });
-app.use("/api", limiter);
+// app.use("/api", limiter);
 
 // Swagger Documentation
 app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
