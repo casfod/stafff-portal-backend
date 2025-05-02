@@ -1,5 +1,5 @@
 const { Readable } = require("stream");
-const cloudinary = require("../utils/cloudinary");
+const cloudinary = require("../utils/cloudinaryConfig");
 const File = require("../models/FileModel");
 
 async function uploadFile(buffer, originalName, mimeType) {

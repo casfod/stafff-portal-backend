@@ -1,4 +1,5 @@
 const ExpenseClaims = require("../models/ExpenseClaimsModel");
+const fileService = require("../services/fileService");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
@@ -6,44 +7,36 @@ const paginate = require("../utils/paginate");
 // Get all ExpenseClaims
 const getExpenseClaims = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
-
-  // Define the fields you want to search in
   const searchFields = ["project", "location", "staffName", "budget"];
-
-  // Build the search query
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
   switch (currentUser.role) {
     case "STAFF":
-      query.createdBy = currentUser._id; // STAFF can only see their own requests
+      query.createdBy = currentUser._id;
       break;
-
     case "ADMIN":
       query.$or = [
-        { createdBy: currentUser._id }, // Requests they created
-        { approvedBy: currentUser._id }, // Requests they reviewed
+        { createdBy: currentUser._id },
+        { approvedBy: currentUser._id },
       ];
       break;
     case "REVIEWER":
       query.$or = [
-        { createdBy: currentUser._id }, // Requests they created
-        { reviewedBy: currentUser._id }, // Requests they reviewed
+        { createdBy: currentUser._id },
+        { reviewedBy: currentUser._id },
       ];
       break;
-
     case "SUPER-ADMIN":
       query.$or = [
-        { status: { $ne: "draft" } }, // All requests except drafts
-        { createdBy: currentUser._id, status: "draft" }, // Their own drafts
+        { status: { $ne: "draft" } },
+        { createdBy: currentUser._id, status: "draft" },
       ];
       break;
-
     default:
       throw new Error("Invalid user role");
   }
 
-  // Build the sort object
   const sortQuery = buildSortQuery(sort);
 
   const populateOptions = [
@@ -51,10 +44,9 @@ const getExpenseClaims = async (queryParams, currentUser) => {
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+    { path: "comments.user", select: "email first_name last_name role" },
   ];
 
-  // Filters, sorting, pagination, and populate
   const {
     results: expenseClaims,
     total,
@@ -65,43 +57,180 @@ const getExpenseClaims = async (queryParams, currentUser) => {
     query,
     { page, limit },
     sortQuery,
-    populateOptions // Pass the populate options
+    populateOptions
+  );
+
+  // Fetch associated files for each expense claim
+  const expenseClaimsWithFiles = await Promise.all(
+    expenseClaims.map(async (claim) => {
+      const files = await fileService.getFilesByDocument(
+        "ExpenseClaims",
+        claim._id
+      );
+      return {
+        ...claim.toJSON(),
+        files,
+      };
+    })
   );
 
   return {
-    expenseClaims,
+    expenseClaims: expenseClaimsWithFiles,
     total,
     totalPages,
     currentPage,
   };
 };
 
-// Create a new ExpenseClaim
-const createExpenseClaim = async (data) => {
+// Create a new ExpenseClaim with files
+const createExpenseClaim = async (data, files = []) => {
   const expenseClaim = new ExpenseClaims(data);
-  return await expenseClaim.save();
+  await expenseClaim.save();
+
+  // Upload and associate files if provided
+  if (files.length > 0) {
+    const uploadPromises = files.map((file) =>
+      fileService.uploadFile({
+        buffer: file.buffer,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+      })
+    );
+
+    const uploadedFiles = await Promise.all(uploadPromises);
+
+    // Associate files with the expense claim
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file.id,
+          "ExpenseClaims",
+          expenseClaim._id,
+          "receipts"
+        )
+      )
+    );
+  }
+
+  return expenseClaim;
 };
 
 // Save a ExpenseClaim (draft)
-const saveExpenseClaim = async (data, currentUser) => {
+// const saveExpenseClaim = async (data, currentUser, files = []) => {
+//   data.createdBy = currentUser._id;
+//   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
+//   data.comments = undefined;
+
+//   // console.log(files, "❌<=filesECS=>❌");
+//   const expenseClaim = new ExpenseClaims({ ...data, status: "draft" });
+//   await expenseClaim.save();
+
+//   console.log(files, "❌<=filesECS=>❌");
+//   // Handle file uploads
+//   if (files.files.length > 0) {
+//     const uploadedFiles = await Promise.all(
+//       files.files.map((file) => {
+//         console.log(file, "single file");
+
+//         fileService.uploadFile({
+//           buffer: file.buffer,
+//           originalname: file.originalname,
+//           mimetype: file.mimetype,
+//           size: file.size,
+//         });
+//       })
+//     );
+
+//     await Promise.all(
+//       uploadedFiles.map((file) =>
+//         fileService.associateFile(
+//           file.id,
+//           "ExpenseClaims",
+//           expenseClaim._id,
+//           "receipts"
+//         )
+//       )
+//     );
+//   }
+
+//   return expenseClaim;
+// };
+
+const saveExpenseClaim = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
   data.comments = undefined;
 
-  const expenseClaims = new ExpenseClaims({ ...data, status: "draft" });
-  return await expenseClaims.save();
+  const expenseClaim = new ExpenseClaims({ ...data, status: "draft" });
+  await expenseClaim.save();
+
+  // Handle file uploads
+  if (files.files?.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id, // Use _id instead of id if that's what MongoDB uses
+          "ExpenseClaims",
+          expenseClaim._id,
+          "receipts"
+        )
+      )
+    );
+  }
+
+  return expenseClaim;
 };
 
 // Save and send a ExpenseClaim (pending)
-const saveAndSendExpenseClaim = async (data, currentUser) => {
+const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
 
   if (!data.reviewedBy) {
     throw new Error("ReviewedBy field is required for submission.");
   }
+
   const expenseClaim = new ExpenseClaims({ ...data, status: "pending" });
-  return await expenseClaim.save();
+  await expenseClaim.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id, // Use _id instead of id if that's what MongoDB uses
+          "ExpenseClaims",
+          expenseClaim._id,
+          "receipts"
+        )
+      )
+    );
+  }
+
+  return expenseClaim;
 };
 
 // Get ExpenseClaim stats
@@ -110,20 +239,14 @@ const getExpenseClaimStats = async (currentUser) => {
     throw new Error("Invalid user information");
   }
 
-  // Initialize base match conditions
   const baseMatch = {
     status: { $ne: "draft" },
   };
 
-  // Role-based filtering using switch
   switch (currentUser.role) {
     case "SUPER-ADMIN":
-      //  case "ADMIN":
-      // No additional filters for admin roles
       break;
-
     default:
-      // For all other roles, only count their own requests
       baseMatch.createdBy = currentUser._id;
       break;
   }
@@ -149,33 +272,78 @@ const getExpenseClaimStats = async (currentUser) => {
   };
 };
 
-// Get a single pdvance request by ID
+// Get a single expense claim by ID with files
 const getExpenseClaimById = async (id) => {
-  return await ExpenseClaims.findById(id).populate("createdBy", "email");
+  const expenseClaim = await ExpenseClaims.findById(id).populate(
+    "createdBy",
+    "email"
+  );
+  if (!expenseClaim) return null;
+
+  const files = await fileService.getFilesByDocument("ExpenseClaims", id);
+  return {
+    ...expenseClaim.toJSON(),
+    files,
+  };
 };
 
-// Update a pdvance request
-const updateExpenseClaim = async (id, data) => {
-  return await ExpenseClaims.findByIdAndUpdate(id, data, { new: true });
+// Update a expense claim
+const updateExpenseClaim = async (id, data, files = []) => {
+  const expenseClaim = await ExpenseClaims.findByIdAndUpdate(id, data, {
+    new: true,
+  });
+  if (!expenseClaim) return null;
+
+  // Handle new file uploads
+  if (files.files?.length > 0) {
+    fileService.deleteFilesByDocument("ExpenseClaims", id);
+
+    const uploadedFiles = await Promise.all(
+      files.files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id, // Use _id instead of id if that's what MongoDB uses
+          "ExpenseClaims",
+          expenseClaim._id,
+          "receipts"
+        )
+      )
+    );
+  }
+
+  return expenseClaim;
 };
 
-const updateRequestStatus = async (id, data) => {
-  return await ExpenseClaims.findByIdAndUpdate(id, data, { new: true });
-};
-
-// Delete a pdvance request
+// Delete a expense claim and its files
 const deleteExpenseClaim = async (id) => {
+  console.log(`Deleting expense claim ID:`, id);
+
+  const deletedFilesCount = fileService.deleteFilesByDocument(
+    "ExpenseClaims",
+    id
+  );
+
+  console.log(`Deleted ${deletedFilesCount} associated files.`);
+
   return await ExpenseClaims.findByIdAndDelete(id);
 };
 
 module.exports = {
-  createExpenseClaim,
   saveExpenseClaim,
   saveAndSendExpenseClaim,
-  getExpenseClaimStats,
   getExpenseClaims,
   getExpenseClaimById,
   updateExpenseClaim,
-  updateRequestStatus,
   deleteExpenseClaim,
+  getExpenseClaimStats,
 };

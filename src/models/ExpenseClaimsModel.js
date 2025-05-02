@@ -23,20 +23,21 @@ const expenseClaimsSchema = new mongoose.Schema(
       ref: "Project",
       default: null,
     },
-    budget: { type: Number, required: true },
+    // budget: { type: Number, required: true },
+    budget: { type: Number },
     amountInWords: { type: String, required: true },
     expenseReason: { type: String, required: true, trim: true },
     dayOfDeparture: { type: String, required: true, trim: true },
     dayOfReturn: { type: String, required: true, trim: true },
     expenses: {
       type: [itemGroupSchema],
-      required: true,
-      validate: {
-        validator: function (value) {
-          return Array.isArray(value) && value.length > 0;
-        },
-        message: "At least one expense item is required.",
-      },
+      // required: true,
+      // validate: {
+      //   validator: function (value) {
+      //     return Array.isArray(value) && value.length > 0;
+      //   },
+      //   message: "At least one expense item is required.",
+      // },
     },
 
     createdBy: {

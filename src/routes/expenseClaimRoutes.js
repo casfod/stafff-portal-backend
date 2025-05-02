@@ -10,6 +10,7 @@ const {
 } = require("../controllers/expenseClaimsController");
 const express = require("express");
 const protect = require("../middleware/protect");
+const { upload } = require("../controllers/fileController");
 
 const expenseClaimRouter = express.Router();
 
@@ -19,14 +20,24 @@ expenseClaimRouter.use(protect);
 // // Create a new advance request (supports both "save" and "save and send")
 // expenseClaimRouter.post("/", create);
 
-// Save a advance request (draft)
-expenseClaimRouter.post("/save", save);
-
+expenseClaimRouter.post(
+  "/save",
+  upload.fields([
+    { name: "files", maxCount: 10 },
+    { name: "expenseClaim" }, // Explicitly allowing these fields
+    { name: "expenses" },
+  ]),
+  save
+);
 // Save and send a advance request (pending)
-expenseClaimRouter.post("/save-and-send", saveAndSend);
+expenseClaimRouter.post(
+  "/save-and-send",
+  upload.array("files", 10),
+  saveAndSend
+);
 
 // Get all advance requests stats
-expenseClaimRouter.get("/stats", getStats);
+expenseClaimRouter.get("/stats", upload.array("files", 10), getStats);
 // Get all advance requests
 expenseClaimRouter.get("/", getAll);
 
@@ -37,7 +48,11 @@ expenseClaimRouter.get("/:id", getById);
 expenseClaimRouter.put("/:id", update);
 
 // Update advance request status
-expenseClaimRouter.patch("/update-status/:id", updateStatus);
+expenseClaimRouter.patch(
+  "/update-status/:id",
+  upload.array("files", 10),
+  updateStatus
+);
 
 // Delete a advance request
 expenseClaimRouter.delete("/:id", remove);
