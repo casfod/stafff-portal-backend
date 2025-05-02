@@ -47,7 +47,7 @@ const getTravelRequests = async (queryParams, currentUser) => {
   const sortQuery = buildSortQuery(sort);
 
   const populateOptions = [
-    // { path: "project", select: "project_code account_code" },
+    { path: "project", select: "project_code account_code" },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
@@ -118,7 +118,7 @@ const getTravelRequestStats = async (currentUser) => {
   // Role-based filtering using switch
   switch (currentUser.role) {
     case "SUPER-ADMIN":
-    case "ADMIN":
+      //  case "ADMIN":
       // No additional filters for admin roles
       break;
 

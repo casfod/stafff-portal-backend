@@ -9,6 +9,7 @@ const travelRequestRoutes = require("./routes/travelRequestRoutes.js");
 const expenseClaimRoutes = require("./routes/expenseClaimRoutes.js");
 const paymentRequestRoutes = require("./routes/paymentRequestRoutes.js");
 const conceptNoteRoutes = require("./routes/conceptNoteRoutes.js");
+const fileRoutes = require("./routes/fileRoutes2.js");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const swaggerDocument = require("../swagger.json");
@@ -47,6 +48,7 @@ app.use("/api/v1/casfod/travel-requests", travelRequestRoutes);
 app.use("/api/v1/casfod/expense-claims", expenseClaimRoutes);
 app.use("/api/v1/casfod/payment-requests", paymentRequestRoutes);
 app.use("/api/v1/casfod/concept-notes", conceptNoteRoutes);
+app.use("/api/v1/casfod/files", fileRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

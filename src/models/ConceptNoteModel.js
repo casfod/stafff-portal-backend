@@ -4,7 +4,16 @@ const conceptNoteSchema = new mongoose.Schema(
   {
     staff_name: { type: String, required: true, trim: true },
     staff_role: { type: String, required: true, trim: true },
-    project_code: { type: String, required: true, trim: true },
+    // project_code: { type: String, required: true, trim: true },
+
+    expense_Charged_To: { type: String, required: true, trim: true },
+    account_Code: { type: String, required: true, trim: true },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
+    },
+
     activity_title: { type: String, required: true, trim: true },
     activity_location: { type: String, required: true, trim: true },
     activity_period: {

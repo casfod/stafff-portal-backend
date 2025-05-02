@@ -124,7 +124,7 @@ const getAdvanceRequestStats = async (currentUser) => {
   // Role-based filtering using switch
   switch (currentUser.role) {
     case "SUPER-ADMIN":
-    case "ADMIN":
+      //  case "ADMIN":
       // No additional filters for admin roles
       break;
 

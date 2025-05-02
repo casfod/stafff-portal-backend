@@ -17,7 +17,7 @@ const getConceptNoteStats = async (currentUser) => {
   // Role-based filtering using switch
   switch (currentUser.role) {
     case "SUPER-ADMIN":
-    case "ADMIN":
+      //  case "ADMIN":
       // No additional filters for admin roles
       break;
 
@@ -91,6 +91,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   const sortQuery = buildSortQuery(sort);
 
   const populateOptions = [
+    { path: "project", select: "project_code account_code" },
     { path: "preparedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
