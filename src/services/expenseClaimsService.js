@@ -117,78 +117,13 @@ const createExpenseClaim = async (data, files = []) => {
 };
 
 // Save a ExpenseClaim (draft)
-// const saveExpenseClaim = async (data, currentUser, files = []) => {
-//   data.createdBy = currentUser._id;
-//   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
-//   data.comments = undefined;
-
-//   // console.log(files, "❌<=filesECS=>❌");
-//   const expenseClaim = new ExpenseClaims({ ...data, status: "draft" });
-//   await expenseClaim.save();
-
-//   console.log(files, "❌<=filesECS=>❌");
-//   // Handle file uploads
-//   if (files.files.length > 0) {
-//     const uploadedFiles = await Promise.all(
-//       files.files.map((file) => {
-//         console.log(file, "single file");
-
-//         fileService.uploadFile({
-//           buffer: file.buffer,
-//           originalname: file.originalname,
-//           mimetype: file.mimetype,
-//           size: file.size,
-//         });
-//       })
-//     );
-
-//     await Promise.all(
-//       uploadedFiles.map((file) =>
-//         fileService.associateFile(
-//           file.id,
-//           "ExpenseClaims",
-//           expenseClaim._id,
-//           "receipts"
-//         )
-//       )
-//     );
-//   }
-
-//   return expenseClaim;
-// };
-
-const saveExpenseClaim = async (data, currentUser, files = []) => {
+const saveExpenseClaim = async (data, currentUser) => {
   data.createdBy = currentUser._id;
   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
   data.comments = undefined;
 
   const expenseClaim = new ExpenseClaims({ ...data, status: "draft" });
   await expenseClaim.save();
-
-  // Handle file uploads
-  if (files.files?.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id, // Use _id instead of id if that's what MongoDB uses
-          "ExpenseClaims",
-          expenseClaim._id,
-          "receipts"
-        )
-      )
-    );
-  }
 
   return expenseClaim;
 };
@@ -208,7 +143,7 @@ const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
   // Handle file uploads
   if (files.length > 0) {
     const uploadedFiles = await Promise.all(
-      files.files.map((file) =>
+      files.map((file) =>
         fileService.uploadFile({
           buffer: file.buffer,
           originalname: file.originalname,
@@ -296,8 +231,6 @@ const updateExpenseClaim = async (id, data, files = []) => {
 
   // Handle new file uploads
   if (files.files?.length > 0) {
-    fileService.deleteFilesByDocument("ExpenseClaims", id);
-
     const uploadedFiles = await Promise.all(
       files.files.map((file) =>
         fileService.uploadFile({

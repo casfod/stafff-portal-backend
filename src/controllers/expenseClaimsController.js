@@ -13,6 +13,15 @@ const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
 
 const save = catchAsync(async (req, res) => {
+  const data = req.body;
+  const currentUser = await userByToken(req, res);
+
+  const expenseClaim = await saveExpenseClaim(data, currentUser);
+
+  handleResponse(res, 201, "Expense Claim saved successfully", expenseClaim);
+});
+
+const saveAndSend = catchAsync(async (req, res) => {
   if (req.body.expenseClaim) {
     req.body.expenseClaim = JSON.parse(req.body.expenseClaim);
   } else {
@@ -27,16 +36,7 @@ const save = catchAsync(async (req, res) => {
 
   const data = req.body;
   const files = req.files || [];
-  const currentUser = await userByToken(req, res);
 
-  const expenseClaim = await saveExpenseClaim(data, currentUser, files);
-
-  handleResponse(res, 201, "Expense Claim saved successfully", expenseClaim);
-});
-
-const saveAndSend = catchAsync(async (req, res) => {
-  const data = req.body;
-  const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
   const expenseClaim = await saveAndSendExpenseClaim(data, currentUser, files);

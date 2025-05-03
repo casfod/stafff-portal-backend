@@ -20,15 +20,7 @@ expenseClaimRouter.use(protect);
 // // Create a new advance request (supports both "save" and "save and send")
 // expenseClaimRouter.post("/", create);
 
-expenseClaimRouter.post(
-  "/save",
-  upload.fields([
-    { name: "files", maxCount: 10 },
-    { name: "expenseClaim" }, // Explicitly allowing these fields
-    { name: "expenses" },
-  ]),
-  save
-);
+expenseClaimRouter.post("/save", save);
 // Save and send a advance request (pending)
 expenseClaimRouter.post(
   "/save-and-send",
