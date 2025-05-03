@@ -29,7 +29,7 @@ expenseClaimRouter.post(
 );
 
 // Get all advance requests stats
-expenseClaimRouter.get("/stats", upload.array("files", 10), getStats);
+expenseClaimRouter.get("/stats", getStats);
 // Get all advance requests
 expenseClaimRouter.get("/", getAll);
 

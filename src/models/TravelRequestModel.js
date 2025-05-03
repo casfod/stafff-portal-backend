@@ -87,6 +87,6 @@ travelRequestSchema.set("toJSON", {
   },
 });
 
-const TravelRequest = mongoose.model("TravelRequest", travelRequestSchema);
+const TravelRequest = mongoose.model("TravelRequests", travelRequestSchema);
 
 module.exports = TravelRequest;

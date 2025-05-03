@@ -2,6 +2,7 @@ const TravelRequest = require("../models/TravelRequestModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const fileService = require("./fileService");
 
 // Get all travel requests
 const getTravelRequests = async (queryParams, currentUser) => {
@@ -68,8 +69,21 @@ const getTravelRequests = async (queryParams, currentUser) => {
     populateOptions // Pass the populate options
   );
 
+  const travelRequestsWithFiles = await Promise.all(
+    travelRequests.map(async (request) => {
+      const files = await fileService.getFilesByDocument(
+        "TravelRequests",
+        request._id
+      );
+      return {
+        ...request.toJSON(),
+        files,
+      };
+    })
+  );
+
   return {
-    travelRequests,
+    travelRequests: travelRequestsWithFiles,
     total,
     totalPages,
     currentPage,
@@ -93,7 +107,7 @@ const saveTravelRequest = async (data, currentUser) => {
 };
 
 // Save and send a Travel request (pending)
-const saveAndSendTravelRequest = async (data, currentUser) => {
+const saveAndSendTravelRequest = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.staffName = `${currentUser.first_name} ${currentUser.last_name}`;
 
@@ -101,7 +115,34 @@ const saveAndSendTravelRequest = async (data, currentUser) => {
     throw new Error("ReviewedBy field is required for submission.");
   }
   const travelRequest = new TravelRequest({ ...data, status: "pending" });
-  return await travelRequest.save();
+  await travelRequest.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id, // Use _id instead of id if that's what MongoDB uses
+          "TravelRequests",
+          travelRequest._id
+          // "receipts"
+        )
+      )
+    );
+  }
+
+  return travelRequest;
 };
 
 // Get Travel request stats

@@ -106,8 +106,8 @@ const createExpenseClaim = async (data, files = []) => {
         fileService.associateFile(
           file.id,
           "ExpenseClaims",
-          expenseClaim._id,
-          "receipts"
+          expenseClaim._id
+          // "receipts"
         )
       )
     );
