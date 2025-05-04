@@ -9,6 +9,7 @@ const {
 } = require("../services/advanceRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
+const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
 const save = catchAsync(async (req, res) => {
@@ -27,16 +28,12 @@ const save = catchAsync(async (req, res) => {
 
 // Save and send a advance request (pending)
 const saveAndSend = catchAsync(async (req, res) => {
-  if (req.body.periodOfActivity) {
-    req.body.periodOfActivity = JSON.parse(req.body.periodOfActivity);
-  } else {
-    console.log("Period Of Activity is missing from req.body!");
-  }
-  if (req.body.itemGroups) {
-    req.body.itemGroups = JSON.parse(req.body.itemGroups);
-  } else {
-    console.log("itemGroups is missing from req.body!");
-  }
+  req.body.periodOfActivity = parseJsonField(
+    req.body,
+    "periodOfActivity",
+    true
+  );
+  req.body.itemGroups = parseJsonField(req.body, "itemGroups", true);
 
   const data = req.body;
   const files = req.files || [];

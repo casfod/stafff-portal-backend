@@ -10,6 +10,7 @@ const {
 // const { upload } = require("../controllers/fileController");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
+const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
 const save = catchAsync(async (req, res) => {
@@ -22,17 +23,8 @@ const save = catchAsync(async (req, res) => {
 });
 
 const saveAndSend = catchAsync(async (req, res) => {
-  if (req.body.expenseClaim) {
-    req.body.expenseClaim = JSON.parse(req.body.expenseClaim);
-  } else {
-    console.log("expenseClaim is missing from req.body!");
-  }
-
-  if (req.body.expenses) {
-    req.body.expenses = JSON.parse(req.body.expenses);
-  } else {
-    console.log("expenses is missing from req.body!");
-  }
+  req.body.expenseClaim = parseJsonField(req.body, "expenseClaim", true);
+  req.body.expenses = parseJsonField(req.body, "expenses", true);
 
   const data = req.body;
   const files = req.files || [];

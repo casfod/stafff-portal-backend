@@ -10,6 +10,7 @@ const {
 } = require("../services/travelRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
+const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
 const save = catchAsync(async (req, res) => {
@@ -23,17 +24,8 @@ const save = catchAsync(async (req, res) => {
 
 // Save and send a travel request (pending)
 const saveAndSend = catchAsync(async (req, res) => {
-  if (req.body.travelRequest) {
-    req.body.travelRequest = JSON.parse(req.body.travelRequest);
-  } else {
-    console.log("Travel Request is missing from req.body!");
-  }
-
-  if (req.body.expenses) {
-    req.body.expenses = JSON.parse(req.body.expenses);
-  } else {
-    console.log("expenses is missing from req.body!");
-  }
+  req.body.travelRequest = parseJsonField(req.body, "travelRequest", true);
+  req.body.expenses = parseJsonField(req.body, "expenses", true);
 
   const data = req.body;
   const files = req.files || [];

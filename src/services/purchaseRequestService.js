@@ -214,6 +214,8 @@ const updateRequestStatus = async (id, data) => {
 
 // Delete a purchase request
 const deletePurchaseRequest = async (id) => {
+  await fileService.deleteFilesByDocument("PurchaseRequests", id);
+
   return await PurchaseRequest.findByIdAndDelete(id);
 };
 

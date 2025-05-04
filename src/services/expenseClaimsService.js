@@ -225,14 +225,7 @@ const updateExpenseClaim = async (id, data, files = []) => {
 
 // Delete a expense claim and its files
 const deleteExpenseClaim = async (id) => {
-  console.log(`Deleting expense claim ID:`, id);
-
-  const deletedFilesCount = fileService.deleteFilesByDocument(
-    "ExpenseClaims",
-    id
-  );
-
-  console.log(`Deleted ${deletedFilesCount} associated files.`);
+  await fileService.deleteFilesByDocument("ExpenseClaims", id);
 
   return await ExpenseClaims.findByIdAndDelete(id);
 };

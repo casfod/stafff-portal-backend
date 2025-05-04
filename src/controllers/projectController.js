@@ -2,10 +2,26 @@
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const projectService = require("../services/projectService");
+const parseJsonField = require("../utils/parseJsonField");
 
 // Create a new project
 const createProject = catchAsync(async (req, res) => {
-  const project = await projectService.createProject(req.body);
+  req.body.project_partners = parseJsonField(
+    req.body,
+    "project_partners",
+    true
+  );
+  req.body.implementation_period = parseJsonField(
+    req.body,
+    "implementation_period",
+    true
+  );
+  req.body.account_code = parseJsonField(req.body, "account_code", true);
+  req.body.sectors = parseJsonField(req.body, "sectors", true);
+
+  const files = req.files || [];
+
+  const project = await projectService.createProject(req.body, files);
   handleResponse(res, 201, "Project created successfully", project);
 });
 
@@ -36,7 +52,26 @@ const getProjectById = catchAsync(async (req, res) => {
 
 // Update a project by ID
 const updateProject = catchAsync(async (req, res) => {
-  const project = await projectService.updateProject(req.params.id, req.body);
+  req.body.project_partners = parseJsonField(
+    req.body,
+    "project_partners",
+    true
+  );
+  req.body.implementation_period = parseJsonField(
+    req.body,
+    "implementation_period",
+    true
+  );
+  req.body.account_code = parseJsonField(req.body, "account_code", true);
+  req.body.sectors = parseJsonField(req.body, "sectors", true);
+
+  const files = req.files || [];
+
+  const project = await projectService.updateProject(
+    req.params.id,
+    req.body,
+    files
+  );
   handleResponse(res, 200, "Project updated successfully", project);
 });
 

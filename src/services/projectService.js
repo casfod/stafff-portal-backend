@@ -3,6 +3,7 @@ const Project = require("../models/ProjectModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const fileService = require("./fileService");
 
 const getProjectsStats = async () => {
   // 1. Total number of requests
@@ -36,8 +37,22 @@ const getAllProjects = async (queryParams) => {
     currentPage,
   } = await paginate(Project, query, { page, limit }, sortQuery);
 
+  // Fetch associated files
+  const projectsWithFiles = await Promise.all(
+    projects.map(async (project) => {
+      const files = await fileService.getFilesByDocument(
+        "Projects",
+        project._id
+      );
+      return {
+        ...project.toJSON(),
+        files,
+      };
+    })
+  );
+
   return {
-    projects,
+    projects: projectsWithFiles,
     totalProjects: total,
     totalPages,
     currentPage,
@@ -45,9 +60,29 @@ const getAllProjects = async (queryParams) => {
 };
 
 // Other service methods remain the same
-const createProject = async (projectData) => {
+const createProject = async (projectData, files = []) => {
   const project = new Project(projectData);
   await project.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(file._id, "Projects", project._id)
+      )
+    );
+  }
   return project;
 };
 
@@ -59,7 +94,31 @@ const getProjectById = async (id) => {
   return project;
 };
 
-const updateProject = async (id, updateData) => {
+const updateProject = async (id, updateData, files = []) => {
+  if (files.length > 0) {
+    await fileService.deleteFilesByDocument("Projects", id);
+
+    // Handle file uploads
+    if (files.length > 0) {
+      const uploadedFiles = await Promise.all(
+        files.map((file) =>
+          fileService.uploadFile({
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+          })
+        )
+      );
+
+      await Promise.all(
+        uploadedFiles.map((file) =>
+          fileService.associateFile(file._id, "Projects", id)
+        )
+      );
+    }
+  }
+
   const project = await Project.findByIdAndUpdate(id, updateData, {
     new: true,
   });
@@ -70,6 +129,8 @@ const updateProject = async (id, updateData) => {
 };
 
 const deleteProject = async (id) => {
+  await fileService.deleteFilesByDocument("Projects", id);
+
   const project = await Project.findByIdAndDelete(id);
   if (!project) {
     throw new Error("Project not found");

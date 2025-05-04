@@ -186,6 +186,8 @@ const updateConceptNote = async (id, updateData) => {
 };
 
 const deleteConceptNote = async (id) => {
+  await fileService.deleteFilesByDocument("ConceptNotes", id);
+
   const conceptNote = await ConceptNote.findByIdAndDelete(id);
   if (!conceptNote) {
     throw new Error("Concept Note not found");

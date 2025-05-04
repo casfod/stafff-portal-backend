@@ -206,6 +206,8 @@ const updateRequestStatus = async (id, data) => {
 
 // Delete a pdvance request
 const deleteTravelRequest = async (id) => {
+  await fileService.deleteFilesByDocument("TravelRequests", id);
+
   return await TravelRequest.findByIdAndDelete(id);
 };
 

@@ -16,15 +16,8 @@ const projectSchema = new mongoose.Schema(
     account_code: [
       {
         name: { type: String, required: true, trim: true },
-        // code: { type: String, required: true },
       },
     ],
-    // account_code: [
-    //   {
-    //     name: { type: String, required: true },
-    //     code: { type: String, required: true },
-    //   },
-    // ],
     sectors: [
       {
         name: {
@@ -43,12 +36,7 @@ const projectSchema = new mongoose.Schema(
     ],
     project_locations: [{ type: String, trim: true }],
     target_beneficiaries: [{ type: String, trim: true }],
-    // target_beneficiaries: {
-    //   women: { type: Number, required: true },
-    //   girls: { type: Number, required: true },
-    //   boys: { type: Number, required: true },
-    //   men: { type: Number, required: true },
-    // },
+
     project_objectives: {
       type: String,
       required: true,

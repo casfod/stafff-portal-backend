@@ -1,6 +1,7 @@
 const conceptNoteService = require("../services/conceptNoteService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
+const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
 //Get stats
@@ -13,11 +14,7 @@ const getStats = catchAsync(async (req, res) => {
 
 // Create a new concept note
 const createConceptNote = catchAsync(async (req, res) => {
-  if (req.body.activity_period) {
-    req.body.activity_period = JSON.parse(req.body.activity_period);
-  } else {
-    console.log("activity_period is missing from req.body!");
-  }
+  req.body.activity_period = parseJsonField(req.body, "activity_period", true);
 
   // Get current user from token (moved to auth middleware)
   const currentUser = await userByToken(req, res); // Assuming user is attached to req by auth middleware

@@ -260,21 +260,10 @@ const updateRequestStatus = async (id, data, currentUser) => {
 
 // Delete a Payment request
 const deleteRequest = async (id) => {
+  await fileService.deleteFilesByDocument("PaymentRequests", id);
+
   return await PaymentRequest.findByIdAndDelete(id);
 };
-
-// /**
-//  * Submit a payment request (pending)
-//  */
-// const submitPaymentRequest = async (data, currentUser) => {
-//   data.requestedBy = currentUser._id;
-//   data.status = "pending";
-//   return await PaymentRequest.create(data);
-// };
-
-/**
- * Review a payment request
- */
 
 module.exports = {
   getPaymentRequests,
@@ -287,61 +276,3 @@ module.exports = {
   updateRequestStatus,
   deleteRequest,
 };
-
-/*
-
-const reviewPaymentRequest = async (id, currentUser, comment) => {
-  const update = {
-    reviewedBy: currentUser._id,
-    status: "reviewed",
-  };
-
-  if (comment) {
-    update.$push = {
-      comments: {
-        user: currentUser._id,
-        text: comment,
-      },
-    };
-  }
-
-  return await PaymentRequest.findByIdAndUpdate(id, update, { new: true });
-};
-
-
- const approvePaymentRequest = async (id, currentUser, comment) => {
-  const update = {
-    approvedBy: currentUser._id,
-    status: "approved",
-  };
-
-  if (comment) {
-    update.$push = {
-      comments: {
-        user: currentUser._id,
-        text: comment,
-      },
-    };
-  }
-
-  return await PaymentRequest.findByIdAndUpdate(id, update, { new: true });
-};
-
-
-const rejectPaymentRequest = async (id, currentUser, comment) => {
-  const update = {
-    status: "rejected",
-  };
-
-  if (comment) {
-    update.$push = {
-      comments: {
-        user: currentUser._id,
-        text: comment,
-      },
-    };
-  }
-
-  return await PaymentRequest.findByIdAndUpdate(id, update, { new: true });
-};
-*/
