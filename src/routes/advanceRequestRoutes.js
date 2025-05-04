@@ -10,6 +10,7 @@ const {
 } = require("../controllers/advanceRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
+const { upload } = require("../controllers/fileController");
 
 const advanceRequestRouter = express.Router();
 
@@ -23,7 +24,11 @@ advanceRequestRouter.use(protect);
 advanceRequestRouter.post("/save", save);
 
 // Save and send a advance request (pending)
-advanceRequestRouter.post("/save-and-send", saveAndSend);
+advanceRequestRouter.post(
+  "/save-and-send",
+  upload.array("files", 10),
+  saveAndSend
+);
 
 // Get all advance requests stats
 advanceRequestRouter.get("/stats", getStats);

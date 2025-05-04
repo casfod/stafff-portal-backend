@@ -18,7 +18,10 @@ const purchaseRequestSchema = new mongoose.Schema(
     address: { type: String, required: true, trim: true },
     finalDeliveryPoint: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
-    periodOfActivity: { type: String, required: true, trim: true },
+    periodOfActivity: {
+      from: { type: String, required: true, trim: true },
+      to: { type: String, required: true, trim: true },
+    },
     activityDescription: { type: String, default: "" },
     expenseChargedTo: { type: String, required: true, trim: true },
     accountCode: { type: String, required: true, trim: true },

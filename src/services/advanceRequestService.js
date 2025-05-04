@@ -2,6 +2,7 @@ const AdvanceRequest = require("../models/AdvanceRequestModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const fileService = require("./fileService");
 
 // Get all advance requests
 const getAdvanceRequests = async (queryParams, currentUser) => {
@@ -74,8 +75,22 @@ const getAdvanceRequests = async (queryParams, currentUser) => {
     populateOptions // Pass the populate options
   );
 
+  // Fetch associated files
+  const advanceRequestsWithFiles = await Promise.all(
+    advanceRequests.map(async (request) => {
+      const files = await fileService.getFilesByDocument(
+        "AdvanceRequests",
+        request._id
+      );
+      return {
+        ...request.toJSON(),
+        files,
+      };
+    })
+  );
+
   return {
-    advanceRequests,
+    advanceRequests: advanceRequestsWithFiles,
     total,
     totalPages,
     currentPage,
@@ -99,7 +114,7 @@ const saveAdvanceRequest = async (data, currentUser) => {
 };
 
 // Save and send a advance request (pending)
-const saveAndSendAdvanceRequest = async (data, currentUser) => {
+const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
 
@@ -107,7 +122,33 @@ const saveAndSendAdvanceRequest = async (data, currentUser) => {
     throw new Error("ReviewedBy field is required for submission.");
   }
   const advanceRequest = new AdvanceRequest({ ...data, status: "pending" });
-  return await advanceRequest.save();
+  await advanceRequest.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id,
+          "AdvanceRequests",
+          advanceRequest._id
+        )
+      )
+    );
+  }
+
+  return advanceRequest;
 };
 
 // Get advance request stats

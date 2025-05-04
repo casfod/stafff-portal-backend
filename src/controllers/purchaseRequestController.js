@@ -5,7 +5,6 @@ const {
   getPurchaseRequestById,
   updatePurchaseRequest,
   deletePurchaseRequest,
-  updateRequestStatus,
   getPurchaseRequestStats,
 } = require("../services/purchaseRequestService");
 const catchAsync = require("../utils/catchAsync");
@@ -28,11 +27,27 @@ const save = catchAsync(async (req, res) => {
 
 // Save and send a purchase request (pending)
 const saveAndSend = catchAsync(async (req, res) => {
+  if (req.body.periodOfActivity) {
+    req.body.periodOfActivity = JSON.parse(req.body.periodOfActivity);
+  } else {
+    console.log("Period Of Activity is missing from req.body!");
+  }
+  if (req.body.itemGroups) {
+    req.body.itemGroups = JSON.parse(req.body.itemGroups);
+  } else {
+    console.log("itemGroups is missing from req.body!");
+  }
+
   const data = req.body;
+  const files = req.files || [];
 
   const currentUser = await userByToken(req, res);
 
-  const purchaseRequest = await saveAndSendPurchaseRequest(data, currentUser);
+  const purchaseRequest = await saveAndSendPurchaseRequest(
+    data,
+    currentUser,
+    files
+  );
 
   handleResponse(
     res,

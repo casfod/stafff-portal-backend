@@ -3,6 +3,7 @@ const ConceptNote = require("../models/ConceptNoteModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const fileService = require("./fileService");
 
 const getConceptNoteStats = async (currentUser) => {
   if (!currentUser?._id) {
@@ -111,28 +112,57 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     populateOptions
   );
 
+  // Fetch associated files
+  const concepNotesWithFiles = await Promise.all(
+    conceptNotes.map(async (claim) => {
+      const files = await fileService.getFilesByDocument(
+        "ConceptNotes",
+        claim._id
+      );
+      return {
+        ...claim.toJSON(),
+        files,
+      };
+    })
+  );
+
   return {
-    conceptNotes,
+    conceptNotes: concepNotesWithFiles,
     totalConceptNote: total,
     totalPages,
     currentPage,
   };
 };
 
-const createConceptNote = async (conceptNoteData) => {
+const createConceptNote = async (conceptNoteData, files = []) => {
   const conceptNote = new ConceptNote({
     ...conceptNoteData,
     status: "pending",
   });
   await conceptNote.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(file._id, "ConceptNotes", conceptNote._id)
+      )
+    );
+  }
+
   return conceptNote;
 };
-
-// // Create a new Concept Note
-// const createPurchaseRequest = async (data) => {
-//   const purchaseRequest = new PurchaseRequest(data);
-//   return await purchaseRequest.save();
-// };
 
 // Save a Concept Note (draft)
 const saveConceptNote = async (conceptNoteData) => {
@@ -148,23 +178,12 @@ const getConceptNoteById = async (id) => {
 };
 
 const updateConceptNote = async (id, updateData) => {
-  // if (updateData.approvedBy) {
-  //   updateData = { ...updateData, status: "pending" };
-  // }
-
   const conceptNote = await ConceptNote.findByIdAndUpdate(id, updateData, {
     new: true,
   });
 
-  // if (!conceptNote) {
-  //   throw new Error("Concept Note not found");
-  // }
   return conceptNote;
 };
-
-// const updateRequestStatus = async (id, data) => {
-//   return await ConceptNote.findByIdAndUpdate(id, data, { new: true });
-// };
 
 const deleteConceptNote = async (id) => {
   const conceptNote = await ConceptNote.findByIdAndDelete(id);

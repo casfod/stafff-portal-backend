@@ -2,6 +2,7 @@
 const express = require("express");
 const conceptNoteController = require("../controllers/conceptNoteController.js");
 const protect = require("../middleware/protect.js");
+const { upload } = require("../controllers/fileController.js");
 
 const conceptNoteRouter = express.Router();
 
@@ -17,7 +18,11 @@ conceptNoteRouter.get("/", conceptNoteController.getAllConceptNotes);
 conceptNoteRouter.get("/:id", conceptNoteController.getConceptNoteById);
 
 // Create a new conceptNote
-conceptNoteRouter.post("/", conceptNoteController.createConceptNote);
+conceptNoteRouter.post(
+  "/",
+  upload.array("files", 10),
+  conceptNoteController.createConceptNote
+);
 
 // Save a new conceptNote
 conceptNoteRouter.post("/save", conceptNoteController.saveConceptNote);

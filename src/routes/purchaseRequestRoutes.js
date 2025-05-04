@@ -10,6 +10,7 @@ const {
 } = require("../controllers/purchaseRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
+const { upload } = require("../controllers/fileController");
 
 const purchaseRequestRouter = express.Router();
 
@@ -23,7 +24,11 @@ purchaseRequestRouter.use(protect);
 purchaseRequestRouter.post("/save", save);
 
 // Save and send a purchase request (pending)
-purchaseRequestRouter.post("/save-and-send", saveAndSend);
+purchaseRequestRouter.post(
+  "/save-and-send",
+  upload.array("files", 10),
+  saveAndSend
+);
 
 // Get all purchase requests stats
 purchaseRequestRouter.get("/stats", getStats);

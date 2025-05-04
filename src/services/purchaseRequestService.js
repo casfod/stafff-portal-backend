@@ -2,6 +2,7 @@ const PurchaseRequest = require("../models/PurchaseRequestModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const fileService = require("./fileService");
 
 // Get all purchase requests
 const getPurchaseRequests = async (queryParams, currentUser) => {
@@ -76,8 +77,22 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
     populateOptions // Pass the populate options
   );
 
+  // Fetch associated files
+  const purchaseRequestsWithFiles = await Promise.all(
+    purchaseRequests.map(async (request) => {
+      const files = await fileService.getFilesByDocument(
+        "PurchaseRequests",
+        request._id
+      );
+      return {
+        ...request.toJSON(),
+        files,
+      };
+    })
+  );
+
   return {
-    purchaseRequests,
+    purchaseRequests: purchaseRequestsWithFiles,
     total,
     totalPages,
     currentPage,
@@ -101,7 +116,7 @@ const savePurchaseRequest = async (data, currentUser) => {
 };
 
 // Save and send a purchase request (pending)
-const saveAndSendPurchaseRequest = async (data, currentUser) => {
+const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
 
@@ -109,7 +124,33 @@ const saveAndSendPurchaseRequest = async (data, currentUser) => {
     throw new Error("ReviewedBy field is required for submission.");
   }
   const purchaseRequest = new PurchaseRequest({ ...data, status: "pending" });
-  return await purchaseRequest.save();
+  await purchaseRequest.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id,
+          "PurchaseRequests",
+          purchaseRequest._id
+        )
+      )
+    );
+  }
+
+  return purchaseRequest;
 };
 
 // Get purchase request stats

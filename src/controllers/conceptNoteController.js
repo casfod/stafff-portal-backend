@@ -13,6 +13,12 @@ const getStats = catchAsync(async (req, res) => {
 
 // Create a new concept note
 const createConceptNote = catchAsync(async (req, res) => {
+  if (req.body.activity_period) {
+    req.body.activity_period = JSON.parse(req.body.activity_period);
+  } else {
+    console.log("activity_period is missing from req.body!");
+  }
+
   // Get current user from token (moved to auth middleware)
   const currentUser = await userByToken(req, res); // Assuming user is attached to req by auth middleware
 
@@ -24,9 +30,12 @@ const createConceptNote = catchAsync(async (req, res) => {
     preparedBy: currentUser.id,
   };
 
+  const files = req.files || [];
+
   // Create concept note
   const conceptNote = await conceptNoteService.createConceptNote(
-    conceptNoteData
+    conceptNoteData,
+    files
   );
 
   // Return response

@@ -60,7 +60,7 @@ const getExpenseClaims = async (queryParams, currentUser) => {
     populateOptions
   );
 
-  // Fetch associated files for each expense claim
+  // Fetch associated files
   const expenseClaimsWithFiles = await Promise.all(
     expenseClaims.map(async (claim) => {
       const files = await fileService.getFilesByDocument(
@@ -80,40 +80,6 @@ const getExpenseClaims = async (queryParams, currentUser) => {
     totalPages,
     currentPage,
   };
-};
-
-// Create a new ExpenseClaim with files
-const createExpenseClaim = async (data, files = []) => {
-  const expenseClaim = new ExpenseClaims(data);
-  await expenseClaim.save();
-
-  // Upload and associate files if provided
-  if (files.length > 0) {
-    const uploadPromises = files.map((file) =>
-      fileService.uploadFile({
-        buffer: file.buffer,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-      })
-    );
-
-    const uploadedFiles = await Promise.all(uploadPromises);
-
-    // Associate files with the expense claim
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file.id,
-          "ExpenseClaims",
-          expenseClaim._id
-          // "receipts"
-        )
-      )
-    );
-  }
-
-  return expenseClaim;
 };
 
 // Save a ExpenseClaim (draft)
