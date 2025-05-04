@@ -2,6 +2,7 @@ const PaymentRequest = require("../models/PaymentRequestModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const fileService = require("./fileService");
 
 // Get request stats
 const getPaymentRequestStats = async (currentUser) => {
@@ -112,7 +113,12 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   ];
 
   // Pagination
-  const { results, total, totalPages, currentPage } = await paginate(
+  const {
+    results: paymentRequests,
+    total,
+    totalPages,
+    currentPage,
+  } = await paginate(
     PaymentRequest,
     query,
     { page, limit },
@@ -120,8 +126,22 @@ const getPaymentRequests = async (queryParams, currentUser) => {
     populateOptions
   );
 
+  // Fetch associated files
+  const paymentRequestsWithFiles = await Promise.all(
+    paymentRequests.map(async (request) => {
+      const files = await fileService.getFilesByDocument(
+        "PaymentRequests",
+        request._id
+      );
+      return {
+        ...request.toJSON(),
+        files,
+      };
+    })
+  );
+
   return {
-    paymentRequests: results,
+    paymentRequests: paymentRequestsWithFiles,
     total,
     totalPages,
     currentPage,
@@ -147,7 +167,7 @@ const savePaymentRequest = async (data, currentUser) => {
 };
 
 // Save and send (pending)
-const saveAndSendPaymentRequest = async (data, currentUser) => {
+const saveAndSendPaymentRequest = async (data, currentUser, files = []) => {
   data.requestedBy = currentUser._id;
   data.requestBy = `${currentUser.first_name} ${currentUser.last_name}`;
 
@@ -155,7 +175,33 @@ const saveAndSendPaymentRequest = async (data, currentUser) => {
     throw new Error("ReviewedBy field is required for submission.");
   }
   const paymentRequest = new PaymentRequest({ ...data, status: "pending" });
-  return await paymentRequest.save();
+  await paymentRequest.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id,
+          "PaymentRequests",
+          paymentRequest._id
+        )
+      )
+    );
+  }
+
+  return paymentRequest;
 };
 
 // Get a single request by ID

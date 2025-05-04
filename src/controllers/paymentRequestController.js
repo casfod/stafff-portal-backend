@@ -29,8 +29,14 @@ const save = catchAsync(async (req, res) => {
 
 // Submit for review /
 const saveAndSend = catchAsync(async (req, res) => {
+  const files = req.files || [];
+
   const currentUser = await userByToken(req, res);
-  const paymentRequest = await saveAndSendPaymentRequest(req.body, currentUser);
+  const paymentRequest = await saveAndSendPaymentRequest(
+    req.body,
+    currentUser,
+    files
+  );
   handleResponse(
     res,
     201,

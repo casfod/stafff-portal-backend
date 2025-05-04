@@ -10,6 +10,7 @@ const {
 } = require("../controllers/paymentRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
+const { upload } = require("../controllers/fileController");
 
 const paymentRequestRouter = express.Router();
 
@@ -23,7 +24,11 @@ paymentRequestRouter.use(protect);
 paymentRequestRouter.post("/save", save);
 
 // Save and send a payment request (pending)
-paymentRequestRouter.post("/save-and-send", saveAndSend);
+paymentRequestRouter.post(
+  "/save-and-send",
+  upload.array("files", 10),
+  saveAndSend
+);
 
 // Get all payment requests stats
 paymentRequestRouter.get("/stats", getStats);
