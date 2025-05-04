@@ -22,17 +22,14 @@ const seedSuperUserService = catchAsync(async (req, res, next) => {
       password: "11111111",
       passwordConfirm: "11111111",
     });
-
-    console.log("Super admin created successfully");
   } else {
-    console.log("Super admin already exists");
+    // console.log("Super admin already exists");
   }
 });
 
 const addUserService = async (userData) => {
   const newUser = await User.create(userData);
-  // const url = `${userData.protocol}://${userData.host}/me`;
-  // await new Email(newUser, url).sendWelcome();
+
   return newUser;
 };
 

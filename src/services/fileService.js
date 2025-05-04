@@ -186,14 +186,11 @@ class FileService {
     // Proceed with file deletion
     const deletionPromises = associations.map(async (assoc) => {
       if (assoc.file) {
-        // console.log(`Deleting file from Cloudinary:`, assoc.file.cloudinaryId);
         await deleteFromCloudinary(assoc.file.cloudinaryId);
 
-        // console.log(`Deleting file record from database:`, assoc.file._id);
         await File.findByIdAndDelete(assoc.file._id);
       }
 
-      // console.log(`Deleting file association record:`, assoc._id);
       await FileAssociation.findByIdAndDelete(assoc._id);
     });
 
