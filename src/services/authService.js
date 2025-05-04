@@ -82,7 +82,6 @@ const protectRoute = async (token) => {
 };
 
 const sendResetEmail = async (user, resetToken, req) => {
-  console.log(user);
   const resetURL = `${process.env.BASE_URL}/reset-password/${resetToken}`;
 
   await sendMail({
@@ -93,7 +92,6 @@ const sendResetEmail = async (user, resetToken, req) => {
 
 const forgotPasswordService = async (email, req) => {
   const user = await User.findOne({ email });
-  console.log(email, user);
 
   if (!user) {
     throw new AppError(

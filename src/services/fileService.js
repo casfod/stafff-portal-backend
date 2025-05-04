@@ -178,25 +178,22 @@ class FileService {
       documentId,
     }).populate("file");
 
-    // Debugging: Check associations
-    console.log(`Files found for deletion:`, associations);
-
     if (!associations.length) {
-      console.log("⚠️ No associated files found for deletion.");
+      console.log("No associated files found for deletion.");
       return 0; // No files to delete
     }
 
     // Proceed with file deletion
     const deletionPromises = associations.map(async (assoc) => {
       if (assoc.file) {
-        console.log(`Deleting file from Cloudinary:`, assoc.file.cloudinaryId);
+        // console.log(`Deleting file from Cloudinary:`, assoc.file.cloudinaryId);
         await deleteFromCloudinary(assoc.file.cloudinaryId);
 
-        console.log(`Deleting file record from database:`, assoc.file._id);
+        // console.log(`Deleting file record from database:`, assoc.file._id);
         await File.findByIdAndDelete(assoc.file._id);
       }
 
-      console.log(`Deleting file association record:`, assoc._id);
+      // console.log(`Deleting file association record:`, assoc._id);
       await FileAssociation.findByIdAndDelete(assoc._id);
     });
 

@@ -71,11 +71,11 @@ const uploadToCloudinary = async (buffer, options = {}) => {
  * Delete a file from Cloudinary by its public ID
  */
 const deleteFromCloudinary = async (publicId) => {
-  console.log(`Attempting to delete from Cloudinary:`, publicId);
+  // console.log(`Attempting to delete from Cloudinary:`, publicId);
 
   try {
     const result = await cloudinary.uploader.destroy(publicId);
-    console.log(`Cloudinary deletion response:`, result);
+    // console.log(`Cloudinary deletion response:`, result);
     return result;
   } catch (error) {
     console.error(`❌ Cloudinary deletion failed:`, error);
