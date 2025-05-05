@@ -160,7 +160,7 @@ const getTravelRequestStats = async (currentUser) => {
   switch (currentUser.role) {
     case "SUPER-ADMIN":
       //  case "ADMIN":
-      // No additional filters for admin roles
+      // No additional filters for admin roless
       break;
 
     default:
