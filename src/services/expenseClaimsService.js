@@ -105,7 +105,6 @@ const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
 
   const expenseClaim = new ExpenseClaims({ ...data, status: "pending" });
   await expenseClaim.save();
-
   // Handle file uploads
   if (files.length > 0) {
     const uploadedFiles = await Promise.all(
@@ -124,8 +123,8 @@ const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
         fileService.associateFile(
           file._id, // Use _id instead of id if that's what MongoDB uses
           "ExpenseClaims",
-          expenseClaim._id,
-          "receipts"
+          expenseClaim._id
+          // "receipts"
         )
       )
     );
@@ -175,52 +174,18 @@ const getExpenseClaimStats = async (currentUser) => {
 
 // Get a single expense claim by ID with files
 const getExpenseClaimById = async (id) => {
-  const expenseClaim = await ExpenseClaims.findById(id).populate(
-    "createdBy",
-    "email"
-  );
-  if (!expenseClaim) return null;
-
-  const files = await fileService.getFilesByDocument("ExpenseClaims", id);
-  return {
-    ...expenseClaim.toJSON(),
-    files,
-  };
+  return await ExpenseClaims.findById(id).populate("createdBy", "email");
 };
 
 // Update a expense claim
-const updateExpenseClaim = async (id, data, files = []) => {
-  const expenseClaim = await ExpenseClaims.findByIdAndUpdate(id, data, {
+const updateExpenseClaim = async (id, data) => {
+  return await ExpenseClaims.findByIdAndUpdate(id, data, {
     new: true,
   });
-  if (!expenseClaim) return null;
+};
 
-  // Handle new file uploads
-  if (files.files?.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id, // Use _id instead of id if that's what MongoDB uses
-          "ExpenseClaims",
-          expenseClaim._id,
-          "receipts"
-        )
-      )
-    );
-  }
-
-  return expenseClaim;
+const updateRequestStatus = async (id, data) => {
+  return await TravelRequest.findByIdAndUpdate(id, data, { new: true });
 };
 
 // Delete a expense claim and its files
@@ -233,9 +198,10 @@ const deleteExpenseClaim = async (id) => {
 module.exports = {
   saveExpenseClaim,
   saveAndSendExpenseClaim,
+  getExpenseClaimStats,
   getExpenseClaims,
   getExpenseClaimById,
   updateExpenseClaim,
+  updateRequestStatus,
   deleteExpenseClaim,
-  getExpenseClaimStats,
 };

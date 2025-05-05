@@ -77,9 +77,8 @@ const getById = catchAsync(async (req, res) => {
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const files = req.files || [];
+  const expenseClaim = await updateExpenseClaim(id, data);
 
-  const expenseClaim = await updateExpenseClaim(id, data, files);
   if (!expenseClaim) {
     return handleResponse(res, 404, "Expense Claim not found");
   }

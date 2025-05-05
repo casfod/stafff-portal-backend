@@ -94,6 +94,7 @@ const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
   const travelRequest = await updateTravelRequest(id, data);
+
   if (!travelRequest) {
     return handleResponse(res, 404, "Travel request not found");
   }

@@ -195,7 +195,7 @@ const getTravelRequestById = async (id) => {
   return await TravelRequest.findById(id).populate("createdBy", "email");
 };
 
-// Update a pdvance request
+// Update a travel request
 const updateTravelRequest = async (id, data) => {
   return await TravelRequest.findByIdAndUpdate(id, data, { new: true });
 };
