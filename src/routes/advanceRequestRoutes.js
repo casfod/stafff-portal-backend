@@ -39,7 +39,7 @@ advanceRequestRouter.get("/", getAll);
 advanceRequestRouter.get("/:id", getById);
 
 // Update a advance request
-advanceRequestRouter.put("/:id", update);
+advanceRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 advanceRequestRouter.patch("/update-status/:id", updateStatus);

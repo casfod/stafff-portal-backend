@@ -104,9 +104,22 @@ const getById = catchAsync(async (req, res) => {
 
 // Update a advance request
 const update = catchAsync(async (req, res) => {
+  // if (req.body.periodOfActivity) {
+  //   req.body.periodOfActivity = parseJsonField(
+  //     req.body,
+  //     "periodOfActivity",
+  //     true
+  //   );
+  // }
+  // if (req.body.itemGroups) {
+  //   req.body.itemGroups = parseJsonField(req.body, "itemGroups", true);
+  // }
+
   const { id } = req.params;
   const data = req.body;
-  const advanceRequest = await updateAdvanceRequest(id, data);
+  const files = req.files || [];
+
+  const advanceRequest = await updateAdvanceRequest(id, data, files);
   if (!advanceRequest) {
     return handleResponse(res, 404, "Advance request not found");
   }

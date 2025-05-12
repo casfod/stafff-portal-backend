@@ -32,7 +32,11 @@ conceptNoteRouter.patch(
 );
 
 // Update a conceptNote by ID
-conceptNoteRouter.put("/:id", conceptNoteController.updateConceptNote);
+conceptNoteRouter.put(
+  "/:id",
+  upload.array("files", 10),
+  conceptNoteController.updateConceptNote
+);
 
 // Delete a conceptNote by ID
 conceptNoteRouter.delete("/:id", conceptNoteController.deleteConceptNote);

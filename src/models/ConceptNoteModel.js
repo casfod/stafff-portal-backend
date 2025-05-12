@@ -4,8 +4,6 @@ const conceptNoteSchema = new mongoose.Schema(
   {
     staff_name: { type: String, required: true, trim: true },
     staff_role: { type: String, required: true, trim: true },
-    // project_code: { type: String, required: true, trim: true },
-
     expense_Charged_To: { type: String, required: true, trim: true },
     account_Code: { type: String, required: true, trim: true },
     project: {
@@ -22,16 +20,8 @@ const conceptNoteSchema = new mongoose.Schema(
     },
     background_context: { type: String, required: true, trim: true },
     objectives_purpose: { type: String, required: true, trim: true },
-    // objectives_purpose: [{ type: String, required: true , trim: true, }],
     detailed_activity_description: { type: String, required: true, trim: true },
-    // detailed_activity_description: [
-    //   {
-    //     title: { type: String, required: true },
-    //     description: { type: String, required: true },
-    //   },
-    // ],
     strategic_plan: { type: String, required: true, trim: true },
-    // benefits_of_project: [{ type: String, required: true , trim: true, }],
     benefits_of_project: { type: String, required: true, trim: true },
     staff_role: { type: String, required: true, trim: true },
     preparedBy: {

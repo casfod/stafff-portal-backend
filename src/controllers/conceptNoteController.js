@@ -90,9 +90,11 @@ const getConceptNoteById = catchAsync(async (req, res) => {
 
 // Update concept note
 const updateConceptNote = catchAsync(async (req, res) => {
+  const files = req.files || [];
   const conceptNote = await conceptNoteService.updateConceptNote(
     req.params.id,
-    req.body
+    req.body,
+    files
   );
   handleResponse(res, 200, "Concept note updated successfully", conceptNote);
 });

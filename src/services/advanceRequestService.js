@@ -202,8 +202,38 @@ const getAdvanceRequestById = async (id) => {
 };
 
 // Update a pdvance request
-const updateAdvanceRequest = async (id, data) => {
-  return await AdvanceRequest.findByIdAndUpdate(id, data, { new: true });
+const updateAdvanceRequest = async (id, data, files = []) => {
+  const updatedAdvanceRequest = await AdvanceRequest.findByIdAndUpdate(
+    id,
+    data,
+    { new: true }
+  );
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id,
+          "AdvanceRequests",
+          updatedAdvanceRequest._id
+        )
+      )
+    );
+  }
+
+  return updatedAdvanceRequest;
 };
 
 const updateRequestStatus = async (id, data) => {

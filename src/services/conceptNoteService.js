@@ -177,10 +177,30 @@ const getConceptNoteById = async (id) => {
   return await ConceptNote.findById(id).populate("preparedBy", "email");
 };
 
-const updateConceptNote = async (id, updateData) => {
+const updateConceptNote = async (id, updateData, files = []) => {
   const conceptNote = await ConceptNote.findByIdAndUpdate(id, updateData, {
     new: true,
   });
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(file._id, "ConceptNotes", conceptNote._id)
+      )
+    );
+  }
 
   return conceptNote;
 };
