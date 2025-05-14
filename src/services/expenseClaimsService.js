@@ -178,14 +178,36 @@ const getExpenseClaimById = async (id) => {
 };
 
 // Update a expense claim
-const updateExpenseClaim = async (id, data) => {
-  return await ExpenseClaims.findByIdAndUpdate(id, data, {
+const updateExpenseClaim = async (id, data, files = []) => {
+  const expenseClaim = await ExpenseClaims.findByIdAndUpdate(id, data, {
     new: true,
   });
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(file._id, "ExpenseClaims", expenseClaim._id)
+      )
+    );
+  }
+
+  return expenseClaim;
 };
 
 const updateRequestStatus = async (id, data) => {
-  return await TravelRequest.findByIdAndUpdate(id, data, { new: true });
+  return await ExpenseClaims.findByIdAndUpdate(id, data, { new: true });
 };
 
 // Delete a expense claim and its files

@@ -204,8 +204,36 @@ const getPurchaseRequestById = async (id) => {
 };
 
 // Update a purchase request
-const updatePurchaseRequest = async (id, data) => {
-  return await PurchaseRequest.findByIdAndUpdate(id, data, { new: true });
+const updatePurchaseRequest = async (id, data, files = []) => {
+  const purchaseRequest = await PurchaseRequest.findByIdAndUpdate(id, data, {
+    new: true,
+  });
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id,
+          "PurchaseRequests",
+          purchaseRequest._id
+        )
+      )
+    );
+  }
+
+  return purchaseRequest;
 };
 
 const updateRequestStatus = async (id, data) => {

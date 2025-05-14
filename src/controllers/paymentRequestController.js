@@ -78,7 +78,9 @@ const getById = catchAsync(async (req, res) => {
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const paymentRequest = await updatePaymentRequest(id, data);
+  const files = req.files || [];
+
+  const paymentRequest = await updatePaymentRequest(id, data, files);
   if (!paymentRequest) {
     return handleResponse(res, 404, "Payment request not found");
   }

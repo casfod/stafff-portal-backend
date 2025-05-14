@@ -39,7 +39,7 @@ paymentRequestRouter.get("/", getAll);
 paymentRequestRouter.get("/:id", getById);
 
 // Update a payment request
-paymentRequestRouter.put("/:id", update);
+paymentRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update payment request status
 paymentRequestRouter.patch("/update-status/:id", updateStatus);

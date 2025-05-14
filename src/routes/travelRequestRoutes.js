@@ -39,7 +39,7 @@ travelRequestRouter.get("/", getAll);
 travelRequestRouter.get("/:id", getById);
 
 // Update a advance request
-travelRequestRouter.put("/:id", update);
+travelRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 travelRequestRouter.patch("/update-status/:id", updateStatus);

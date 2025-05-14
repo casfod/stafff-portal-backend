@@ -196,8 +196,31 @@ const getTravelRequestById = async (id) => {
 };
 
 // Update a travel request
-const updateTravelRequest = async (id, data) => {
-  return await TravelRequest.findByIdAndUpdate(id, data, { new: true });
+const updateTravelRequest = async (id, data, files = []) => {
+  const travelRequest = await TravelRequest.findByIdAndUpdate(id, data, {
+    new: true,
+  });
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(file._id, "TravelRequests", travelRequest._id)
+      )
+    );
+  }
+  return travelRequest;
 };
 
 const updateRequestStatus = async (id, data) => {

@@ -210,7 +210,7 @@ const getPaymentRequestById = async (id) => {
 };
 
 // Update a Payment request
-const updatePaymentRequest = async (id, data) => {
+const updatePaymentRequest = async (id, data, files = []) => {
   const request = await PaymentRequest.findById(id);
   if (!request) throw new Error("Payment request not found");
 
@@ -218,7 +218,33 @@ const updatePaymentRequest = async (id, data) => {
   Object.assign(request, data);
 
   // This will trigger the pre('save') middleware
-  return await request.save();
+  const updatedPaymentRequest = await request.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) =>
+        fileService.uploadFile({
+          buffer: file.buffer,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        })
+      )
+    );
+
+    await Promise.all(
+      uploadedFiles.map((file) =>
+        fileService.associateFile(
+          file._id,
+          "PaymentRequests",
+          updatedPaymentRequest._id
+        )
+      )
+    );
+  }
+
+  return updatedPaymentRequest;
 };
 
 const updateRequestStatus = async (id, data, currentUser) => {

@@ -93,7 +93,9 @@ const getById = catchAsync(async (req, res) => {
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const travelRequest = await updateTravelRequest(id, data);
+  const files = req.files || [];
+
+  const travelRequest = await updateTravelRequest(id, data, files);
 
   if (!travelRequest) {
     return handleResponse(res, 404, "Travel request not found");

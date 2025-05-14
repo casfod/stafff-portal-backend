@@ -37,7 +37,7 @@ expenseClaimRouter.get("/", getAll);
 expenseClaimRouter.get("/:id", getById);
 
 // Update a advance request
-expenseClaimRouter.put("/:id", update);
+expenseClaimRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 expenseClaimRouter.patch("/update-status/:id", updateStatus);

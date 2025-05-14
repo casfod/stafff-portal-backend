@@ -106,7 +106,9 @@ const getById = catchAsync(async (req, res) => {
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const purchaseRequest = await updatePurchaseRequest(id, data);
+  const files = req.files || [];
+
+  const purchaseRequest = await updatePurchaseRequest(id, data, files);
   if (!purchaseRequest) {
     return handleResponse(res, 404, "Purchase request not found");
   }

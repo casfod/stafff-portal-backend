@@ -39,7 +39,7 @@ purchaseRequestRouter.get("/", getAll);
 purchaseRequestRouter.get("/:id", getById);
 
 // Update a purchase request
-purchaseRequestRouter.put("/:id", update);
+purchaseRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update purchase request status
 purchaseRequestRouter.patch("/update-status/:id", updateStatus);
