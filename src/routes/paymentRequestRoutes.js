@@ -41,7 +41,7 @@ paymentRequestRouter.get("/:id", getById);
 // Update a payment request
 paymentRequestRouter.put("/:id", upload.array("files", 10), update);
 
-// Update payment request status
+// Update payment Request status
 paymentRequestRouter.patch("/update-status/:id", updateStatus);
 
 // Delete a payment request
