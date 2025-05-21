@@ -34,9 +34,15 @@ class FileService {
     const safeFilename = generateSafeFilename(originalname);
 
     // Upload to Cloudinary
+    // const cloudinaryResult = await uploadToCloudinary(buffer, {
+    //   folder,
+    //   resource_type: "auto",
+    //   public_id: safeFilename.split(".")[0],
+    // });
+
     const cloudinaryResult = await uploadToCloudinary(buffer, {
       folder,
-      resource_type: "auto",
+      resource_type: mimetype === "application/pdf" ? "raw" : "auto",
       public_id: safeFilename.split(".")[0],
     });
 
