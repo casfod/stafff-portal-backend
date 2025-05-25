@@ -1,7 +1,7 @@
 const {
   getAllUsersService,
   deleteUserService,
-  updateUserRoleService,
+  updateUserAdminService,
   getAllAdminService,
   getAllReviewersService,
 } = require("../services/userService");
@@ -39,9 +39,9 @@ const deleteUser = catchAsync(async (req, res) => {
   await deleteUserService(req.params.userID);
   handleResponse(res, 204, "User deleted successfully");
 });
-const updateRole = catchAsync(async (req, res) => {
-  await updateUserRoleService(req.params.userID, req.body);
-  handleResponse(res, 204, "User deleted successfully");
+const updateUserAdmin = catchAsync(async (req, res) => {
+  await updateUserAdminService(req.params.userID, req.body);
+  handleResponse(res, 204, "User updated successfully");
 });
 
 module.exports = {
@@ -50,5 +50,5 @@ module.exports = {
   getAllReviewers,
   getAllUsers,
   deleteUser,
-  updateRole,
+  updateUserAdmin,
 };

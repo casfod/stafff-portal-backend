@@ -22,9 +22,9 @@ router.delete(
   userController.deleteUser
 );
 router.patch(
-  "/updateUserRole/:userID",
+  "/updateUserAdmin/:userID",
   restrictTo("SUPER-ADMIN"),
-  userController.updateRole
+  userController.updateUserAdmin
 );
 
 router.get("/admins", userController.getAllAdmins);

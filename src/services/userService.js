@@ -67,7 +67,7 @@ const deleteUserService = async (id) => {
   const user = await User.findByIdAndUpdate(id, { isDeleted: true });
   return user;
 };
-const updateUserRoleService = async (id, role) => {
+const updateUserAdminService = async (id, role) => {
   const isUser = await User.findById(id);
 
   if (!isUser) {
@@ -83,5 +83,5 @@ module.exports = {
   getAllReviewersService,
   getAllUsersService,
   deleteUserService,
-  updateUserRoleService,
+  updateUserAdminService,
 };
