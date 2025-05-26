@@ -2,11 +2,11 @@ const mongoose = require("mongoose");
 
 const itemGroupSchema = new mongoose.Schema({
   expense: { type: String, required: true, trim: true },
-  frequency: { type: Number, required: true, trim: true },
-  quantity: { type: Number, required: true, trim: true },
+  frequency: { type: Number, required: true },
+  quantity: { type: Number, required: true },
   unit: { type: String, default: "" },
-  unitCost: { type: Number, required: true, trim: true },
-  total: { type: Number, required: true, trim: true },
+  unitCost: { type: Number, required: true },
+  total: { type: Number, required: true },
 });
 
 const travelRequestSchema = new mongoose.Schema(
@@ -72,6 +72,7 @@ const travelRequestSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   {
     timestamps: true,

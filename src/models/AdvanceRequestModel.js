@@ -3,11 +3,11 @@ const mongoose = require("mongoose");
 
 const itemGroupSchema = new mongoose.Schema({
   description: { type: String, required: true, trim: true },
-  frequency: { type: Number, required: true, trim: true },
-  quantity: { type: Number, required: true, trim: true },
+  frequency: { type: Number, required: true },
+  quantity: { type: Number, required: true },
   unit: { type: String, default: "" },
-  unitCost: { type: Number, required: true, trim: true },
-  total: { type: Number, required: true, trim: true },
+  unitCost: { type: Number, required: true },
+  total: { type: Number, required: true },
 });
 
 const advanceRequestSchema = new mongoose.Schema(
@@ -55,6 +55,7 @@ const advanceRequestSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     status: {
       type: String,
       enum: ["draft", "pending", "reviewed", "approved", "rejected"],

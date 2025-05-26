@@ -50,6 +50,7 @@ const conceptNoteSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     activity_budget: { type: Number, required: true },
     means_of_verification: { type: String, required: true, trim: true },
   },

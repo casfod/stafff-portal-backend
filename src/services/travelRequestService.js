@@ -3,6 +3,15 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(TravelRequest, "TravelRequest");
+  }
+}
+
+const TravelRequestCopyService = new copyService();
 
 // Get all travel requests
 const getTravelRequests = async (queryParams, currentUser) => {
@@ -235,6 +244,7 @@ const deleteTravelRequest = async (id) => {
 };
 
 module.exports = {
+  TravelRequestCopyService,
   createTravelRequest,
   saveTravelRequest,
   saveAndSendTravelRequest,

@@ -3,6 +3,15 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(PurchaseRequest, "PurchaseRequest");
+  }
+}
+
+const PurchaseRequestCopyService = new copyService();
 
 // Get all purchase requests
 const getPurchaseRequests = async (queryParams, currentUser) => {
@@ -248,6 +257,7 @@ const deletePurchaseRequest = async (id) => {
 };
 
 module.exports = {
+  PurchaseRequestCopyService,
   createPurchaseRequest,
   savePurchaseRequest,
   saveAndSendPurchaseRequest,

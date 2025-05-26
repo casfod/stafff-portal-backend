@@ -31,6 +31,7 @@ const createConceptNote = catchAsync(async (req, res) => {
 
   // Create concept note
   const conceptNote = await conceptNoteService.createConceptNote(
+    currentUser,
     conceptNoteData,
     files
   );

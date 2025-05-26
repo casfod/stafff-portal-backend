@@ -12,6 +12,25 @@ const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { recipients } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  const updatedRequest = await AdvanceRequestCopyService.copyDocument(
+    id,
+    currentUser._id,
+    recipients
+  );
+
+  handleResponse(
+    res,
+    200,
+    "Advance request copied successfully",
+    updatedRequest
+  );
+});
+
 const save = catchAsync(async (req, res) => {
   const data = req.body;
   const currentUser = await userByToken(req, res);
@@ -104,22 +123,17 @@ const getById = catchAsync(async (req, res) => {
 
 // Update a advance request
 const update = catchAsync(async (req, res) => {
-  // if (req.body.periodOfActivity) {
-  //   req.body.periodOfActivity = parseJsonField(
-  //     req.body,
-  //     "periodOfActivity",
-  //     true
-  //   );
-  // }
-  // if (req.body.itemGroups) {
-  //   req.body.itemGroups = parseJsonField(req.body, "itemGroups", true);
-  // }
-
+  const currentUser = await userByToken(req, res);
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
 
-  const advanceRequest = await updateAdvanceRequest(id, data, files);
+  const advanceRequest = await updateAdvanceRequest(
+    id,
+    data,
+    files,
+    currentUser
+  );
   if (!advanceRequest) {
     return handleResponse(res, 404, "Advance request not found");
   }
@@ -199,6 +213,7 @@ const remove = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   save,
   saveAndSend,
   getAll,

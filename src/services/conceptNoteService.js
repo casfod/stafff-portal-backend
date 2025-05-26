@@ -4,6 +4,16 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
+const notificationService = require("./notificationService");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(ConceptNote, "ConceptNote");
+  }
+}
+
+const ConceptNoteCopyService = new copyService();
 
 const getConceptNoteStats = async (currentUser) => {
   if (!currentUser?._id) {
@@ -134,7 +144,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   };
 };
 
-const createConceptNote = async (conceptNoteData, files = []) => {
+const createConceptNote = async (currentUser, conceptNoteData, files = []) => {
   const conceptNote = new ConceptNote({
     ...conceptNoteData,
     status: "pending",
@@ -159,6 +169,20 @@ const createConceptNote = async (conceptNoteData, files = []) => {
         fileService.associateFile(file._id, "ConceptNotes", conceptNote._id)
       )
     );
+  }
+
+  // Send notification to reviewers/admins if needed
+  if (conceptNote.status === "pending") {
+    const recipients = [conceptNote.approvedBy].filter(Boolean);
+    if (recipients.length) {
+      await notificationService.sendRequestNotification(
+        currentUser,
+        conceptNote.toObject(),
+        recipients,
+        "Concept Note",
+        "conceptNote" // This matches the key in requestTypePaths
+      );
+    }
   }
 
   return conceptNote;
@@ -253,6 +277,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
 };
 
 module.exports = {
+  ConceptNoteCopyService,
   saveConceptNote,
   createConceptNote,
   getConceptNoteStats,

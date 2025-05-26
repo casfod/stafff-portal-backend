@@ -3,6 +3,16 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
+const NotificationService = require("./notificationService");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(AdvanceRequest, "AdvanceRequest");
+  }
+}
+
+const AdvanceRequestCopyService = new copyService();
 
 // Get all advance requests
 const getAdvanceRequests = async (queryParams, currentUser) => {
@@ -22,43 +32,56 @@ const getAdvanceRequests = async (queryParams, currentUser) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
+  // Common conditions for all users
+  const commonConditions = [
+    { createdBy: currentUser._id }, // Always see own requests
+    { copiedTo: currentUser._id }, // Always see requests copied to you
+  ];
+
+  // Role-specific conditions
+  let roleSpecificConditions = [];
+
   switch (currentUser.role) {
     case "STAFF":
-      query.createdBy = currentUser._id; // STAFF can only see their own requests
+      // Staff only get common conditions (no additional access)
       break;
 
     case "ADMIN":
-      query.$or = [
-        { createdBy: currentUser._id }, // Requests they created
-        { approvedBy: currentUser._id }, // Requests they reviewed
-      ];
+      roleSpecificConditions.push({ approvedBy: currentUser._id });
       break;
+
     case "REVIEWER":
-      query.$or = [
-        { createdBy: currentUser._id }, // Requests they created
-        { reviewedBy: currentUser._id }, // Requests they reviewed
-      ];
+      roleSpecificConditions.push({ reviewedBy: currentUser._id });
       break;
 
     case "SUPER-ADMIN":
-      query.$or = [
-        { status: { $ne: "draft" } }, // All requests except drafts
-        { createdBy: currentUser._id, status: "draft" }, // Their own drafts
-      ];
+      roleSpecificConditions.push(
+        { status: { $ne: "draft" } }, // All non-draft requests
+        {
+          $and: [
+            { createdBy: currentUser._id },
+            { status: "draft" }, // Only their own drafts
+          ],
+        }
+      );
       break;
 
     default:
       throw new Error("Invalid user role");
   }
 
+  // Combine all conditions
+  query.$or = [...commonConditions, ...roleSpecificConditions];
+
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
+
   const populateOptions = [
-    // { path: "project", select: "project_code account_code" },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   // Filters, sorting, pagination, and populate
@@ -72,7 +95,7 @@ const getAdvanceRequests = async (queryParams, currentUser) => {
     query,
     { page, limit },
     sortQuery,
-    populateOptions // Pass the populate options
+    populateOptions
   );
 
   // Fetch associated files
@@ -96,7 +119,6 @@ const getAdvanceRequests = async (queryParams, currentUser) => {
     currentPage,
   };
 };
-
 // Create a new advance request
 const createAdvanceRequest = async (data) => {
   const advanceRequest = new AdvanceRequest(data);
@@ -148,6 +170,18 @@ const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
     );
   }
 
+  // Send notification to reviewers/admins if needed
+  if (advanceRequest.status === "pending") {
+    const recipients = [advanceRequest.reviewedBy].filter(Boolean);
+    if (recipients.length) {
+      await NotificationService.sendRequestNotification(
+        currentUser,
+        advanceRequest.toObject(),
+        recipients,
+        "Advance Request"
+      );
+    }
+  }
   return advanceRequest;
 };
 
@@ -202,7 +236,7 @@ const getAdvanceRequestById = async (id) => {
 };
 
 // Update a pdvance request
-const updateAdvanceRequest = async (id, data, files = []) => {
+const updateAdvanceRequest = async (id, data, files = [], currentUser) => {
   const updatedAdvanceRequest = await AdvanceRequest.findByIdAndUpdate(
     id,
     data,
@@ -233,6 +267,19 @@ const updateAdvanceRequest = async (id, data, files = []) => {
     );
   }
 
+  // Send notification to reviewers/admins if needed
+  if (updatedAdvanceRequest.status === "reviewed") {
+    const recipients = [updatedAdvanceRequest.approvedBy].filter(Boolean);
+    if (recipients.length) {
+      await NotificationService.sendRequestNotification(
+        currentUser,
+        updatedAdvanceRequest.toObject(),
+        recipients,
+        "Advance Request"
+      );
+    }
+  }
+
   return updatedAdvanceRequest;
 };
 
@@ -248,6 +295,7 @@ const deleteAdvanceRequest = async (id) => {
 };
 
 module.exports = {
+  AdvanceRequestCopyService,
   createAdvanceRequest,
   saveAdvanceRequest,
   saveAndSendAdvanceRequest,

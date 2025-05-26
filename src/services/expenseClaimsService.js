@@ -3,6 +3,15 @@ const fileService = require("../services/fileService");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(ExpenseClaims, "ExpenseClaims");
+  }
+}
+
+const ExpenseClaimCopyService = new copyService();
 
 // Get all ExpenseClaims
 const getExpenseClaims = async (queryParams, currentUser) => {
@@ -218,6 +227,7 @@ const deleteExpenseClaim = async (id) => {
 };
 
 module.exports = {
+  ExpenseClaimCopyService,
   saveExpenseClaim,
   saveAndSendExpenseClaim,
   getExpenseClaimStats,

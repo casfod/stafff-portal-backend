@@ -7,6 +7,7 @@ const {
   remove,
   updateStatus,
   getStats,
+  copyRequest,
 } = require("../controllers/advanceRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -43,6 +44,7 @@ advanceRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 advanceRequestRouter.patch("/update-status/:id", updateStatus);
+advanceRequestRouter.patch("/copy/:id", copyRequest);
 
 // Delete a advance request
 advanceRequestRouter.delete("/:id", remove);

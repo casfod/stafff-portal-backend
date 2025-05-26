@@ -55,6 +55,7 @@ const paymentRequestSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     status: {
       type: String,
       enum: ["draft", "pending", "reviewed", "approved", "rejected"],

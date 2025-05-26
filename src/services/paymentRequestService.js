@@ -3,6 +3,15 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(PaymentRequest, "PaymentRequest");
+  }
+}
+
+const PaymentRequestCopyService = new copyService();
 
 // Get request stats
 const getPaymentRequestStats = async (currentUser) => {
@@ -292,6 +301,7 @@ const deleteRequest = async (id) => {
 };
 
 module.exports = {
+  PaymentRequestCopyService,
   getPaymentRequests,
   createPaymentRequest,
   savePaymentRequest,
