@@ -2,6 +2,7 @@ const ExpenseClaims = require("../models/ExpenseClaimsModel");
 const fileService = require("../services/fileService");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
+const handleFileUploads = require("../utils/FileUploads");
 const paginate = require("../utils/paginate");
 const BaseCopyService = require("./BaseCopyService");
 
@@ -114,29 +115,14 @@ const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
 
   const expenseClaim = new ExpenseClaims({ ...data, status: "pending" });
   await expenseClaim.save();
-  // Handle file uploads
-  if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
 
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id, // Use _id instead of id if that's what MongoDB uses
-          "ExpenseClaims",
-          expenseClaim._id
-          // "receipts"
-        )
-      )
-    );
+  // Handle file uploads if any
+  if (files.length > 0) {
+    await handleFileUploads({
+      files,
+      requestId: expenseClaim._id,
+      modelTable: "ExpenseClaims",
+    });
   }
 
   return expenseClaim;
@@ -192,24 +178,13 @@ const updateExpenseClaim = async (id, data, files = []) => {
     new: true,
   });
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(file._id, "ExpenseClaims", expenseClaim._id)
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: expenseClaim._id,
+      modelTable: "ExpenseClaims",
+    });
   }
 
   return expenseClaim;

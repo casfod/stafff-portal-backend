@@ -5,6 +5,7 @@ const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const NotificationService = require("./notificationService");
 const BaseCopyService = require("./BaseCopyService");
+const handleFileUploads = require("../utils/FileUploads");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -146,40 +147,25 @@ const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
   const advanceRequest = new AdvanceRequest({ ...data, status: "pending" });
   await advanceRequest.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id,
-          "AdvanceRequests",
-          advanceRequest._id
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: advanceRequest._id,
+      modelTable: "AdvanceRequests",
+    });
   }
 
   // Send notification to reviewers/admins if needed
   if (advanceRequest.status === "pending") {
     const recipients = [advanceRequest.reviewedBy].filter(Boolean);
     if (recipients.length) {
-      await NotificationService.sendRequestNotification(
+      await NotificationService.sendRequestNotification({
         currentUser,
-        advanceRequest.toObject(),
-        recipients,
-        "Advance Request"
-      );
+        requestData: advanceRequest.toObject(),
+        recipientIds: recipients,
+        requestType: "advanceRequest",
+      });
     }
   }
   return advanceRequest;
@@ -243,48 +229,93 @@ const updateAdvanceRequest = async (id, data, files = [], currentUser) => {
     { new: true }
   );
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id,
-          "AdvanceRequests",
-          updatedAdvanceRequest._id
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: updatedAdvanceRequest._id,
+      modelTable: "AdvanceRequests",
+    });
   }
 
   // Send notification to reviewers/admins if needed
   if (updatedAdvanceRequest.status === "reviewed") {
     const recipients = [updatedAdvanceRequest.approvedBy].filter(Boolean);
     if (recipients.length) {
-      await NotificationService.sendRequestNotification(
+      await NotificationService.sendRequestNotification({
         currentUser,
-        updatedAdvanceRequest.toObject(),
-        recipients,
-        "Advance Request"
-      );
+        requestData: updatedAdvanceRequest.toObject(),
+        recipientIds: recipients,
+        requestType: "advanceRequest",
+      });
     }
   }
 
   return updatedAdvanceRequest;
 };
 
-const updateRequestStatus = async (id, data) => {
-  return await AdvanceRequest.findByIdAndUpdate(id, data, { new: true });
+// const updateRequestStatus = async (id, data) => {
+//   const updatedAdvanceRequest = await AdvanceRequest.findByIdAndUpdate(
+//     id,
+//     data,
+//     { new: true }
+//   );
+
+//   return updatedAdvanceRequest;
+// };
+
+const updateStatusNotification = async (requestData, currentUser) => {
+  // Send notification to reviewers/admins if needed
+  if (requestData.status !== "pending") {
+    const recipients = [requestData.createdBy].filter(Boolean);
+    if (recipients.length) {
+      await NotificationService.sendRequestNotification(
+        currentUser,
+        requestData.toObject(),
+        recipients,
+        "Advance Request"
+      );
+    }
+  }
+};
+
+const updateRequestStatus = async (id, data, currentUser) => {
+  // Fetch the existing advance request
+  const existingRequest = await AdvanceRequest.findById(id);
+
+  if (!existingRequest) {
+    throw new Error("Request not found");
+  }
+
+  // Add a new comment if it exists in the request body
+  if (data.comment) {
+    // Initialize comments as an empty array if it doesn't exist
+    if (!existingRequest.comments) {
+      existingRequest.comments = [];
+    }
+
+    // Add the new comment to the top of the comments array
+    existingRequest.comments.unshift({
+      user: currentUser.id,
+      text: data.comment,
+    });
+
+    // Update the data object to include the modified comments
+    data.comments = existingRequest.comments;
+  }
+
+  // Update the status and other fields
+  if (data.status) {
+    existingRequest.status = data.status;
+  }
+
+  // Save and return the updated  request
+  const updatedRequest = await existingRequest.save();
+
+  // Notification
+  updateStatusNotification(updatedRequest, currentUser);
+
+  return updatedRequest;
 };
 
 // Delete a pdvance request
@@ -295,6 +326,7 @@ const deleteAdvanceRequest = async (id) => {
 };
 
 module.exports = {
+  updateStatusNotification,
   AdvanceRequestCopyService,
   createAdvanceRequest,
   saveAdvanceRequest,

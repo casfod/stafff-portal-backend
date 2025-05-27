@@ -36,22 +36,24 @@ class NotificationService {
     }
   }
 
-  async sendRequestNotification(
+  async sendRequestNotification({
     currentUser,
     requestData,
     recipientIds,
     title,
-    requestType
-  ) {
+    requestType,
+  }) {
     try {
-      // Get recipient emails
       const recipients = await User.find({
         _id: { $in: recipientIds },
-      }).select("email first_name");
+      }).select("email first_name last_name");
 
       if (!recipients.length) return;
 
-      const subject = `New Request: ${title || "N/A"}`;
+      const subject =
+        requestData.status === "pending"
+          ? `New Request: ${title || "N/A"}`
+          : `Request Update: ${title || "N/A"}`;
 
       // Map request types to their URL paths
       const requestTypePaths = {
@@ -65,12 +67,25 @@ class NotificationService {
 
       const requestUrl = `${process.env.BASE_URL}/${requestTypePaths[requestType]}/${requestData._id}`;
 
+      // Improved creator check - verify if current user is the creator
+      const creatorId = requestData.preparedBy || requestData.createdBy;
+      const isCreator =
+        creatorId &&
+        recipientIds.includes(creatorId) &&
+        creatorId.toString() === currentUser.id.toString();
+
+      const header = isCreator
+        ? `Your request has been updated`
+        : `You have been assigned a request`;
+
       const htmlTemplate = `
         <div style="font-family: Arial, sans-serif; background-color: #fff; color: #333; padding: 20px; text-align: center; border-radius: 8px;">
           <h1 style="color: #1373B0;">New Request Notification</h1>
-          <p style="color: #222;">You have been assigned to review a new request:</p>
+          <p style="color: #222;">${header}:</p>
           <p style="font-weight: bold;">${title || "N/A"}</p>
-          <p>By: ${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</p>
+          <p>${
+            requestData.status === "pending" ? "By" : "Updated By"
+          }: ${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</p>
           <p>Staff Mail: ${currentUser.email}</p>
           <p>Status: ${requestData.status.toUpperCase()}</p>
           <a href="${requestUrl}" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #1373B0; color: #FFFFFF; text-decoration: none; font-size: 16px; border-radius: 5px;">View Request</a>
@@ -78,7 +93,6 @@ class NotificationService {
         </div>
       `;
 
-      // Send to all recipients
       await Promise.all(
         recipients.map((recipient) =>
           this.sendMail({

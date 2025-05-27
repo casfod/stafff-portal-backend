@@ -2,6 +2,7 @@
 const Project = require("../models/ProjectModel");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
+const handleFileUploads = require("../utils/FileUploads");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 
@@ -64,25 +65,15 @@ const createProject = async (projectData, files = []) => {
   const project = new Project(projectData);
   await project.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(file._id, "Projects", project._id)
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: project._id,
+      modelTable: "Projects",
+    });
   }
+
   return project;
 };
 
@@ -98,26 +89,13 @@ const updateProject = async (id, updateData, files = []) => {
   if (files.length > 0) {
     await fileService.deleteFilesByDocument("Projects", id);
 
-    // Handle file uploads
-    if (files.length > 0) {
-      const uploadedFiles = await Promise.all(
-        files.map((file) =>
-          fileService.uploadFile({
-            buffer: file.buffer,
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-          })
-        )
-      );
-
-      await Promise.all(
-        uploadedFiles.map((file) =>
-          fileService.associateFile(file._id, "Projects", id)
-        )
-      );
-    }
+    await handleFileUploads({
+      files,
+      requestId: id,
+      modelTable: "Projects",
+    });
   }
+  // Handle file uploads if any
 
   const project = await Project.findByIdAndUpdate(id, updateData, {
     new: true,

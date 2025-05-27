@@ -4,6 +4,7 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
+const handleFileUploads = require("../utils/FileUploads");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -186,28 +187,13 @@ const saveAndSendPaymentRequest = async (data, currentUser, files = []) => {
   const paymentRequest = new PaymentRequest({ ...data, status: "pending" });
   await paymentRequest.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id,
-          "PaymentRequests",
-          paymentRequest._id
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: paymentRequest._id,
+      modelTable: "PaymentRequests",
+    });
   }
 
   return paymentRequest;
@@ -229,28 +215,13 @@ const updatePaymentRequest = async (id, data, files = []) => {
   // This will trigger the pre('save') middleware
   const updatedPaymentRequest = await request.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id,
-          "PaymentRequests",
-          updatedPaymentRequest._id
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: updatedPaymentRequest._id,
+      modelTable: "PaymentRequests",
+    });
   }
 
   return updatedPaymentRequest;

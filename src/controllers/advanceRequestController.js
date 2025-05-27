@@ -146,15 +146,61 @@ const update = catchAsync(async (req, res) => {
   );
 });
 
+// const updateStatus = catchAsync(async (req, res) => {
+//   const { id } = req.params;
+//   const data = req.body;
+
+//   // Fetch the existing advance request
+//   const existingAdvanceRequest = await getAdvanceRequestById(id);
+//   if (!existingAdvanceRequest) {
+//     return handleResponse(res, 404, "Advance request not found");
+//   }
+
+//   // Fetch the current user
+//   const currentUser = await userByToken(req, res);
+//   if (!currentUser) {
+//     return handleResponse(res, 401, "Unauthorized");
+//   }
+
+//   // Add a new comment if it exists in the request body
+//   if (data.comment) {
+//     // Initialize comments as an empty array if it doesn't exist
+//     if (!existingAdvanceRequest.comments) {
+//       existingAdvanceRequest.comments = [];
+//     }
+
+//     // Add the new comment to the top of the comments array
+//     existingAdvanceRequest.comments.unshift({
+//       user: currentUser.id, // Add the current user's ID
+//       text: data.comment, // Add the comment text (using the new `text` field)
+//     });
+
+//     // Update the data object to include the modified comments
+//     data.comments = existingAdvanceRequest.comments;
+//   }
+
+//   // Update the status and other fields
+//   if (data.status) {
+//     existingAdvanceRequest.status = data.status;
+//   }
+
+//   // Save the updated advance request
+//   const updatedAdvanceRequest = await existingAdvanceRequest.save();
+
+//   updateStatusNotification(updatedAdvanceRequest, currentUser);
+
+//   // Send success response
+//   handleResponse(
+//     res,
+//     200,
+//     "Advance request status updated",
+//     updatedAdvanceRequest
+//   );
+// });
+
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-
-  // Fetch the existing advance request
-  const existingAdvanceRequest = await getAdvanceRequestById(id);
-  if (!existingAdvanceRequest) {
-    return handleResponse(res, 404, "Advance request not found");
-  }
 
   // Fetch the current user
   const currentUser = await userByToken(req, res);
@@ -162,32 +208,12 @@ const updateStatus = catchAsync(async (req, res) => {
     return handleResponse(res, 401, "Unauthorized");
   }
 
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingAdvanceRequest.comments) {
-      existingAdvanceRequest.comments = [];
-    }
+  const updatedAdvanceRequest = await updateRequestStatus(
+    id,
+    data,
+    currentUser
+  );
 
-    // Add the new comment to the top of the comments array
-    existingAdvanceRequest.comments.unshift({
-      user: currentUser.id, // Add the current user's ID
-      text: data.comment, // Add the comment text (using the new `text` field)
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingAdvanceRequest.comments;
-  }
-
-  // Update the status and other fields
-  if (data.status) {
-    existingAdvanceRequest.status = data.status;
-  }
-
-  // Save the updated advance request
-  const updatedAdvanceRequest = await existingAdvanceRequest.save();
-
-  // Send success response
   handleResponse(
     res,
     200,

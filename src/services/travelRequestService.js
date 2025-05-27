@@ -4,6 +4,7 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
+const handleFileUploads = require("../utils/FileUploads");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -126,29 +127,13 @@ const saveAndSendTravelRequest = async (data, currentUser, files = []) => {
   const travelRequest = new TravelRequest({ ...data, status: "pending" });
   await travelRequest.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id, // Use _id instead of id if that's what MongoDB uses
-          "TravelRequests",
-          travelRequest._id
-          // "receipts"
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: travelRequest._id,
+      modelTable: "TravelRequests",
+    });
   }
 
   return travelRequest;
@@ -210,25 +195,15 @@ const updateTravelRequest = async (id, data, files = []) => {
     new: true,
   });
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(file._id, "TravelRequests", travelRequest._id)
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: travelRequest._id,
+      modelTable: "TravelRequests",
+    });
   }
+
   return travelRequest;
 };
 

@@ -4,6 +4,7 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
+const handleFileUploads = require("../utils/FileUploads");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -135,28 +136,13 @@ const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
   const purchaseRequest = new PurchaseRequest({ ...data, status: "pending" });
   await purchaseRequest.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id,
-          "PurchaseRequests",
-          purchaseRequest._id
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: purchaseRequest._id,
+      modelTable: "PurchaseRequests",
+    });
   }
 
   return purchaseRequest;
@@ -218,28 +204,13 @@ const updatePurchaseRequest = async (id, data, files = []) => {
     new: true,
   });
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(
-          file._id,
-          "PurchaseRequests",
-          purchaseRequest._id
-        )
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: purchaseRequest._id,
+      modelTable: "PurchaseRequests",
+    });
   }
 
   return purchaseRequest;

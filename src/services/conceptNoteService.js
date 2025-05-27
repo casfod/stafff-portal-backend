@@ -6,6 +6,7 @@ const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const notificationService = require("./notificationService");
 const BaseCopyService = require("./BaseCopyService");
+const handleFileUploads = require("../utils/FileUploads");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -151,37 +152,26 @@ const createConceptNote = async (currentUser, conceptNoteData, files = []) => {
   });
   await conceptNote.save();
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(file._id, "ConceptNotes", conceptNote._id)
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: conceptNote._id,
+      modelTable: "ConceptNotes",
+    });
   }
 
   // Send notification to reviewers/admins if needed
   if (conceptNote.status === "pending") {
     const recipients = [conceptNote.approvedBy].filter(Boolean);
     if (recipients.length) {
-      await notificationService.sendRequestNotification(
+      await notificationService.sendRequestNotification({
         currentUser,
-        conceptNote.toObject(),
-        recipients,
-        "Concept Note",
-        "conceptNote" // This matches the key in requestTypePaths
-      );
+        requestData: conceptNote.toObject(),
+        recipientIds: recipients,
+        title: "Concept Note",
+        requestType: "conceptNote", // This matches the key in requestTypePaths
+      });
     }
   }
 
@@ -206,24 +196,13 @@ const updateConceptNote = async (id, updateData, files = []) => {
     new: true,
   });
 
-  // Handle file uploads
+  // Handle file uploads if any
   if (files.length > 0) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) =>
-        fileService.uploadFile({
-          buffer: file.buffer,
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-        })
-      )
-    );
-
-    await Promise.all(
-      uploadedFiles.map((file) =>
-        fileService.associateFile(file._id, "ConceptNotes", conceptNote._id)
-      )
-    );
+    await handleFileUploads({
+      files,
+      requestId: conceptNote._id,
+      modelTable: "ConceptNotes",
+    });
   }
 
   return conceptNote;
@@ -272,8 +251,23 @@ const updateRequestStatus = async (id, data, currentUser) => {
     existingConceptNote.status = data.status;
   }
 
-  // Save and return the updated Concept Note
-  return await existingConceptNote.save();
+  // Save the updated Concept Note
+  const UpdatedConceptNote = await existingConceptNote.save();
+
+  if (UpdatedConceptNote.status !== "pending") {
+    const recipients = [UpdatedConceptNote.preparedBy].filter(Boolean);
+    if (recipients.length) {
+      await notificationService.sendRequestNotification({
+        currentUser,
+        requestData: UpdatedConceptNote.toObject(),
+        recipientIds: recipients,
+        title: "Concept Note",
+        requestType: "conceptNote", // This matches the key in requestTypePaths
+      });
+    }
+  }
+  // Return the updated Concept Note
+  return UpdatedConceptNote;
 };
 
 module.exports = {
