@@ -4,6 +4,7 @@ const {
   getExpenseClaims,
   getExpenseClaimById,
   updateExpenseClaim,
+  updateRequestStatus,
   deleteExpenseClaim,
   getExpenseClaimStats,
 } = require("../services/expenseClaimsService");
@@ -75,11 +76,12 @@ const getById = catchAsync(async (req, res) => {
 });
 
 const update = catchAsync(async (req, res) => {
+  const currentUser = await userByToken(req, res);
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
 
-  const expenseClaim = await updateExpenseClaim(id, data, files);
+  const expenseClaim = await updateExpenseClaim(id, data, files, currentUser);
 
   if (!expenseClaim) {
     return handleResponse(res, 404, "Expense Claim not found");
@@ -91,42 +93,16 @@ const update = catchAsync(async (req, res) => {
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const files = req.files || [];
 
-  const existingExpenseClaim = await getExpenseClaimById(id);
-  if (!existingExpenseClaim) {
-    return handleResponse(res, 404, "Expense Claim not found");
-  }
-
+  // Fetch the current user
   const currentUser = await userByToken(req, res);
   if (!currentUser) {
     return handleResponse(res, 401, "Unauthorized");
   }
 
-  if (data.comment) {
-    if (!existingExpenseClaim.comments) {
-      existingExpenseClaim.comments = [];
-    }
+  const updatedRequest = await updateRequestStatus(id, data, currentUser);
 
-    existingExpenseClaim.comments.unshift({
-      user: currentUser.id,
-      text: data.comment,
-    });
-
-    data.comments = existingExpenseClaim.comments;
-  }
-
-  if (data.status) {
-    existingExpenseClaim.status = data.status;
-  }
-
-  const updatedExpenseClaim = await updateExpenseClaim(
-    id,
-    existingExpenseClaim,
-    files
-  );
-
-  handleResponse(res, 200, "Expense Claim status updated", updatedExpenseClaim);
+  handleResponse(res, 200, "Request status updated", updatedRequest);
 });
 
 const remove = catchAsync(async (req, res) => {

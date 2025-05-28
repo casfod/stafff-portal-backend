@@ -78,11 +78,16 @@ const createProject = async (projectData, files = []) => {
 };
 
 const getProjectById = async (id) => {
-  const project = await Project.findById(id);
+  const project = await Project.findById(id).lean();
   if (!project) {
     throw new Error("Project not found");
   }
-  return project;
+  const files = await fileService.getFilesByDocument("Projects", id);
+
+  return {
+    ...project,
+    files,
+  };
 };
 
 const updateProject = async (id, updateData, files = []) => {

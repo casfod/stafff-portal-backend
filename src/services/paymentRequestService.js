@@ -5,6 +5,7 @@ const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
+const notify = require("../utils/notify");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -158,13 +159,9 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   };
 };
 
-/**
- * Create a new payment request (draft)
- */
-const createPaymentRequest = async (data, currentUser) => {
-  data.requestedBy = currentUser._id;
-  return await PaymentRequest.save(data);
-};
+// /**
+//  * Create a new payment request (draft)
+//  */
 
 // Save (draft)
 const savePaymentRequest = async (data, currentUser) => {
@@ -196,16 +193,48 @@ const saveAndSendPaymentRequest = async (data, currentUser, files = []) => {
     });
   }
 
+  // Send notification to reviewers/admins if needed
+  if (paymentRequest.status === "pending") {
+    await notify.notifyReviewers({
+      request: paymentRequest,
+      currentUser: currentUser,
+      requestType: "paymentRequest",
+      title: "Payment Request",
+      header: "You have been assigned a request",
+    });
+  }
+
   return paymentRequest;
 };
 
 // Get a single request by ID
 const getPaymentRequestById = async (id) => {
-  return await PaymentRequest.findById(id).populate("createdBy", "email");
+  const populateOptions = [
+    { path: "requestedBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ];
+
+  const request = await PaymentRequest.findById(id)
+    .populate(populateOptions)
+    .lean();
+
+  if (!request) {
+    throw new Error("Payment Request not found");
+  }
+
+  // Fetch associated files
+  const files = await fileService.getFilesByDocument("PaymentRequests", id);
+
+  return {
+    ...request,
+    files,
+  };
 };
 
 // Update a Payment request
-const updatePaymentRequest = async (id, data, files = []) => {
+const updatePaymentRequest = async (id, data, files = [], currentUser) => {
   const request = await PaymentRequest.findById(id);
   if (!request) throw new Error("Payment request not found");
 
@@ -224,6 +253,16 @@ const updatePaymentRequest = async (id, data, files = []) => {
     });
   }
 
+  // Send notification to reviewers/admins if needed
+  if (paymentRequest.status === "reviewed") {
+    await notify.notifyApprovers({
+      request: paymentRequest,
+      currentUser: currentUser,
+      requestType: "paymentRequest",
+      title: "Payment Request",
+      header: "You have been assigned a request",
+    });
+  }
   return updatedPaymentRequest;
 };
 
@@ -261,7 +300,18 @@ const updateRequestStatus = async (id, data, currentUser) => {
   }
 
   // Save and return the updated Concept Note
-  return await existingPaymentRequest.save();
+  const updatedRequest = await existingPaymentRequest.save();
+
+  // Notification
+  await notify.notifyCreator({
+    request: updatedRequest,
+    currentUser: currentUser,
+    requestType: "paymentRequest",
+    title: "Payment Request",
+    header: "Your request has been updated",
+  });
+
+  return updatedRequest;
 };
 
 // Delete a Payment request
@@ -274,7 +324,6 @@ const deleteRequest = async (id) => {
 module.exports = {
   PaymentRequestCopyService,
   getPaymentRequests,
-  createPaymentRequest,
   savePaymentRequest,
   saveAndSendPaymentRequest,
   getPaymentRequestStats,

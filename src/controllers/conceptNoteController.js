@@ -103,15 +103,20 @@ const updateConceptNote = catchAsync(async (req, res) => {
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
-  const currentUser = await userByToken(req, res);
 
-  const updatedConceptNote = await conceptNoteService.updateRequestStatus(
+  // Fetch the current user
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) {
+    return handleResponse(res, 401, "Unauthorized");
+  }
+
+  const updatedRequest = await conceptNoteService.updateRequestStatus(
     id,
     data,
     currentUser
   );
 
-  handleResponse(res, 200, "Concept Note status updated", updatedConceptNote);
+  handleResponse(res, 200, "Request status updated", updatedRequest);
 });
 
 // Delete concept note

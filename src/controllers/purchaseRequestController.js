@@ -4,6 +4,7 @@ const {
   getPurchaseRequests,
   getPurchaseRequestById,
   updatePurchaseRequest,
+  updateRequestStatus,
   deletePurchaseRequest,
   getPurchaseRequestStats,
 } = require("../services/purchaseRequestService");
@@ -104,11 +105,17 @@ const getById = catchAsync(async (req, res) => {
 
 // Update a purchase request
 const update = catchAsync(async (req, res) => {
+  const currentUser = await userByToken(req, res);
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
 
-  const purchaseRequest = await updatePurchaseRequest(id, data, files);
+  const purchaseRequest = await updatePurchaseRequest(
+    id,
+    data,
+    files,
+    currentUser
+  );
   if (!purchaseRequest) {
     return handleResponse(res, 404, "Purchase request not found");
   }
@@ -125,50 +132,15 @@ const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
 
-  // Fetch the existing purchase request
-  const existingPurchaseRequest = await getPurchaseRequestById(id);
-  if (!existingPurchaseRequest) {
-    return handleResponse(res, 404, "Purchase request not found");
-  }
-
   // Fetch the current user
   const currentUser = await userByToken(req, res);
   if (!currentUser) {
     return handleResponse(res, 401, "Unauthorized");
   }
 
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingPurchaseRequest.comments) {
-      existingPurchaseRequest.comments = [];
-    }
+  const updatedRequest = await updateRequestStatus(id, data, currentUser);
 
-    // Add the new comment to the top of the comments array
-    existingPurchaseRequest.comments.unshift({
-      user: currentUser.id, // Add the current user's ID
-      text: data.comment, // Add the comment text (using the new `text` field)
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingPurchaseRequest.comments;
-  }
-
-  // Update the status and other fields
-  if (data.status) {
-    existingPurchaseRequest.status = data.status;
-  }
-
-  // Save the updated purchase request
-  const updatedPurchaseRequest = await existingPurchaseRequest.save();
-
-  // Send success response
-  handleResponse(
-    res,
-    200,
-    "Purchase request status updated",
-    updatedPurchaseRequest
-  );
+  handleResponse(res, 200, "Request status updated", updatedRequest);
 });
 
 // Delete a purchase request

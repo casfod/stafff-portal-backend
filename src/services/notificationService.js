@@ -37,11 +37,12 @@ class NotificationService {
   }
 
   async sendRequestNotification({
-    currentUser,
     requestData,
+    currentUser,
     recipientIds,
-    title,
     requestType,
+    title,
+    header,
   }) {
     try {
       const recipients = await User.find({
@@ -67,31 +68,34 @@ class NotificationService {
 
       const requestUrl = `${process.env.BASE_URL}/${requestTypePaths[requestType]}/${requestData._id}`;
 
-      // Improved creator check - verify if current user is the creator
-      const creatorId = requestData.preparedBy || requestData.createdBy;
-      const isCreator =
-        creatorId &&
-        recipientIds.includes(creatorId) &&
-        creatorId.toString() === currentUser.id.toString();
-
-      const header = isCreator
-        ? `Your request has been updated`
-        : `You have been assigned a request`;
-
       const htmlTemplate = `
-        <div style="font-family: Arial, sans-serif; background-color: #fff; color: #333; padding: 20px; text-align: center; border-radius: 8px;">
-          <h1 style="color: #1373B0;">New Request Notification</h1>
-          <p style="color: #222;">${header}:</p>
-          <p style="font-weight: bold;">${title || "N/A"}</p>
-          <p>${
-            requestData.status === "pending" ? "By" : "Updated By"
-          }: ${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</p>
-          <p>Staff Mail: ${currentUser.email}</p>
-          <p>Status: ${requestData.status.toUpperCase()}</p>
-          <a href="${requestUrl}" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #1373B0; color: #FFFFFF; text-decoration: none; font-size: 16px; border-radius: 5px;">View Request</a>
-          <p style="margin-top: 20px; color: #222;">This is an automated notification. Please do not reply.</p>
+      <div style="font-family: Arial, sans-serif; background-color: #fff; color: #333; padding: 20px; text-align: center; border-radius: 8px;">
+        <h1 style="color: #1373B0;">${
+          requestData.status === "pending" ? "New Request" : "Request Update"
+        } Notification</h1>
+        <p style="color: #222;">${header}:</p>
+        <p style="font-weight: bold;">${title || "N/A"}</p>
+        <p>${
+          requestData.status === "pending" ? "By" : "Updated By"
+        }: ${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</p>
+        <p>${currentUser.role} MAIL: ${currentUser.email}</p>
+        <div style="display: inline-block; padding: 4px 8px; white-space: nowrap; border-radius: 8px; margin-bottom: 4px; text-transform: uppercase; ${
+          requestData.status === "draft"
+            ? "border: 1px solid #9CA3AF"
+            : requestData.status === "pending"
+            ? "background-color: #F59E0B; color: white"
+            : requestData.status === "approved"
+            ? "background-color: #0D9488; color: white"
+            : requestData.status === "rejected"
+            ? "background-color: #EF4444; color: white"
+            : "background-color: #0B6DA2; color: white"
+        }">
+          ${requestData.status.toUpperCase()}
         </div>
-      `;
+        <p><a href="${requestUrl}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background-color: #1373B0; color: #FFFFFF; text-decoration: none; font-size: 16px; border-radius: 5px;">View Request</a></p>
+        <p style="margin-top: 20px; color: #222;">This is an automated notification. Please do not reply.</p>
+      </div>
+    `;
 
       await Promise.all(
         recipients.map((recipient) =>

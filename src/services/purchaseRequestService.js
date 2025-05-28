@@ -5,6 +5,7 @@ const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
+const notify = require("../utils/notify");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -145,6 +146,17 @@ const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
     });
   }
 
+  // Send notification to reviewers/admins if needed
+  if (purchaseRequest.status === "pending") {
+    await notify.notifyReviewers({
+      request: purchaseRequest,
+      currentUser: currentUser,
+      requestType: "purchaseRequest",
+      title: "Purchase Request",
+      header: "You have been assigned a request",
+    });
+  }
+
   return purchaseRequest;
 };
 
@@ -195,11 +207,25 @@ const getPurchaseRequestStats = async (currentUser) => {
 
 // Get a single purchase request by ID
 const getPurchaseRequestById = async (id) => {
-  return await PurchaseRequest.findById(id).populate("createdBy", "email");
+  const request = await PurchaseRequest.findById(id)
+    .populate(populateOptions)
+    .lean();
+
+  if (!request) {
+    throw new Error("Purchase Request not found");
+  }
+
+  // Fetch associated files
+  const files = await fileService.getFilesByDocument("PurchaseRequests", id);
+
+  return {
+    ...request,
+    files,
+  };
 };
 
 // Update a purchase request
-const updatePurchaseRequest = async (id, data, files = []) => {
+const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
   const purchaseRequest = await PurchaseRequest.findByIdAndUpdate(id, data, {
     new: true,
   });
@@ -213,11 +239,61 @@ const updatePurchaseRequest = async (id, data, files = []) => {
     });
   }
 
+  if (purchaseRequest.status === "reviewed") {
+    await notify.notifyApprovers({
+      request: purchaseRequest,
+      currentUser: currentUser,
+      requestType: "purchaseRequest",
+      title: "Purchase Request",
+      header: "You have been assigned a request",
+    });
+  }
+
   return purchaseRequest;
 };
 
-const updateRequestStatus = async (id, data) => {
-  return await PurchaseRequest.findByIdAndUpdate(id, data, { new: true });
+const updateRequestStatus = async (id, data, currentUser) => {
+  const existingRequest = await PurchaseRequest.findById(id);
+
+  if (!existingRequest) {
+    throw new Error("Request not found");
+  }
+
+  // Add a new comment if it exists in the request body
+  if (data.comment) {
+    // Initialize comments as an empty array if it doesn't exist
+    if (!existingRequest.comments) {
+      existingRequest.comments = [];
+    }
+
+    // Add the new comment to the top of the comments array
+    existingRequest.comments.unshift({
+      user: currentUser.id,
+      text: data.comment,
+    });
+
+    // Update the data object to include the modified comments
+    data.comments = existingRequest.comments;
+  }
+
+  // Update the status and other fields
+  if (data.status) {
+    existingRequest.status = data.status;
+  }
+
+  // Save and return the updated  request
+  const updatedRequest = await existingRequest.save();
+
+  // Notification
+  await notify.notifyApprovers({
+    request: updatedRequest,
+    currentUser: currentUser,
+    requestType: "purchaseRequest",
+    title: "Purchase Request",
+    header: "You have been assigned a request",
+  });
+
+  return updatedRequest;
 };
 
 // Delete a purchase request

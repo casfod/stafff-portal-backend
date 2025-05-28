@@ -4,9 +4,9 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
-const notificationService = require("./notificationService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
+const notify = require("../utils/notify");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -163,16 +163,13 @@ const createConceptNote = async (currentUser, conceptNoteData, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (conceptNote.status === "pending") {
-    const recipients = [conceptNote.approvedBy].filter(Boolean);
-    if (recipients.length) {
-      await notificationService.sendRequestNotification({
-        currentUser,
-        requestData: conceptNote.toObject(),
-        recipientIds: recipients,
-        title: "Concept Note",
-        requestType: "conceptNote", // This matches the key in requestTypePaths
-      });
-    }
+    await notify.notifyApprovers({
+      request: conceptNote,
+      currentUser: currentUser,
+      requestType: "conceptNote",
+      title: "Concept Note",
+      header: "You have been assigned a request",
+    });
   }
 
   return conceptNote;
@@ -188,7 +185,28 @@ const saveConceptNote = async (conceptNoteData) => {
 
 // Get a single purchase request by ID
 const getConceptNoteById = async (id) => {
-  return await ConceptNote.findById(id).populate("preparedBy", "email");
+  const populateOptions = [
+    { path: "project", select: "project_code account_code" },
+    { path: "preparedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+  ];
+
+  const request = await ConceptNote.findById(id)
+    .populate(populateOptions)
+    .lean();
+
+  if (!request) {
+    throw new Error("Concept Note not found");
+  }
+
+  // Fetch associated files
+  const files = await fileService.getFilesByDocument("ConceptNotes", id);
+
+  return {
+    ...request,
+    files,
+  };
 };
 
 const updateConceptNote = async (id, updateData, files = []) => {
@@ -254,18 +272,15 @@ const updateRequestStatus = async (id, data, currentUser) => {
   // Save the updated Concept Note
   const UpdatedConceptNote = await existingConceptNote.save();
 
-  if (UpdatedConceptNote.status !== "pending") {
-    const recipients = [UpdatedConceptNote.preparedBy].filter(Boolean);
-    if (recipients.length) {
-      await notificationService.sendRequestNotification({
-        currentUser,
-        requestData: UpdatedConceptNote.toObject(),
-        recipientIds: recipients,
-        title: "Concept Note",
-        requestType: "conceptNote", // This matches the key in requestTypePaths
-      });
-    }
-  }
+  // Notification
+  await notify.notifyCreator({
+    request: UpdatedConceptNote,
+    currentUser: currentUser,
+    requestType: "conceptNote",
+    title: "Concept Note",
+    header: "Your request has been updated",
+  });
+
   // Return the updated Concept Note
   return UpdatedConceptNote;
 };

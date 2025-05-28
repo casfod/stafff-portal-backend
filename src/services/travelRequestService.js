@@ -5,6 +5,7 @@ const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
+const notify = require("../utils/notify");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -100,12 +101,6 @@ const getTravelRequests = async (queryParams, currentUser) => {
   };
 };
 
-// Create a new Travel request
-const createTravelRequest = async (data) => {
-  const travelRequest = new TravelRequest(data);
-  return await travelRequest.save();
-};
-
 // Save a Travel request (draft)
 const saveTravelRequest = async (data, currentUser) => {
   data.createdBy = currentUser._id;
@@ -133,6 +128,17 @@ const saveAndSendTravelRequest = async (data, currentUser, files = []) => {
       files,
       requestId: travelRequest._id,
       modelTable: "TravelRequests",
+    });
+  }
+
+  // Send notification to reviewers/admins if needed
+  if (travelRequest.status === "pending") {
+    await notify.notifyReviewers({
+      request: travelRequest,
+      currentUser: currentUser,
+      requestType: "travelRequest",
+      title: "Travel Request",
+      header: "You have been assigned a request",
     });
   }
 
@@ -186,11 +192,33 @@ const getTravelRequestStats = async (currentUser) => {
 
 // Get a single pdvance request by ID
 const getTravelRequestById = async (id) => {
-  return await TravelRequest.findById(id).populate("createdBy", "email");
+  const populateOptions = [
+    { path: "project", select: "project_code account_code" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+  ];
+
+  const request = await TravelRequest.findById(id)
+    .populate(populateOptions)
+    .lean();
+
+  if (!request) {
+    throw new Error("Travel Request not found");
+  }
+
+  // Fetch associated files
+  const files = await fileService.getFilesByDocument("TravelRequests", id);
+
+  return {
+    ...request,
+    files,
+  };
 };
 
 // Update a travel request
-const updateTravelRequest = async (id, data, files = []) => {
+const updateTravelRequest = async (id, data, files = [], currentUser) => {
   const travelRequest = await TravelRequest.findByIdAndUpdate(id, data, {
     new: true,
   });
@@ -204,11 +232,61 @@ const updateTravelRequest = async (id, data, files = []) => {
     });
   }
 
+  // Send notification to reviewers/admins if needed
+  if (travelRequest.status === "reviewed") {
+    await notify.notifyApprovers({
+      request: travelRequest,
+      currentUser: currentUser,
+      requestType: "travelRequest",
+      title: "Travel Request",
+      header: "You have been assigned a request",
+    });
+  }
+
   return travelRequest;
 };
 
-const updateRequestStatus = async (id, data) => {
-  return await TravelRequest.findByIdAndUpdate(id, data, { new: true });
+const updateRequestStatus = async (id, data, currentUser) => {
+  const existingRequest = await TravelRequest.findById(id);
+
+  if (!existingRequest) {
+    throw new Error("Request not found");
+  }
+
+  // Add a new comment if it exists in the request body
+  if (data.comment) {
+    // Initialize comments as an empty array if it doesn't exist
+    if (!existingRequest.comments) {
+      existingRequest.comments = [];
+    }
+
+    // Add the new comment to the top of the comments array
+    existingRequest.comments.unshift({
+      user: currentUser.id,
+      text: data.comment,
+    });
+
+    // Update the data object to include the modified comments
+    data.comments = existingRequest.comments;
+  }
+
+  // Update the status and other fields
+  if (data.status) {
+    existingRequest.status = data.status;
+  }
+
+  // Save and return the updated  request
+  const updatedRequest = await existingRequest.save();
+
+  // Notification
+  await notify.notifyCreator({
+    request: updatedRequest,
+    currentUser: currentUser,
+    requestType: "travelRequest",
+    title: "Travel Request",
+    header: "Your request has been updated",
+  });
+  return updatedRequest;
 };
 
 // Delete a pdvance request
@@ -220,7 +298,6 @@ const deleteTravelRequest = async (id) => {
 
 module.exports = {
   TravelRequestCopyService,
-  createTravelRequest,
   saveTravelRequest,
   saveAndSendTravelRequest,
   getTravelRequestStats,

@@ -4,8 +4,8 @@ const {
   getTravelRequests,
   getTravelRequestById,
   updateTravelRequest,
+  updateRequestStatus,
   deleteTravelRequest,
-  // updateRequestStatus,
   getTravelRequestStats,
 } = require("../services/travelRequestService");
 const catchAsync = require("../utils/catchAsync");
@@ -91,11 +91,12 @@ const getById = catchAsync(async (req, res) => {
 
 // Update a Travel request
 const update = catchAsync(async (req, res) => {
+  const currentUser = await userByToken(req, res);
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
 
-  const travelRequest = await updateTravelRequest(id, data, files);
+  const travelRequest = await updateTravelRequest(id, data, files, currentUser);
 
   if (!travelRequest) {
     return handleResponse(res, 404, "Travel request not found");
@@ -113,50 +114,15 @@ const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
 
-  // Fetch the existing Travel request
-  const existingTravelRequest = await getTravelRequestById(id);
-  if (!existingTravelRequest) {
-    return handleResponse(res, 404, "Travel request not found");
-  }
-
   // Fetch the current user
   const currentUser = await userByToken(req, res);
   if (!currentUser) {
     return handleResponse(res, 401, "Unauthorized");
   }
 
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingTravelRequest.comments) {
-      existingTravelRequest.comments = [];
-    }
+  const updatedRequest = await updateRequestStatus(id, data, currentUser);
 
-    // Add the new comment to the top of the comments array
-    existingTravelRequest.comments.unshift({
-      user: currentUser.id, // Add the current user's ID
-      text: data.comment, // Add the comment text (using the new `text` field)
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingTravelRequest.comments;
-  }
-
-  // Update the status and other fields
-  if (data.status) {
-    existingTravelRequest.status = data.status;
-  }
-
-  // Save the updated Travel request
-  const updatedTravelRequest = await existingTravelRequest.save();
-
-  // Send success response
-  handleResponse(
-    res,
-    200,
-    "Travel request status updated",
-    updatedTravelRequest
-  );
+  handleResponse(res, 200, "Request status updated", updatedRequest);
 });
 
 // Delete a Travel request

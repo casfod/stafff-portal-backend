@@ -3,6 +3,7 @@ const fileService = require("../services/fileService");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const handleFileUploads = require("../utils/FileUploads");
+const notify = require("../utils/notify");
 const paginate = require("../utils/paginate");
 const BaseCopyService = require("./BaseCopyService");
 
@@ -125,6 +126,17 @@ const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
     });
   }
 
+  // Send notification to reviewers/admins if needed
+  if (expenseClaim.status === "pending") {
+    await notify.notifyReviewers({
+      request: expenseClaim,
+      currentUser: currentUser,
+      requestType: "expenseClaim",
+      title: "Expense Claim",
+      header: "You have been assigned a request",
+    });
+  }
+
   return expenseClaim;
 };
 
@@ -169,11 +181,33 @@ const getExpenseClaimStats = async (currentUser) => {
 
 // Get a single expense claim by ID with files
 const getExpenseClaimById = async (id) => {
-  return await ExpenseClaims.findById(id).populate("createdBy", "email");
+  const populateOptions = [
+    { path: "project", select: "project_code account_code" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ];
+
+  const request = await ExpenseClaims.findById(id)
+    .populate(populateOptions)
+    .lean();
+
+  if (!request) {
+    throw new Error("Expense Claim not found");
+  }
+
+  // Fetch associated files
+  const files = await fileService.getFilesByDocument("ExpenseClaims", id);
+
+  return {
+    ...request,
+    files,
+  };
 };
 
 // Update a expense claim
-const updateExpenseClaim = async (id, data, files = []) => {
+const updateExpenseClaim = async (id, data, files = [], currentUser) => {
   const expenseClaim = await ExpenseClaims.findByIdAndUpdate(id, data, {
     new: true,
   });
@@ -187,11 +221,58 @@ const updateExpenseClaim = async (id, data, files = []) => {
     });
   }
 
+  if (expenseClaim.status === "reviewed") {
+    await notify.notifyApprovers({
+      request: expenseClaim,
+      currentUser: currentUser,
+      requestType: "expenseClaim",
+      title: "Expense Claim",
+      header: "You have been assigned a request",
+    });
+  }
   return expenseClaim;
 };
 
-const updateRequestStatus = async (id, data) => {
-  return await ExpenseClaims.findByIdAndUpdate(id, data, { new: true });
+const updateRequestStatus = async (id, data, currentUser) => {
+  const existingRequest = await ExpenseClaims.findById(id);
+
+  if (!existingRequest) {
+    throw new Error("Request not found");
+  }
+
+  // Add a new comment if it exists in the request body
+  if (data.comment) {
+    // Initialize comments as an empty array if it doesn't exist
+    if (!existingRequest.comments) {
+      existingRequest.comments = [];
+    }
+
+    // Add the new comment to the top of the comments array
+    existingRequest.comments.unshift({
+      user: currentUser.id,
+      text: data.comment,
+    });
+
+    // Update the data object to include the modified comments
+    data.comments = existingRequest.comments;
+  }
+
+  // Update the status and other fields
+  if (data.status) {
+    existingRequest.status = data.status;
+  }
+
+  // Save and return the updated  request
+  const updatedRequest = await existingRequest.save();
+
+  // Notification
+  await notify.notifyCreator({
+    request: updatedRequest,
+    currentUser: currentUser,
+    requestType: "advanceRequest",
+    title: "Advance Request",
+    header: "Your request has been updated",
+  });
 };
 
 // Delete a expense claim and its files

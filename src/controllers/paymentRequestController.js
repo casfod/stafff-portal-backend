@@ -5,10 +5,10 @@ const userByToken = require("../utils/userByToken");
 const {
   getPaymentRequestStats,
   getPaymentRequestById,
-  updatePaymentRequest,
   getPaymentRequests,
   savePaymentRequest,
   saveAndSendPaymentRequest,
+  updatePaymentRequest,
   updateRequestStatus,
   deleteRequest,
 } = require("../services/paymentRequestService.js");
@@ -76,11 +76,17 @@ const getById = catchAsync(async (req, res) => {
 
 // Update a request
 const update = catchAsync(async (req, res) => {
+  const currentUser = await userByToken(req, res);
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
 
-  const paymentRequest = await updatePaymentRequest(id, data, files);
+  const paymentRequest = await updatePaymentRequest(
+    id,
+    data,
+    files,
+    currentUser
+  );
   if (!paymentRequest) {
     return handleResponse(res, 404, "Payment request not found");
   }
@@ -96,26 +102,17 @@ const update = catchAsync(async (req, res) => {
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
+
+  // Fetch the current user
   const currentUser = await userByToken(req, res);
+  if (!currentUser) {
+    return handleResponse(res, 401, "Unauthorized");
+  }
 
-  const updatedPaymentRequest = await updateRequestStatus(
-    id,
-    data,
-    currentUser
-  );
+  const updatedRequest = await updateRequestStatus(id, data, currentUser);
 
-  handleResponse(
-    res,
-    200,
-    "Payment request status updated",
-    updatedPaymentRequest
-  );
+  handleResponse(res, 200, "Request status updated", updatedRequest);
 });
-
-// const deletePaymentRequest = catchAsync(async (req, res) => {
-//   deletePaymentRequest(req.params.id);
-//   handleResponse(res, 200, "Payment request deleted successfully");
-// });
 
 const remove = catchAsync(async (req, res) => {
   const { id } = req.params;

@@ -1,45 +1,107 @@
 const notificationService = require("../services/notificationService");
 
 class Notify {
-  async notifyReviewers({ request, currentUser, requestType, title }) {
-    if (request.status === "pending") return;
+  /**
+   * Common notification handler for all types
+   * @private
+   */
+  async _sendNotification({
+    request,
+    currentUser,
+    recipientIds,
+    requestType,
+    title,
+    header,
+  }) {
+    if (!recipientIds.length) return;
+
+    try {
+      await notificationService.sendRequestNotification({
+        currentUser,
+        requestData: request.toObject(),
+        recipientIds,
+        requestType,
+        title,
+        header,
+      });
+    } catch (error) {
+      console.error(`Notification failed for ${requestType}:`, error);
+      // Consider adding error reporting here
+    }
+  }
+
+  /**
+   * Notify reviewers when request needs review
+   */
+  async notifyReviewers({ request, currentUser, requestType, title, header }) {
+    if (request.status !== "pending") return;
 
     const recipients = [request.reviewedBy].filter(Boolean);
-    if (!recipients.length) return;
-
-    await notificationService.sendRequestNotification({
+    await this._sendNotification({
+      request,
       currentUser,
-      requestData: request.toObject(),
       recipientIds: recipients,
-      requestType: requestType,
-      title: title,
+      requestType,
+      title,
+      header,
     });
   }
-  async notifyApprovers({ request, currentUser, requestType, title }) {
-    if (request.status === "pending" || request.status === "reviewed") return;
 
+  /**
+   * Notify approvers when request needs approval
+   */
+  async notifyApprovers({ request, currentUser, requestType, title, header }) {
     const recipients = [request.approvedBy].filter(Boolean);
-    if (!recipients.length) return;
-
-    await NotificationService.sendRequestNotification({
+    await this._sendNotification({
+      request,
       currentUser,
-      requestData: request.toObject(),
       recipientIds: recipients,
-      requestType: requestType,
-      title: title,
+      requestType,
+      title,
+      header,
     });
   }
-  async sendStatusNotification({ request, currentUser, requestType, title }) {
+
+  /**
+   * Notify creator about status changes
+   */
+  async notifyCreator({ request, currentUser, requestType, title, header }) {
+    // if (["pending", "approved", "rejected"].includes(request.status)) return;
+
     const creatorId = request.preparedBy || request.createdBy;
     if (!creatorId) return;
 
-    await NotificationService.sendRequestNotification({
+    await this._sendNotification({
+      request,
       currentUser,
-      requestData: request.toObject(),
       recipientIds: [creatorId],
-      requestType: requestType,
-      title: title,
+      requestType,
+      title: `${title} Update`, // Differentiate status updates
+      header,
     });
+  }
+
+  /**
+   * Comprehensive notification handler
+   */
+  async notifyAllParties({ request, currentUser, requestType, title, header }) {
+    await Promise.all([
+      this.notifyReviewers({
+        request,
+        currentUser,
+        requestType,
+        title,
+        header,
+      }),
+      this.notifyApprovers({
+        request,
+        currentUser,
+        requestType,
+        title,
+        header,
+      }),
+      this.notifyCreator({ request, currentUser, requestType, title, header }),
+    ]);
   }
 }
 
