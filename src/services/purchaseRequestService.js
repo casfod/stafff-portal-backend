@@ -6,6 +6,7 @@ const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
+const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -207,6 +208,14 @@ const getPurchaseRequestStats = async (currentUser) => {
 
 // Get a single purchase request by ID
 const getPurchaseRequestById = async (id) => {
+  const populateOptions = [
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
+  ];
+
   const request = await PurchaseRequest.findById(id)
     .populate(populateOptions)
     .lean();
@@ -218,10 +227,10 @@ const getPurchaseRequestById = async (id) => {
   // Fetch associated files
   const files = await fileService.getFilesByDocument("PurchaseRequests", id);
 
-  return {
+  return normalizeId({
     ...request,
-    files,
-  };
+    files: normalizeFiles(files),
+  });
 };
 
 // Update a purchase request
@@ -285,12 +294,12 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingRequest.save();
 
   // Notification
-  await notify.notifyApprovers({
+  await notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
     requestType: "purchaseRequest",
     title: "Purchase Request",
-    header: "You have been assigned a request",
+    header: "Your request has been updated",
   });
 
   return updatedRequest;

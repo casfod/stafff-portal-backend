@@ -76,7 +76,7 @@ class Notify {
       currentUser,
       recipientIds: [creatorId],
       requestType,
-      title: `${title} Update`, // Differentiate status updates
+      title, // Differentiate status updates
       header,
     });
   }

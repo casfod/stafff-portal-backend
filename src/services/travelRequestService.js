@@ -6,6 +6,7 @@ const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
+const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -211,10 +212,10 @@ const getTravelRequestById = async (id) => {
   // Fetch associated files
   const files = await fileService.getFilesByDocument("TravelRequests", id);
 
-  return {
+  return normalizeId({
     ...request,
-    files,
-  };
+    files: normalizeFiles(files),
+  });
 };
 
 // Update a travel request

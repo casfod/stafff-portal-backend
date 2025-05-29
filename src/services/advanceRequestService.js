@@ -6,6 +6,7 @@ const fileService = require("./fileService");
 const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
+const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -129,7 +130,6 @@ const getAdvanceRequestById = async (id) => {
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
     { path: "copiedTo", select: "email first_name last_name role" },
-    { path: "itemGroups.items", select: "name description quantity unitPrice" },
   ];
 
   const request = await AdvanceRequest.findById(id)
@@ -143,10 +143,10 @@ const getAdvanceRequestById = async (id) => {
   // Fetch associated files
   const files = await fileService.getFilesByDocument("AdvanceRequests", id);
 
-  return {
+  return normalizeId({
     ...request,
-    files,
-  };
+    files: normalizeFiles(files),
+  });
 };
 // Create a new advance request
 const createAdvanceRequest = async (data) => {

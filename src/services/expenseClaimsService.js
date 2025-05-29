@@ -3,7 +3,9 @@ const fileService = require("../services/fileService");
 const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const handleFileUploads = require("../utils/FileUploads");
+
 const notify = require("../utils/notify");
+const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const paginate = require("../utils/paginate");
 const BaseCopyService = require("./BaseCopyService");
 
@@ -199,11 +201,10 @@ const getExpenseClaimById = async (id) => {
 
   // Fetch associated files
   const files = await fileService.getFilesByDocument("ExpenseClaims", id);
-
-  return {
+  return normalizeId({
     ...request,
-    files,
-  };
+    files: normalizeFiles(files),
+  });
 };
 
 // Update a expense claim
@@ -269,8 +270,8 @@ const updateRequestStatus = async (id, data, currentUser) => {
   await notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
-    requestType: "advanceRequest",
-    title: "Advance Request",
+    requestType: "expenseClaim",
+    title: "Expense Claim",
     header: "Your request has been updated",
   });
 };
