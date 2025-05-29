@@ -69,32 +69,71 @@ class NotificationService {
       const requestUrl = `${process.env.BASE_URL}/${requestTypePaths[requestType]}/${requestData._id}`;
 
       const htmlTemplate = `
-      <div style="font-family: Arial, sans-serif; background-color: #fff; color: #333; padding: 20px; text-align: center; border-radius: 8px;">
-        <h1 style="color: #1373B0;">${
-          requestData.status === "pending" ? "New Request" : "Request Update"
-        } Notification</h1>
-        <p style="color: #222;">${header}:</p>
-        <p style="font-weight: bold;">${title || "N/A"}</p>
-        <p>${
-          requestData.status === "pending" ? "By" : "Updated By"
-        }: ${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</p>
-        <p>${currentUser.role} MAIL: ${currentUser.email}</p>
-        <div style="display: inline-block; padding: 4px 8px; white-space: nowrap; border-radius: 8px; margin-bottom: 4px; text-transform: uppercase; ${
-          requestData.status === "draft"
-            ? "border: 1px solid #9CA3AF"
-            : requestData.status === "pending"
-            ? "background-color: #F59E0B; color: white"
-            : requestData.status === "approved"
-            ? "background-color: #0D9488; color: white"
-            : requestData.status === "rejected"
-            ? "background-color: #EF4444; color: white"
-            : "background-color: #0B6DA2; color: white"
-        }">
-          ${requestData.status.toUpperCase()}
-        </div>
-        <p><a href="${requestUrl}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background-color: #1373B0; color: #FFFFFF; text-decoration: none; font-size: 16px; border-radius: 5px;">View Request</a></p>
-        <p style="margin-top: 20px; color: #222;">This is an automated notification. Please do not reply.</p>
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+      <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
+        <h1 style="color: #1373B0; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
+          ${
+            requestData.status === "pending"
+              ? `New ${title || "N/A"}`
+              : `${title || "N/A"} Update`
+          }
+        </h1>
+        
+        <p style="font-size: 15px; color: #4b5563; margin: 0;"><strong>${header}:</strong></p>
       </div>
+    
+      <div style="margin-bottom: 24px;">
+        <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+        <strong style="color: #4b5563;">${
+          requestData.status === "pending" ? "BY" : "UPDATED BY"
+        }:</strong> 
+          <strong style="color: #111827;">${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</strong>
+        </p>
+        
+        <p style="font-size: 15px; margin: 0 0 8px 0; line-height: 1.5;">
+          <strong style="color: #4b5563;">ROLE:</strong> 
+          <span style="color: #111827;">${currentUser.role}</span>
+        </p>
+        
+        <p style="font-size: 15px; margin: 0; line-height: 1.5;">
+          <strong style="color: #4b5563;">MAIL:</strong> 
+          <a href="mailto:${
+            currentUser.email
+          }" style="color: #1373B0; text-decoration: none;">${
+        currentUser.email
+      }</a>
+        </p>
+      </div>
+    
+      <div style="margin-bottom: 28px;">
+        <span style="display: inline-block; padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
+          ${
+            requestData.status === "draft"
+              ? "border: 1px solid #9CA3AF; color: #6B7280; background-color: #f3f4f6;"
+              : requestData.status === "pending"
+              ? "background-color: #f59e0b; color: #ffffff;"
+              : requestData.status === "approved"
+              ? "background-color: #059669; color: #ffffff;"
+              : requestData.status === "rejected"
+              ? "background-color: #dc2626; color: #ffffff;"
+              : "background-color: #1373B0; color: #ffffff;"
+          }">
+          ${requestData.status.toUpperCase()}
+        </span>
+      </div>
+    
+      <div style="margin-bottom: 32px;">
+        <a href="${requestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
+          View Request
+        </a>
+      </div>
+    
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+        <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+          This is an automated notification. Please do not reply.
+        </p>
+      </div>
+    </div>
     `;
 
       await Promise.all(
@@ -178,3 +217,7 @@ class NotificationService {
 }
 
 module.exports = new NotificationService();
+
+/**
+ * <p style="font-weight: bold;">${title || "N/A"}</p>
+ */
