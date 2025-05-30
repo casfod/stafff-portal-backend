@@ -82,12 +82,12 @@ class NotificationService {
         <p style="font-size: 15px; color: #4b5563; margin: 0;"><strong>${header}:</strong></p>
       </div>
     
-      <div style="margin-bottom: 24px;">
+      <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
         <strong style="color: #4b5563;">${
           requestData.status === "pending" ? "BY" : "UPDATED BY"
-        }:</strong> 
-          <strong style="color: #111827;">${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</strong>
+        }:</strong>
+        <strong style="color: #111827;">${currentUser.first_name.toUpperCase()} ${currentUser.last_name.toUpperCase()}</strong>
         </p>
         
         <p style="font-size: 15px; margin: 0 0 8px 0; line-height: 1.5;">
@@ -105,7 +105,7 @@ class NotificationService {
         </p>
       </div>
     
-      <div style="margin-bottom: 28px;">
+      <div style="margin-bottom: 16px;">
         <span style="display: inline-block; padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
           ${
             requestData.status === "draft"
