@@ -51,10 +51,13 @@ class NotificationService {
 
       if (!recipients.length) return;
 
-      const subject =
-        requestData.status === "pending"
-          ? `New Request: ${title || "N/A"}`
-          : `Request Update: ${title || "N/A"}`;
+      // const subject =
+      //   requestData.status === "pending"
+      //     ? `New Request: ${title || "N/A"}`
+      //     : `Request Update: ${title || "N/A"}`;
+      const subject = title;
+
+      // console.log("MAIL approvedBy ::==>>",requestData.approvedBy);
 
       // Map request types to their URL paths
       const requestTypePaths = {
