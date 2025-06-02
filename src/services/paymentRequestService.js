@@ -257,7 +257,7 @@ const updatePaymentRequest = async (id, data, files = [], currentUser) => {
   // Send notification to reviewers/admins if needed
   if (paymentRequest.status === "reviewed") {
     notify.notifyApprovers({
-      request: paymentRequest,
+      request: updatedPaymentRequest,
       currentUser: currentUser,
       requestType: "paymentRequest",
       title: "Payment Request",
