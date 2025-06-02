@@ -134,7 +134,7 @@ const saveAndSendTravelRequest = async (data, currentUser, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (travelRequest.status === "pending") {
-    await notify.notifyReviewers({
+    notify.notifyReviewers({
       request: travelRequest,
       currentUser: currentUser,
       requestType: "travelRequest",
@@ -235,7 +235,7 @@ const updateTravelRequest = async (id, data, files = [], currentUser) => {
 
   // Send notification to reviewers/admins if needed
   if (travelRequest.status === "reviewed") {
-    await notify.notifyApprovers({
+    notify.notifyApprovers({
       request: travelRequest,
       currentUser: currentUser,
       requestType: "travelRequest",
@@ -280,7 +280,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingRequest.save();
 
   // Notification
-  await notify.notifyCreator({
+  notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
     requestType: "travelRequest",

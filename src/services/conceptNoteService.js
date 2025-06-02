@@ -164,7 +164,7 @@ const createConceptNote = async (currentUser, conceptNoteData, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (conceptNote.status === "pending") {
-    await notify.notifyApprovers({
+    notify.notifyApprovers({
       request: conceptNote,
       currentUser: currentUser,
       requestType: "conceptNote",
@@ -274,7 +274,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const UpdatedConceptNote = await existingConceptNote.save();
 
   // Notification
-  await notify.notifyCreator({
+  notify.notifyCreator({
     request: UpdatedConceptNote,
     currentUser: currentUser,
     requestType: "conceptNote",

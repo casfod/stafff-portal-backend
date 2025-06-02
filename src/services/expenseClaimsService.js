@@ -130,7 +130,7 @@ const saveAndSendExpenseClaim = async (data, currentUser, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (expenseClaim.status === "pending") {
-    await notify.notifyReviewers({
+    notify.notifyReviewers({
       request: expenseClaim,
       currentUser: currentUser,
       requestType: "expenseClaim",
@@ -223,7 +223,7 @@ const updateExpenseClaim = async (id, data, files = [], currentUser) => {
   }
 
   if (expenseClaim.status === "reviewed") {
-    await notify.notifyApprovers({
+    notify.notifyApprovers({
       request: expenseClaim,
       currentUser: currentUser,
       requestType: "expenseClaim",
@@ -267,7 +267,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingRequest.save();
 
   // Notification
-  await notify.notifyCreator({
+  notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
     requestType: "expenseClaim",

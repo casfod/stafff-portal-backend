@@ -149,7 +149,7 @@ const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (purchaseRequest.status === "pending") {
-    await notify.notifyReviewers({
+    notify.notifyReviewers({
       request: purchaseRequest,
       currentUser: currentUser,
       requestType: "purchaseRequest",
@@ -249,7 +249,7 @@ const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
   }
 
   if (purchaseRequest.status === "reviewed") {
-    await notify.notifyApprovers({
+    notify.notifyApprovers({
       request: purchaseRequest,
       currentUser: currentUser,
       requestType: "purchaseRequest",
@@ -294,7 +294,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingRequest.save();
 
   // Notification
-  await notify.notifyCreator({
+  notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
     requestType: "purchaseRequest",

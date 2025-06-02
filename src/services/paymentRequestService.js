@@ -196,7 +196,7 @@ const saveAndSendPaymentRequest = async (data, currentUser, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (paymentRequest.status === "pending") {
-    await notify.notifyReviewers({
+    notify.notifyReviewers({
       request: paymentRequest,
       currentUser: currentUser,
       requestType: "paymentRequest",
@@ -256,7 +256,7 @@ const updatePaymentRequest = async (id, data, files = [], currentUser) => {
 
   // Send notification to reviewers/admins if needed
   if (paymentRequest.status === "reviewed") {
-    await notify.notifyApprovers({
+    notify.notifyApprovers({
       request: paymentRequest,
       currentUser: currentUser,
       requestType: "paymentRequest",
@@ -304,7 +304,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingPaymentRequest.save();
 
   // Notification
-  await notify.notifyCreator({
+  notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
     requestType: "paymentRequest",

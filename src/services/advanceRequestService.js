@@ -186,7 +186,7 @@ const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
 
   // Send notification to reviewers/admins if needed
   if (advanceRequest.status === "pending") {
-    await notify.notifyReviewers({
+    notify.notifyReviewers({
       request: advanceRequest,
       currentUser: currentUser,
       requestType: "advanceRequest",
@@ -261,7 +261,7 @@ const updateAdvanceRequest = async (id, data, files = [], currentUser) => {
 
   // Send notification to reviewers/admins if needed
   if (updatedAdvanceRequest.status === "reviewed") {
-    await notify.notifyApprovers({
+    notify.notifyApprovers({
       request: updatedAdvanceRequest,
       currentUser: currentUser,
       requestType: "advanceRequest",
@@ -307,7 +307,7 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingRequest.save();
 
   // Notification
-  await notify.notifyCreator({
+  notify.notifyCreator({
     request: updatedRequest,
     currentUser: currentUser,
     requestType: "advanceRequest",
