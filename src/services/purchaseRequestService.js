@@ -235,22 +235,27 @@ const getPurchaseRequestById = async (id) => {
 
 // Update a purchase request
 const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
-  const purchaseRequest = await PurchaseRequest.findByIdAndUpdate(id, data, {
-    new: true,
-  });
+  const updatedPurchaseRequest = await PurchaseRequest.findByIdAndUpdate(
+    id,
+    data,
+    {
+      new: true,
+    }
+  );
 
   // Handle file uploads if any
   if (files.length > 0) {
     await handleFileUploads({
       files,
-      requestId: purchaseRequest._id,
+      requestId: updatedPurchaseRequest._id,
       modelTable: "PurchaseRequests",
     });
   }
 
-  if (purchaseRequest.status === "reviewed") {
+  // Send notification to reviewers/admins if needed
+  if (updatedPurchaseRequest.status === "reviewed") {
     notify.notifyApprovers({
-      request: purchaseRequest,
+      request: updatedPurchaseRequest,
       currentUser: currentUser,
       requestType: "purchaseRequest",
       title: "Purchase Request",
@@ -258,7 +263,7 @@ const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
     });
   }
 
-  return purchaseRequest;
+  return updatedPurchaseRequest;
 };
 
 const updateRequestStatus = async (id, data, currentUser) => {
