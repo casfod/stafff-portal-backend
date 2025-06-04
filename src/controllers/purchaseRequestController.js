@@ -25,7 +25,7 @@ const copyRequest = catchAsync(async (req, res) => {
 
   const purchaseRequest = await getPurchaseRequestById(id);
   if (!purchaseRequest) {
-    throw new appError("Advance request not found", 404);
+    throw new appError("Request not found", 404);
   }
 
   const updatedRequest = await PurchaseRequestCopyService.copyDocument({

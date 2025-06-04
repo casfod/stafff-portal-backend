@@ -24,7 +24,7 @@ const copyRequest = catchAsync(async (req, res) => {
   }
   const paymentRequest = await getPaymentRequestById(id);
   if (!paymentRequest) {
-    throw new appError("Advance request not found", 404);
+    throw new appError("Request not found", 404);
   }
 
   const updatedRequest = await PaymentRequestCopyService.copyDocument({

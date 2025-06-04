@@ -27,7 +27,7 @@ const copyRequest = catchAsync(async (req, res) => {
   // Get the advance request first to get its title
   const advanceRequest = await getAdvanceRequestById(id);
   if (!advanceRequest) {
-    throw new appError("Advance request not found", 404);
+    throw new appError("Request not found", 404);
   }
 
   const updatedRequest = await AdvanceRequestCopyService.copyDocument({
