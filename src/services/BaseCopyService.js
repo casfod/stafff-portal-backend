@@ -31,18 +31,29 @@ class BaseCopyService {
     return updatedDoc;
   }
 
-  async sendNotifications(document, userId, recipients) {
+  async sendNotifications(
+    userId,
+    requestId,
+    requestType,
+    requestTitle,
+    recipients
+  ) {
     await NotificationService.sendCopyNotification({
-      documentId: document._id,
-      documentType: this.modelName,
-      originalRequester: userId,
+      originalSender: userId,
+      requestId,
+      requestType,
+      requestTitle,
       recipients,
-      documentTitle:
-        document.activityDescription || document.title || this.modelName,
     });
   }
 
-  async copyDocument(requestId, userId, recipients) {
+  async copyDocument({
+    userId,
+    requestId,
+    requestType,
+    requestTitle,
+    recipients,
+  }) {
     try {
       await this.validateInput(requestId, userId, recipients);
 
@@ -54,7 +65,15 @@ class BaseCopyService {
       await this.verifyOwnership(originalDoc, userId);
 
       const updatedDoc = await this.addRecipients(requestId, recipients);
-      await this.sendNotifications(updatedDoc, userId, recipients);
+
+      // Ensure we're passing the correct parameters
+      await this.sendNotifications(
+        userId,
+        requestId, // Pass the original requestId, not updatedDoc._id
+        requestType,
+        requestTitle,
+        recipients
+      );
 
       return updatedDoc;
     } catch (error) {

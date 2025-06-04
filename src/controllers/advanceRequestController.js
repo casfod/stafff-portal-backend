@@ -7,22 +7,36 @@ const {
   updateRequestStatus,
   deleteAdvanceRequest,
   getAdvanceRequestStats,
+  AdvanceRequestCopyService,
 } = require("../services/advanceRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
+const appError = require("../utils/appError");
 
 const copyRequest = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { recipients } = req.body;
+  const { userIds } = req.body;
   const currentUser = await userByToken(req, res);
 
-  const updatedRequest = await AdvanceRequestCopyService.copyDocument(
-    id,
-    currentUser._id,
-    recipients
-  );
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  // Get the advance request first to get its title
+  const advanceRequest = await getAdvanceRequestById(id);
+  if (!advanceRequest) {
+    throw new appError("Advance request not found", 404);
+  }
+
+  const updatedRequest = await AdvanceRequestCopyService.copyDocument({
+    userId: currentUser._id,
+    requestId: id,
+    requestType: "advanceRequest",
+    requestTitle: "Advance Request", // Use actual purpose if available
+    recipients: userIds,
+  });
 
   handleResponse(
     res,
