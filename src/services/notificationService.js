@@ -217,7 +217,7 @@ class NotificationService {
       
         <div style="margin-bottom: 32px;">
           <a href="${requestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
-            View ${requestType.replace("Request", "")}
+            View Request
           </a>
         </div>
       

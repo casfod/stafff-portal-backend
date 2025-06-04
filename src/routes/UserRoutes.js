@@ -29,7 +29,8 @@ router.patch(
 
 router.get("/admins", userController.getAllAdmins);
 router.get("/reviewers", userController.getAllReviewers);
-router.get("/", restrictTo("SUPER-ADMIN", "ADMIN"), userController.getAllUsers);
+// router.get("/", restrictTo("SUPER-ADMIN", "ADMIN"), userController.getAllUsers);
+router.get("/", userController.getAllUsers);
 
 router.patch("/updatePassword", authController.updatePassword);
 router.get("/me", userController.getUserByToken);
