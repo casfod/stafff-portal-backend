@@ -4,6 +4,32 @@ const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  const conceptNote = await getConceptNoteById(id);
+  if (!conceptNote) {
+    throw new appError("Advance request not found", 404);
+  }
+
+  const updatedRequest =
+    await conceptNoteService.ConceptNoteCopyService.copyDocument({
+      userId: currentUser._id,
+      requestId: id,
+      requestType: "conceptNote",
+      requestTitle: "Concept Note",
+      recipients: userIds,
+    });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
+
 //Get stats
 const getStats = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
@@ -126,6 +152,7 @@ const deleteConceptNote = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   getStats,
   updateStatus,
   createConceptNote,

@@ -7,11 +7,37 @@ const {
   updateRequestStatus,
   deletePurchaseRequest,
   getPurchaseRequestStats,
+  PurchaseRequestCopyService,
 } = require("../services/purchaseRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
+
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  const purchaseRequest = await getPurchaseRequestById(id);
+  if (!purchaseRequest) {
+    throw new appError("Advance request not found", 404);
+  }
+
+  const updatedRequest = await PurchaseRequestCopyService.copyDocument({
+    userId: currentUser._id,
+    requestId: id,
+    requestType: "purchaseRequest",
+    requestTitle: "Purchase Request",
+    recipients: userIds,
+  });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
 
 const save = catchAsync(async (req, res) => {
   const data = req.body;
@@ -160,6 +186,7 @@ const remove = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   save,
   saveAndSend,
   getAll,

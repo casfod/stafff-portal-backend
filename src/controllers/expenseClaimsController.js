@@ -7,12 +7,38 @@ const {
   updateRequestStatus,
   deleteExpenseClaim,
   getExpenseClaimStats,
+  ExpenseClaimCopyService,
 } = require("../services/expenseClaimsService");
 // const { upload } = require("../controllers/fileController");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
+
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  const expenseClaim = await getExpenseClaimById(id);
+  if (!expenseClaim) {
+    throw new appError("Request not found", 404);
+  }
+
+  const updatedRequest = await ExpenseClaimCopyService.copyDocument({
+    userId: currentUser._id,
+    requestId: id,
+    requestType: "expenseClaim",
+    requestTitle: "Expense Claim",
+    recipients: userIds,
+  });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
 
 const save = catchAsync(async (req, res) => {
   const data = req.body;
@@ -116,6 +142,7 @@ const remove = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   save,
   saveAndSend,
   getAll,

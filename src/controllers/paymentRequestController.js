@@ -11,7 +11,32 @@ const {
   updatePaymentRequest,
   updateRequestStatus,
   deleteRequest,
+  PaymentRequestCopyService,
 } = require("../services/paymentRequestService.js");
+
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+  const paymentRequest = await getPaymentRequestById(id);
+  if (!paymentRequest) {
+    throw new appError("Advance request not found", 404);
+  }
+
+  const updatedRequest = await PaymentRequestCopyService.copyDocument({
+    userId: currentUser._id,
+    requestId: id,
+    requestType: "paymentRequest",
+    requestTitle: "Payment Request",
+    recipients: userIds,
+  });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
 
 // Get all payment requests
 const getAll = catchAsync(async (req, res) => {
@@ -130,6 +155,7 @@ const remove = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   getStats,
   getAll,
   getById,

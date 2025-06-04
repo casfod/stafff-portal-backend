@@ -26,10 +26,13 @@ conceptNoteRouter.post(
 
 // Save a new conceptNote
 conceptNoteRouter.post("/save", conceptNoteController.saveConceptNote);
+
 conceptNoteRouter.patch(
   "/update-status/:id",
   conceptNoteController.updateStatus
 );
+
+conceptNoteRouter.patch("/copy/:id", conceptNoteController.copyRequest);
 
 // Update a conceptNote by ID
 conceptNoteRouter.put(

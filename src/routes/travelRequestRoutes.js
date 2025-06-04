@@ -7,6 +7,7 @@ const {
   remove,
   updateStatus,
   getStats,
+  copyRequest,
 } = require("../controllers/travelRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -43,6 +44,7 @@ travelRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 travelRequestRouter.patch("/update-status/:id", updateStatus);
+travelRequestRouter.patch("/copy/:id", copyRequest);
 
 // Delete a advance request
 travelRequestRouter.delete("/:id", remove);

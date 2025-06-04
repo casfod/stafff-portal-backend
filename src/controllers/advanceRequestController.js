@@ -38,12 +38,7 @@ const copyRequest = catchAsync(async (req, res) => {
     recipients: userIds,
   });
 
-  handleResponse(
-    res,
-    200,
-    "Advance request copied successfully",
-    updatedRequest
-  );
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
 });
 
 const save = catchAsync(async (req, res) => {

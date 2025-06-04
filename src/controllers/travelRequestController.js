@@ -7,11 +7,37 @@ const {
   updateRequestStatus,
   deleteTravelRequest,
   getTravelRequestStats,
+  TravelRequestCopyService,
 } = require("../services/travelRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
+
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  const travelRequest = await getTravelRequestById(id);
+  if (!travelRequest) {
+    throw new appError("Request not found", 404);
+  }
+
+  const updatedRequest = await TravelRequestCopyService.copyDocument({
+    userId: currentUser._id,
+    requestId: id,
+    requestType: "travelRequest",
+    requestTitle: "Travel Request",
+    recipients: userIds,
+  });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
 
 const save = catchAsync(async (req, res) => {
   const data = req.body;
@@ -142,6 +168,7 @@ const remove = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   save,
   saveAndSend,
   getAll,

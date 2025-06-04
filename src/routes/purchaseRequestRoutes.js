@@ -7,6 +7,7 @@ const {
   remove,
   updateStatus,
   getStats,
+  copyRequest,
 } = require("../controllers/purchaseRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -43,6 +44,7 @@ purchaseRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update purchase request status
 purchaseRequestRouter.patch("/update-status/:id", updateStatus);
+purchaseRequestRouter.patch("/copy/:id", copyRequest);
 
 // Delete a purchase request
 purchaseRequestRouter.delete("/:id", remove);

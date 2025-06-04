@@ -7,6 +7,7 @@ const {
   remove,
   updateStatus,
   getStats,
+  copyRequest,
 } = require("../controllers/paymentRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -43,6 +44,7 @@ paymentRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update payment Request status
 paymentRequestRouter.patch("/update-status/:id", updateStatus);
+paymentRequestRouter.patch("/copy/:id", copyRequest);
 
 // Delete a payment request
 paymentRequestRouter.delete("/:id", remove);
