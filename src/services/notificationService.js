@@ -1,6 +1,6 @@
 // services/notificationService.js
 const nodemailer = require("nodemailer");
-const User = require("../models/UserModel"); // Assuming you have a User model
+const User = require("../models/UserModel");
 
 // Map request types to their URL paths
 const requestTypePaths = {
@@ -35,6 +35,7 @@ class NotificationService {
           address: process.env.USER_MAIL,
         },
         to: options.recipientEmail,
+        cc: options.cc || undefined, // Add CC field if it exists
         subject: options.subject,
         html: options.htmlTemplate,
       };
@@ -61,13 +62,8 @@ class NotificationService {
 
       if (!recipients.length) return;
 
-      // const subject =
-      //   requestData.status === "pending"
-      //     ? `New Request: ${title || "N/A"}`
-      //     : `Request Update: ${title || "N/A"}`;
       const subject = title;
 
-      // console.log("MAIL approvedBy ::==>>",requestData.approvedBy);
       const requestUrl = `${process.env.BASE_URL}/${requestTypePaths[requestType]}/${requestData._id}`;
 
       const htmlTemplate = `
@@ -229,15 +225,18 @@ class NotificationService {
       </div>
       `;
 
-      await Promise.all(
-        recipientUsers.map((recipient) =>
-          this.sendMail({
-            recipientEmail: recipient.email,
-            subject,
-            htmlTemplate,
-          })
-        )
-      );
+      // Prepare CC list (all recipient emails except the sender)
+      const ccRecipients = recipientUsers
+        .filter((recipient) => recipient.email !== sender.email)
+        .map((recipient) => recipient.email);
+
+      // Send email to sender with all other recipients as CC
+      await this.sendMail({
+        recipientEmail: sender.email,
+        cc: ccRecipients,
+        subject,
+        htmlTemplate,
+      });
     } catch (error) {
       console.error("Error sending copy notification:", error);
       throw error;
@@ -263,7 +262,3 @@ class NotificationService {
 }
 
 module.exports = new NotificationService();
-
-/**
- * <p style="font-weight: bold;">${title || "N/A"}</p>
- */
