@@ -25,7 +25,6 @@ class BaseCopyService {
     const userIdStr = normalizeId(userId);
     const createdByStr = normalizeId(document.createdBy);
     const preparedByStr = normalizeId(document.preparedBy);
-
     const isCreator = (createdByStr || preparedByStr) === userIdStr;
 
     if (!isCreator) {
