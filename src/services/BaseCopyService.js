@@ -1,4 +1,6 @@
 // services/baseCopyService.js
+const { Types } = require("mongoose");
+
 const NotificationService = require("./notificationService");
 
 class BaseCopyService {
@@ -12,10 +14,22 @@ class BaseCopyService {
       throw new Error("Invalid input parameters");
     }
   }
-
   async verifyOwnership(document, userId) {
-    if (!document.createdBy.equals(userId)) {
-      throw new Error("Unauthorized to copy this document");
+    const normalizeId = (id) => {
+      if (!id) return null;
+      if (typeof id === "string") return id;
+      if (Types.ObjectId.isValid(id)) return id.toString();
+      return null;
+    };
+
+    const userIdStr = normalizeId(userId);
+    const createdByStr = normalizeId(document.createdBy);
+    const preparedByStr = normalizeId(document.preparedBy);
+
+    const isCreator = (createdByStr || preparedByStr) === userIdStr;
+
+    if (!isCreator) {
+      throw new Error("Unauthorized: You are not the creator of this document");
     }
   }
 

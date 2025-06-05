@@ -4,10 +4,10 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const fileService = require("./fileService");
-const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
+const BaseCopyService = require("./BaseCopyService");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -30,8 +30,6 @@ const getConceptNoteStats = async (currentUser) => {
   // Role-based filtering using switch
   switch (currentUser.role) {
     case "SUPER-ADMIN":
-      //  case "ADMIN":
-      // No additional filters for admin roles
       break;
 
     default:

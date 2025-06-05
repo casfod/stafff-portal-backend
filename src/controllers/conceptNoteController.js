@@ -13,7 +13,7 @@ const copyRequest = catchAsync(async (req, res) => {
     throw new appError("Please provide valid recipient user IDs", 400);
   }
 
-  const conceptNote = await getConceptNoteById(id);
+  const conceptNote = await conceptNoteService.getConceptNoteById(id);
   if (!conceptNote) {
     throw new appError("Request not found", 404);
   }
