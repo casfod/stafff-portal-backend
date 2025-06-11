@@ -14,7 +14,7 @@ class BaseCopyService {
       throw new Error("Invalid input parameters");
     }
   }
-  async verifyOwnership(document, userId) {
+  async verifyCanShare(document, currentUser) {
     const normalizeId = (id) => {
       if (!id) return null;
       if (typeof id === "string") return id;
@@ -22,12 +22,16 @@ class BaseCopyService {
       return null;
     };
 
-    const userIdStr = normalizeId(userId);
+    const userIdStr = normalizeId(currentUser._id);
     const createdByStr = normalizeId(document.createdBy);
     const preparedByStr = normalizeId(document.preparedBy);
-    const isCreator = (createdByStr || preparedByStr) === userIdStr;
 
-    if (!isCreator) {
+    const isCreator = (createdByStr || preparedByStr) === userIdStr;
+    const canShareRequest =
+      isCreator ||
+      ["SUPER-ADMIN", "ADMIN", "REVIEWER"].includes(currentUser.role);
+
+    if (!canShareRequest) {
       throw new Error("Unauthorized: You are not the creator of this document");
     }
   }
@@ -61,27 +65,27 @@ class BaseCopyService {
   }
 
   async copyDocument({
-    userId,
+    currentUser,
     requestId,
     requestType,
     requestTitle,
     recipients,
   }) {
     try {
-      await this.validateInput(requestId, userId, recipients);
+      await this.validateInput(requestId, currentUser._id, recipients);
 
       const originalDoc = await this.model.findById(requestId);
       if (!originalDoc) {
         throw new Error(`${this.modelName} not found`);
       }
 
-      await this.verifyOwnership(originalDoc, userId);
+      await this.verifyCanShare(originalDoc, currentUser);
 
       const updatedDoc = await this.addRecipients(requestId, recipients);
 
       // Ensure we're passing the correct parameters
       await this.sendNotifications(
-        userId,
+        currentUser._id,
         requestId, // Pass the original requestId, not updatedDoc._id
         requestType,
         requestTitle,

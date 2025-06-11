@@ -58,6 +58,7 @@ const getExpenseClaims = async (queryParams, currentUser) => {
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   const {
@@ -189,6 +190,7 @@ const getExpenseClaimById = async (id) => {
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   const request = await ExpenseClaims.findById(id)

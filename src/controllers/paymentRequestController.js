@@ -28,7 +28,7 @@ const copyRequest = catchAsync(async (req, res) => {
   }
 
   const updatedRequest = await PaymentRequestCopyService.copyDocument({
-    userId: currentUser._id,
+    currentUser: currentUser,
     requestId: id,
     requestType: "paymentRequest",
     requestTitle: "Payment Request",

@@ -30,7 +30,7 @@ const copyRequest = catchAsync(async (req, res) => {
   }
 
   const updatedRequest = await ExpenseClaimCopyService.copyDocument({
-    userId: currentUser._id,
+    currentUser: currentUser,
     requestId: id,
     requestType: "expenseClaim",
     requestTitle: "Expense Claim",

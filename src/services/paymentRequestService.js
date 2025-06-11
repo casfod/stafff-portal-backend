@@ -122,6 +122,7 @@ const getPaymentRequests = async (queryParams, currentUser) => {
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   // Pagination
@@ -215,6 +216,7 @@ const getPaymentRequestById = async (id) => {
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   const request = await PaymentRequest.findById(id)

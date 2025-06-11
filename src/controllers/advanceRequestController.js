@@ -31,7 +31,7 @@ const copyRequest = catchAsync(async (req, res) => {
   }
 
   const updatedRequest = await AdvanceRequestCopyService.copyDocument({
-    userId: currentUser._id,
+    currentUser: currentUser,
     requestId: id,
     requestType: "advanceRequest",
     requestTitle: "Advance Request", // Use actual purpose if available

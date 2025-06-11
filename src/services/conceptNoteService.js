@@ -105,7 +105,8 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     { path: "project", select: "project_code account_code" },
     { path: "preparedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   // Fetch projects with filters, sorting, and pagination
@@ -188,7 +189,8 @@ const getConceptNoteById = async (id) => {
     { path: "project", select: "project_code account_code" },
     { path: "preparedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   const request = await ConceptNote.findById(id)

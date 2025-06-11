@@ -64,7 +64,8 @@ const getTravelRequests = async (queryParams, currentUser) => {
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   // Filters, sorting, pagination, and populate
@@ -198,7 +199,8 @@ const getTravelRequestById = async (id) => {
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" }, // Simplified path
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
   const request = await TravelRequest.findById(id)
