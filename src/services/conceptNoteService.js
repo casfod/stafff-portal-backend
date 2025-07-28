@@ -127,13 +127,10 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   // Fetch associated files
   const concepNotesWithFiles = await Promise.all(
     conceptNotes.map(async (claim) => {
-      if (!claim || !claim._id) return null;
-
       const files = await fileService.getFilesByDocument(
         "ConceptNotes",
         claim._id
       );
-
       return {
         ...claim.toJSON(),
         files,
@@ -141,11 +138,8 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     })
   );
 
-  // Filter out nulls
-  const filteredNotes = concepNotesWithFiles.filter(Boolean);
-
   return {
-    conceptNotes: filteredNotes,
+    conceptNotes: concepNotesWithFiles,
     totalConceptNote: total,
     totalPages,
     currentPage,
