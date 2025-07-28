@@ -120,7 +120,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
 userSchema.set("toJSON", {
   virtuals: true,
   transform: (document, returnedObject) => {
-    returnedObject.id = returnedObject._id.toString();
+    returnedObject.id = returnedObject._id.toString() || null;
     delete returnedObject._id;
     delete returnedObject.__v;
   },
