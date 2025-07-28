@@ -59,7 +59,7 @@ const conceptNoteSchema = new mongoose.Schema(
   }
 );
 
-userSchema.set("toJSON", {
+conceptNoteSchema.set("toJSON", {
   virtuals: true,
   transform: (document, returnedObject) => {
     if (returnedObject._id) {
