@@ -47,43 +47,47 @@ const sendErrorDev = (err, req, res) => {
 };
 
 const sendErrorProd = (err, req, res) => {
-  // A) API
+  const showFullError = process.env.SHOW_FULL_ERRORS === "true"; // add this env var in .env for temporary debugging
+
   if (req.originalUrl.startsWith("/api")) {
-    // A) Operational, trusted error: send message to client
     if (err.isOperational) {
       return res.status(err.statusCode).json({
         status: err.status,
-        message: `${err.message}`,
+        message: err.message,
       });
     }
-    // B) Programming or other unknown error: don't leak error details
-    // 1) Log error
+
     console.error("ERROR 💥💥", err);
 
-    // 2) Send generic message
+    // Show full error only if explicitly enabled
+    if (showFullError) {
+      return res.status(err.statusCode || 500).json({
+        status: "error",
+        message: err.message,
+        error: err,
+        stack: err.stack,
+      });
+    }
+
     return res.status(500).json({
       status: "error",
-      message: `${err.message}`,
-      err,
+      message: "Something went wrong.",
     });
   }
 
-  // B) RENDERED WEBSITE
-  // A) Operational, trusted error: send message to client
+  // For rendered websites
   if (err.isOperational) {
     return res.status(err.statusCode).render("error", {
       title: "Something went wrong!",
       msg: err.message,
     });
   }
-  // B) Programming or other unknown error: don't leak error details
-  // 1) Log error
+
   console.error("ERROR 💥💥💥", err);
 
-  // 2) Send generic message
-  return res.status(err.statusCode).render("error", {
+  return res.status(err.statusCode || 500).render("error", {
     title: "Something went wrong!",
-    msg: "Please try again later.",
+    msg: showFullError ? err.message : "Please try again later.",
   });
 };
 
