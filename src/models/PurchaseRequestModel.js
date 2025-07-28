@@ -70,8 +70,10 @@ const purchaseRequestSchema = new mongoose.Schema(
 purchaseRequestSchema.set("toJSON", {
   virtuals: true,
   transform: (document, returnedObject) => {
-    returnedObject.id = returnedObject._id.toString();
-    delete returnedObject._id;
+    if (returnedObject._id) {
+      returnedObject.id = returnedObject._id.toString();
+      delete returnedObject._id;
+    }
     delete returnedObject.__v;
   },
 });
