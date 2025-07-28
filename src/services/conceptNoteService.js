@@ -60,6 +60,7 @@ const getConceptNoteStats = async (currentUser) => {
 };
 
 const getAllConceptNotes = async (queryParams, currentUser) => {
+  console.log("❌====>", queryParams, currentUser);
   const { search, sort, page = 1, limit = Infinity } = queryParams;
 
   // Define the fields you want to search in
