@@ -61,8 +61,18 @@ const conceptNoteSchema = new mongoose.Schema(
 
 conceptNoteSchema.set("toJSON", {
   virtuals: true,
+  // transform: (document, returnedObject) => {
+  //   returnedObject.id = returnedObject._id.toString();
+  //   delete returnedObject._id;
+  //   delete returnedObject.__v;
+  // },
+
   transform: (document, returnedObject) => {
-    returnedObject.id = returnedObject._id.toString();
+    if (returnedObject._id?.toString) {
+      returnedObject.id = returnedObject._id.toString();
+    } else {
+      returnedObject.id = returnedObject._id || null;
+    }
     delete returnedObject._id;
     delete returnedObject.__v;
   },
