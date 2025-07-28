@@ -1,33 +1,36 @@
 const AppError = require("./../utils/appError");
 
+// Handle invalid Mongo ObjectId error (e.g. findById with bad ID)
 const handleCastErrorDB = (err) => {
   const message = `Invalid ${err.path}: ${err.value}.`;
   return new AppError(message, 400);
 };
 
+// Handle duplicate fields error (e.g. unique email)
 const handleDuplicateFieldsDB = (err) => {
-  // Extract the key-value pair from the error response
-  const keyValue = err.errorResponse.keyValue;
-
-  // Get the first key and its value from the keyValue object
-  const key = Object.keys(keyValue)[0]; // e.g., "email"
-  // const value = keyValue[key]; // e.g., "test@example.com"
-
-  // Construct the error message dynamically
+  const keyValue = err.errorResponse?.keyValue || err.keyValue;
+  const key = keyValue ? Object.keys(keyValue)[0] : "field";
   const message = `This ${key} already exists`;
-
-  // Return a new AppError with the custom message and status code
   return new AppError(message, 400);
 };
 
+// Handle validation errors (e.g. missing required fields)
+const handleValidationErrorDB = (err) => {
+  const errors = Object.values(err.errors).map((el) => el.message);
+  const message = `Invalid input data. ${errors.join(". ")}`;
+  return new AppError(message, 400);
+};
+
+// Handle invalid JWT
 const handleJWTError = () =>
   new AppError("Invalid token. Please log in again!", 401);
 
+// Handle expired JWT
 const handleJWTExpiredError = () =>
   new AppError("Your token has expired! Please log in again.", 401);
 
+// Development error output
 const sendErrorDev = (err, req, res) => {
-  // A) API
   if (req.originalUrl.startsWith("/api")) {
     return res.status(err.statusCode).json({
       status: err.status,
@@ -37,7 +40,6 @@ const sendErrorDev = (err, req, res) => {
     });
   }
 
-  // B) RENDERED WEBSITE
   console.error("ERROR 💥", err);
 
   return res.status(err.statusCode).render("error", {
@@ -46,8 +48,9 @@ const sendErrorDev = (err, req, res) => {
   });
 };
 
+// Production error output
 const sendErrorProd = (err, req, res) => {
-  const showFullError = process.env.SHOW_FULL_ERRORS === "true"; // add this env var in .env for temporary debugging
+  const showFullError = process.env.SHOW_FULL_ERRORS === "true";
 
   if (req.originalUrl.startsWith("/api")) {
     if (err.isOperational) {
@@ -59,13 +62,16 @@ const sendErrorProd = (err, req, res) => {
 
     console.error("ERROR 💥💥", err);
 
-    // Show full error only if explicitly enabled
     if (showFullError) {
       return res.status(err.statusCode || 500).json({
         status: "error",
         message: err.message,
         error: err,
         stack: err.stack,
+        name: err.name,
+        code: err.code,
+        value: err.value,
+        path: err.path,
       });
     }
 
@@ -75,7 +81,6 @@ const sendErrorProd = (err, req, res) => {
     });
   }
 
-  // For rendered websites
   if (err.isOperational) {
     return res.status(err.statusCode).render("error", {
       title: "Something went wrong!",
@@ -91,16 +96,15 @@ const sendErrorProd = (err, req, res) => {
   });
 };
 
+// Main export
 module.exports = (err, req, res, next) => {
-  // console.log(err.stack);
-
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
 
   if (process.env.NODE_ENV === "development") {
     sendErrorDev(err, req, res);
   } else if (process.env.NODE_ENV.trim() === "production") {
-    let error = { ...err };
+    let error = Object.create(err);
     error.message = err.message;
 
     if (error.name === "CastError") error = handleCastErrorDB(error);
