@@ -60,7 +60,6 @@ const getConceptNoteStats = async (currentUser) => {
 };
 
 const getAllConceptNotes = async (queryParams, currentUser) => {
-  console.log("❌====>", queryParams, currentUser);
   const { search, sort, page = 1, limit = Infinity } = queryParams;
 
   // Define the fields you want to search in
@@ -127,6 +126,11 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   // Fetch associated files
   const concepNotesWithFiles = await Promise.all(
     conceptNotes.map(async (claim) => {
+      if (!claim || !claim._id) {
+        console.warn("Invalid claim encountered:", claim);
+        return null;
+      }
+
       const files = await fileService.getFilesByDocument(
         "ConceptNotes",
         claim._id
@@ -138,8 +142,10 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     })
   );
 
+  const filteredNotes = concepNotesWithFiles.filter(Boolean);
+
   return {
-    conceptNotes: concepNotesWithFiles,
+    conceptNotes: filteredNotes,
     totalConceptNote: total,
     totalPages,
     currentPage,
