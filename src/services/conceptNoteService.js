@@ -123,7 +123,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     populateOptions
   );
 
-  // Fetch associated files
+  // Fetch concepNotes associated files
   const concepNotesWithFiles = await Promise.all(
     conceptNotes.map(async (claim) => {
       if (!claim || !claim._id) {
