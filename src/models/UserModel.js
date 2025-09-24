@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema(
       default: "STAFF",
     },
 
-    isDeleted: {
+    isProcurement: {
       type: Boolean,
       default: false,
     },
