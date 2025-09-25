@@ -29,14 +29,18 @@ const getVendorByCode = catchAsync(async (req, res) => {
 
 const createVendor = catchAsync(async (req, res) => {
   const vendorData = req.body;
-  const vendor = await createVendorService(vendorData);
+  const files = req.files || [];
+
+  const vendor = await createVendorService(vendorData, files);
   handleResponse(res, 201, "Vendor created successfully", { vendor });
 });
 
 const updateVendor = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const updateData = req.body;
-  const vendor = await updateVendorService(vendorId, updateData);
+
+  const files = req.files || [];
+  const vendor = await updateVendorService(vendorId, updateData, files);
   handleResponse(res, 200, "Vendor updated successfully", { vendor });
 });
 

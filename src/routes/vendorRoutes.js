@@ -8,23 +8,35 @@ const {
   deleteVendor,
 } = require("../controllers/vendorController");
 const protect = require("../middleware/protect");
+const { upload } = require("../controllers/fileController");
+const {
+  checkViewPermission,
+  checkCreatePermission,
+  checkUpdatePermission,
+  checkDeletePermission,
+} = require("../middleware/checkProcurementPermissions");
 
 const vendorRouter = express.Router();
 
-// Protect all routes after this middleware
+// Protect all routes after this middleware - THIS MUST COME FIRST
 vendorRouter.use(protect);
 
-vendorRouter
-  .route("/")
-  .get(getAllVendors) // GET /api/vendors?search=term&sort=field&page=1&limit=10
-  .post(createVendor); // POST /api/vendors
-
-vendorRouter.route("/code/:vendorCode").get(getVendorByCode); // GET /api/vendors/code/TEC00001
-
-vendorRouter
-  .route("/:vendorId")
-  .get(getVendorById) // GET /api/vendors/:vendorId
-  .patch(updateVendor) // PATCH /api/vendors/:vendorId
-  .delete(deleteVendor); // DELETE /api/vendors/:vendorId
+// Apply procurement permissions to all routes (SUPER-ADMIN is handled within the permission functions)
+vendorRouter.get("/", checkViewPermission, getAllVendors);
+vendorRouter.get("/code/:vendorCode", checkViewPermission, getVendorByCode);
+vendorRouter.get("/:vendorId", checkViewPermission, getVendorById);
+vendorRouter.post(
+  "/",
+  upload.array("files", 10),
+  checkCreatePermission,
+  createVendor
+);
+vendorRouter.patch(
+  "/:vendorId",
+  upload.array("files", 10),
+  checkUpdatePermission,
+  updateVendor
+);
+vendorRouter.delete("/:vendorId", checkDeletePermission, deleteVendor);
 
 module.exports = vendorRouter;

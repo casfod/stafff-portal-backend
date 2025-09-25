@@ -94,13 +94,14 @@ const updateProject = async (id, updateData, files = []) => {
   if (files.length > 0) {
     await fileService.deleteFilesByDocument("Projects", id);
 
+    // Handle file uploads if any
+
     await handleFileUploads({
       files,
       requestId: id,
       modelTable: "Projects",
     });
   }
-  // Handle file uploads if any
 
   const project = await Project.findByIdAndUpdate(id, updateData, {
     new: true,

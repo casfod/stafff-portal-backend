@@ -45,9 +45,23 @@ const userSchema = new mongoose.Schema(
       default: "STAFF",
     },
 
-    isProcurement: {
-      type: Boolean,
-      default: false,
+    procurementRole: {
+      canCreate: {
+        type: Boolean,
+        default: false,
+      },
+      canView: {
+        type: Boolean,
+        default: false,
+      },
+      canUpdate: {
+        type: Boolean,
+        default: false,
+      },
+      canDelete: {
+        type: Boolean,
+        default: false,
+      },
     },
 
     password: {
