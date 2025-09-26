@@ -8,6 +8,9 @@ const {
 } = require("../services/vendorService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
+const {
+  generateVendorsExcelReport,
+} = require("../services/vendorExcelService");
 
 const getAllVendors = catchAsync(async (req, res) => {
   const { search, sort, page, limit } = req.query;
@@ -60,9 +63,14 @@ const deleteVendor = catchAsync(async (req, res) => {
   handleResponse(res, 200, result.message);
 });
 
+const exportVendorsToExcel = catchAsync(async (req, res) => {
+  await generateVendorsExcelReport(res);
+});
+
 module.exports = {
   getAllVendors,
   getVendorById,
+  exportVendorsToExcel,
   getVendorByCode,
   createVendor,
   updateVendor,

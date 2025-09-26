@@ -6,6 +6,7 @@ const {
   createVendor,
   updateVendor,
   deleteVendor,
+  exportVendorsToExcel,
 } = require("../controllers/vendorController");
 const protect = require("../middleware/protect");
 const { upload } = require("../controllers/fileController");
@@ -25,6 +26,7 @@ vendorRouter.use(protect);
 vendorRouter.get("/", checkViewPermission, getAllVendors);
 vendorRouter.get("/code/:vendorCode", checkViewPermission, getVendorByCode);
 vendorRouter.get("/:vendorId", checkViewPermission, getVendorById);
+vendorRouter.get("/export/excel", checkViewPermission, exportVendorsToExcel);
 vendorRouter.post(
   "/",
   upload.array("files", 10),
