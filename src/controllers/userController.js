@@ -40,8 +40,8 @@ const deleteUser = catchAsync(async (req, res) => {
   handleResponse(res, 204, "User deleted successfully");
 });
 const updateUserAdmin = catchAsync(async (req, res) => {
-  await updateUserAdminService(req.params.userID, req.body);
-  handleResponse(res, 204, "User updated successfully");
+  const updatedUser = await updateUserAdminService(req.params.userID, req.body);
+  handleResponse(res, 200, "User updated successfully", updatedUser); // Changed to 200
 });
 
 module.exports = {
