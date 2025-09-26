@@ -44,12 +44,23 @@ const vendorSchema = new mongoose.Schema(
         message: "Contact phone number must be exactly 11 digits",
       },
     },
-    category: {
-      type: String,
-      trim: true,
+    categories: {
+      type: [String],
+      default: [],
+      required: true,
+      validate: {
+        validator: function (categories) {
+          return categories.every(
+            (cat) => typeof cat === "string" && cat.trim().length > 0
+          );
+        },
+        message: "Each category must be a non-empty string",
+      },
     },
+
     supplierNumber: {
       type: String,
+      required: true,
       trim: true,
     },
     contactPerson: {

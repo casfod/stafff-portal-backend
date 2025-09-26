@@ -127,6 +127,7 @@ const createVendorService = async (vendorData, files = []) => {
 };
 
 const updateVendorService = async (vendorId, updateData, files = []) => {
+  console.log("/////😀😀😀😀//////", vendorId, updateData, files);
   if (files.length > 0) {
     await fileService.deleteFilesByDocument("Vendors", vendorId);
 

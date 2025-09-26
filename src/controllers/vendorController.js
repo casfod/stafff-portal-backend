@@ -18,7 +18,10 @@ const getAllVendors = catchAsync(async (req, res) => {
 const getVendorById = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const vendor = await getVendorByIdService(vendorId);
-  handleResponse(res, 200, "Vendor fetched successfully", { vendor });
+  handleResponse(res, 200, "Vendor fetched successfully", {
+    ...vendor,
+    id: vendor._id,
+  });
 });
 
 const getVendorByCode = catchAsync(async (req, res) => {
@@ -31,6 +34,8 @@ const createVendor = catchAsync(async (req, res) => {
   const vendorData = req.body;
   const files = req.files || [];
 
+  console.log("files:", files);
+
   const vendor = await createVendorService(vendorData, files);
   handleResponse(res, 201, "Vendor created successfully", { vendor });
 });
@@ -39,7 +44,12 @@ const updateVendor = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const updateData = req.body;
 
+  console.log("vendorId::", vendorId);
+
   const files = req.files || [];
+
+  console.log("files:", files);
+
   const vendor = await updateVendorService(vendorId, updateData, files);
   handleResponse(res, 200, "Vendor updated successfully", { vendor });
 });
