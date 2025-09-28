@@ -1,9 +1,9 @@
 const Vendor = require("../models/VendorModel");
 
 /**
- * Generate vendor code from business name (8 characters)
- * Format: First 3 letters of business name + sequential number
- * Example: TEC00001, TEC00002, etc.
+ * Generate vendor code from business name (6 characters)
+ * Format: First 3 letters of business name + 3 random digits
+ * Example: TEC123, TEC456, etc.
  */
 const generateVendorCode = async (businessName) => {
   if (!businessName || businessName.length < 3) {
@@ -19,34 +19,35 @@ const generateVendorCode = async (businessName) => {
   // If after filtering we have less than 3 characters, pad with 'X'
   const finalPrefix = prefix.padEnd(3, "X").substring(0, 3);
 
-  // Find the highest sequential number for this prefix
-  const latestVendor = await Vendor.findOne({
-    vendorCode: new RegExp(`^${finalPrefix}\\d{5}$`),
-  }).sort({ vendorCode: -1 });
+  // Generate 3 random digits
+  const generateRandomDigits = () => {
+    return Math.floor(100 + Math.random() * 900).toString(); // 100-999
+  };
 
-  let sequentialNumber = 1;
+  let vendorCode;
+  let attempts = 0;
+  const maxAttempts = 10;
 
-  if (latestVendor) {
-    const lastNumber = parseInt(latestVendor.vendorCode.substring(3), 10);
-    sequentialNumber = lastNumber + 1;
-  }
+  // Keep generating until we get a unique code or reach max attempts
+  do {
+    const randomDigits = generateRandomDigits();
+    vendorCode = `${finalPrefix}${randomDigits}`;
+    attempts++;
 
-  // Ensure sequential number is 5 digits (00001 to 99999)
-  if (sequentialNumber > 99999) {
-    throw new Error("Vendor code sequence exceeded for this prefix");
-  }
+    // Check if this vendor code already exists
+    const existingVendor = await Vendor.findOne({ vendorCode });
 
-  const sequentialPart = sequentialNumber.toString().padStart(5, "0");
-  const vendorCode = `${finalPrefix}${sequentialPart}`;
+    if (!existingVendor) {
+      return vendorCode;
+    }
 
-  // Double-check uniqueness
-  const existingVendor = await Vendor.findOne({ vendorCode });
-  if (existingVendor) {
-    // Recursively try again (should be very rare)
-    return generateVendorCode(businessName);
-  }
-
-  return vendorCode;
+    // If we've tried too many times, throw an error
+    if (attempts >= maxAttempts) {
+      throw new Error(
+        `Unable to generate unique vendor code after ${maxAttempts} attempts`
+      );
+    }
+  } while (true);
 };
 
 /**

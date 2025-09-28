@@ -11,25 +11,31 @@ const generateVendorsExcelReport = async (res) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Vendors");
 
-    // Define headers
+    // Define headers - updated to match current VendorModel
     const headers = [
       "Vendor Code",
       "Business Name",
       "Business Type",
+      "Business Registration Number",
+      "Business State",
+      "Operating LGA",
+      "TIN Number",
+      "Categories",
       "Contact Person",
       "Position",
       "Email",
       "Business Phone",
       "Contact Phone",
       "Address",
-      "Supplier Number",
-      "TIN Number",
-      "Categories",
+      "Bank Name",
+      "Account Name",
+      "Account Number",
       "Date Created",
     ];
+
     // ===== TITLE SECTION =====
     // Main Title (merged across all columns)
-    worksheet.mergeCells("A1:M1");
+    worksheet.mergeCells("A1:R1");
     const titleRow = worksheet.getRow(1);
     titleRow.getCell(1).value = "CASFOD Procurement Vendors List";
     titleRow.font = { bold: true, size: 16 };
@@ -37,14 +43,14 @@ const generateVendorsExcelReport = async (res) => {
     titleRow.height = 25;
 
     // Report Date (merged)
-    worksheet.mergeCells("A2:M2");
+    worksheet.mergeCells("A2:R2");
     const dateRow = worksheet.getRow(2);
     dateRow.getCell(1).value = `REPORT DATE: ${new Date().toDateString()}`;
     dateRow.font = { bold: true };
     dateRow.alignment = { horizontal: "left" };
 
     // Total Vendors (merged)
-    worksheet.mergeCells("A3:M3");
+    worksheet.mergeCells("A3:R3");
     const countRow = worksheet.getRow(3);
     countRow.getCell(1).value = `TOTAL VENDORS: ${vendors.length}`;
     countRow.font = { bold: true };
@@ -62,15 +68,20 @@ const generateVendorsExcelReport = async (res) => {
         vendor.vendorCode || "",
         vendor.businessName || "",
         vendor.businessType || "",
+        vendor.businessRegNumber || "",
+        vendor.businessState || "",
+        vendor.operatingLGA || "",
+        vendor.tinNumber || "",
+        vendor.categories ? vendor.categories.join(", ") : "",
         vendor.contactPerson || "",
         vendor.position || "",
         vendor.email || "",
         vendor.businessPhoneNumber || "",
         vendor.contactPhoneNumber || "",
         vendor.address || "",
-        vendor.supplierNumber || "",
-        vendor.tinNumber || "",
-        vendor.categories ? vendor.categories.join(", ") : "",
+        vendor.bankName || "",
+        vendor.accountName || "",
+        vendor.accountNumber || "",
         vendor.createdAt ? vendor.createdAt.toDateString() : "",
       ]);
     });
@@ -84,7 +95,6 @@ const generateVendorsExcelReport = async (res) => {
       fgColor: { argb: "FF2F75B5" },
     };
     headerRow.alignment = { horizontal: "center", vertical: "center" };
-    // headerRow.height = 10;
 
     // Auto-fit columns with reasonable limits
     worksheet.columns.forEach((column, index) => {
@@ -99,9 +109,64 @@ const generateVendorsExcelReport = async (res) => {
           }
         }
       });
-      // Set column widths with reasonable min/max
-      const calculatedWidth = Math.min(Math.max(maxLength + 2, 12), 30);
-      column.width = calculatedWidth;
+
+      // Set specific widths for certain columns
+      let columnWidth;
+      switch (index) {
+        case 0: // Vendor Code
+          columnWidth = 12;
+          break;
+        case 1: // Business Name
+          columnWidth = 25;
+          break;
+        case 3: // Business Registration Number
+          columnWidth = 20;
+          break;
+        case 4: // Business State
+          columnWidth = 15;
+          break;
+        case 5: // Operating LGA
+          columnWidth = 15;
+          break;
+        case 6: // TIN Number
+          columnWidth = 15;
+          break;
+        case 7: // Categories
+          columnWidth = 20;
+          break;
+        case 8: // Contact Person
+          columnWidth = 18;
+          break;
+        case 9: // Position
+          columnWidth = 15;
+          break;
+        case 10: // Email
+          columnWidth = 25;
+          break;
+        case 11: // Business Phone
+        case 12: // Contact Phone
+          columnWidth = 15;
+          break;
+        case 13: // Address
+          columnWidth = 30;
+          break;
+        case 14: // Bank Name
+          columnWidth = 20;
+          break;
+        case 15: // Account Name
+          columnWidth = 20;
+          break;
+        case 16: // Account Number
+          columnWidth = 15;
+          break;
+        case 17: // Date Created
+          columnWidth = 12;
+          break;
+        default:
+          columnWidth = Math.min(Math.max(maxLength + 2, 12), 30);
+      }
+
+      column.width = columnWidth;
     });
 
     // Add borders to data rows only (headers + vendor data)

@@ -12,6 +12,29 @@ const vendorSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
+    businessRegNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+
+    businessState: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    operatingLGA: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    accountNumber: { type: String, required: true, trim: true },
+    accountName: { type: String, required: true, trim: true },
+    bankName: { type: String, required: true, trim: true },
     address: {
       type: String,
       required: true,
@@ -33,6 +56,7 @@ const vendorSchema = new mongoose.Schema(
         message: "Business phone number must be exactly 11 digits",
       },
     },
+
     contactPhoneNumber: {
       type: String,
       required: true,
@@ -58,11 +82,6 @@ const vendorSchema = new mongoose.Schema(
       },
     },
 
-    supplierNumber: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     contactPerson: {
       type: String,
       required: true,
@@ -72,6 +91,7 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
     vendorCode: {
       type: String,
       required: true,
@@ -79,6 +99,7 @@ const vendorSchema = new mongoose.Schema(
       uppercase: true,
       trim: true,
     },
+
     tinNumber: {
       type: String,
       required: true,
