@@ -28,7 +28,6 @@ const vendorSchema = new mongoose.Schema(
 
     operatingLGA: {
       type: String,
-      required: true,
       trim: true,
     },
 
