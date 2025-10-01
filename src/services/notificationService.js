@@ -259,6 +259,82 @@ class NotificationService {
       htmlTemplate,
     });
   }
+
+  // services/notificationService.js - Add this method
+
+  async sendMailWithAttachment(options) {
+    try {
+      const mailOptions = {
+        from: {
+          name: "Casfod Possibility Hub",
+          address: process.env.USER_MAIL,
+        },
+        to: options.recipientEmail,
+        cc: options.cc || undefined,
+        subject: options.subject,
+        html: options.htmlTemplate,
+        attachments: options.attachments || undefined,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+    } catch (error) {
+      console.error("Error sending email with attachment:", error);
+      throw new Error("Failed to send email with attachment");
+    }
+  }
+
+  // // Alternative: Download and attach PDF
+  // async sendRFQWithPDFAttachment({ vendor, rfq, currentUser, pdfUrl }) {
+  //   try {
+  //     if (!pdfUrl) {
+  //       return await this.sendRFQNotification({
+  //         vendor,
+  //         rfq,
+  //         currentUser,
+  //         pdfUrl,
+  //       });
+  //     }
+
+  //     // Download PDF from Cloudinary/URL
+  //     const response = await fetch(pdfUrl);
+  //     const pdfBuffer = await response.buffer();
+
+  //     const subject = `Request for Quotation: ${rfq.RFQCode}`;
+
+  //     const htmlTemplate = `...`; // Same template as above
+
+  //     const mailOptions = {
+  //       from: {
+  //         name: "Casfod Possibility Hub",
+  //         address: process.env.USER_MAIL,
+  //       },
+  //       to: vendor.email,
+  //       subject,
+  //       html: htmlTemplate,
+  //       attachments: [
+  //         {
+  //           filename: `RFQ-${rfq.RFQCode}.pdf`,
+  //           content: pdfBuffer,
+  //           contentType: "application/pdf",
+  //         },
+  //       ],
+  //     };
+
+  //     await this.transporter.sendMail(mailOptions);
+  //     console.log(
+  //       `RFQ ${rfq.RFQCode} with PDF attachment sent to: ${vendor.businessName}`
+  //     );
+  //   } catch (error) {
+  //     console.error("Error sending RFQ with PDF attachment:", error);
+  //     // Fallback to without attachment
+  //     await this.sendRFQNotification({
+  //       vendor,
+  //       rfq,
+  //       currentUser,
+  //       pdfUrl: null,
+  //     });
+  //   }
+  // }
 }
 
 module.exports = new NotificationService();
