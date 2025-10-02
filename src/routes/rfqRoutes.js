@@ -11,34 +11,36 @@ const {
 } = require("../controllers/rfqController");
 const protect = require("../middleware/protect");
 const { upload } = require("../controllers/fileController");
+const {
+  checkViewPermission,
+  checkCreatePermission,
+  checkUpdatePermission,
+  checkDeletePermission,
+} = require("../middleware/checkProcurementPermissions");
 
 const rfqRouter = express.Router();
 
 // Protect all routes
 rfqRouter.use(protect);
 
-// Save RFQ (draft)
-rfqRouter.post("/save", save);
-
-// Save and send RFQ to vendors
-rfqRouter.post("/save-to-send", upload.array("files", 10), savetoSend);
-
-// Get all RFQs
-rfqRouter.get("/", getAll);
-
-// Get RFQ by ID
-rfqRouter.get("/:id", getById);
-
-// Update RFQ
-rfqRouter.put("/:id", upload.array("files", 10), update);
-
-// Update RFQ status
-rfqRouter.patch("/update-status/:id", updateStatus);
-
-// Copy RFQ to vendors
-rfqRouter.patch("/copy/:id", copyRFQ);
-
-// Delete RFQ
-rfqRouter.delete("/:id", remove);
+// Apply procurement permissions to all routes
+rfqRouter.post("/save", checkCreatePermission, save);
+rfqRouter.post(
+  "/save-to-send",
+  upload.array("files", 10),
+  checkCreatePermission,
+  savetoSend
+);
+rfqRouter.get("/", checkViewPermission, getAll);
+rfqRouter.get("/:id", checkViewPermission, getById);
+rfqRouter.put("/:id", upload.array("files", 10), checkUpdatePermission, update);
+rfqRouter.patch("/update-status/:id", checkUpdatePermission, updateStatus);
+rfqRouter.patch(
+  "/copy/:id",
+  upload.array("files", 1),
+  checkUpdatePermission,
+  copyRFQ
+); // Limit to 1 PDF file
+rfqRouter.delete("/:id", checkDeletePermission, remove);
 
 module.exports = rfqRouter;

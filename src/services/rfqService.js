@@ -8,6 +8,7 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const NotificationService = require("./notificationService");
+
 class RFQCopyService extends BaseCopyService {
   constructor() {
     super(RFQ, "RFQ");
@@ -16,8 +17,8 @@ class RFQCopyService extends BaseCopyService {
 
 const rfqCopyService = new RFQCopyService();
 
-// Get all RFQs
-const getRFQs = async (queryParams, currentUser) => {
+// Get all RFQs - REMOVED ROLE-BASED ACCESS CONTROL
+const getRFQs = async (queryParams) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
   const searchFields = [
@@ -30,25 +31,6 @@ const getRFQs = async (queryParams, currentUser) => {
 
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
-
-  // Role-based access control
-  switch (currentUser.role) {
-    case "STAFF":
-      query.createdBy = currentUser._id;
-      break;
-    case "ADMIN":
-    case "REVIEWER":
-      query.$or = [
-        { createdBy: currentUser._id },
-        { status: { $ne: "draft" } },
-      ];
-      break;
-    case "SUPER-ADMIN":
-      // Can see all RFQs
-      break;
-    default:
-      throw new Error("Invalid user role");
-  }
 
   const sortQuery = buildSortQuery(sort);
   const populateOptions = [
@@ -63,8 +45,18 @@ const getRFQs = async (queryParams, currentUser) => {
     currentPage,
   } = await paginate(RFQ, query, { page, limit }, sortQuery, populateOptions);
 
+  const rfqsWithFiles = await Promise.all(
+    rfqs.map(async (rfq) => {
+      const files = await fileService.getFilesByDocument("RFQs", rfq._id);
+      return {
+        ...rfq.toJSON(),
+        files: normalizeFiles(files),
+      };
+    })
+  );
+
   return {
-    rfqs,
+    rfqs: rfqsWithFiles,
     total,
     totalPages,
     currentPage,
@@ -72,7 +64,7 @@ const getRFQs = async (queryParams, currentUser) => {
 };
 
 // Update RFQ status
-const updateRFQStatus = async (id, status, currentUser) => {
+const updateRFQStatus = async (id, status) => {
   const validStatuses = ["draft", "sent", "cancelled"];
 
   if (!validStatuses.includes(status)) {
@@ -98,28 +90,19 @@ const deleteRFQ = async (id) => {
   return await RFQ.findByIdAndDelete(id);
 };
 
-//////////////////////////////////////////
-//////////////////////////////////////////
-//////////////////////////////////////////
-//////////////////////////////////////////
-
-// Create RFQ (preview or draft)
+// Create RFQ (draft)
 const saveRFQ = async (data, currentUser) => {
   data.createdBy = currentUser._id;
-
-  // Ensure status is either preview or draft
-  if (!["preview", "draft"].includes(data.status)) {
-    data.status = "preview";
-  }
+  data.status = "draft"; // Force draft status
 
   const rfq = new RFQ(data);
   return await rfq.save();
 };
 
-// Save and send RFQ (creates preview only)
+// Save to send RFQ (preview with RFQ code generation)
 const savetoSendRFQ = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
-  data.status = "preview"; // Force preview status
+  data.status = "preview"; // Force preview status to trigger RFQ code generation
 
   const rfq = new RFQ(data);
   await rfq.save();
@@ -137,7 +120,7 @@ const savetoSendRFQ = async (data, currentUser, files = []) => {
 };
 
 // Update RFQ - only allowed for preview/draft status
-const updateRFQ = async (id, data, files = [], currentUser) => {
+const updateRFQ = async (id, data, files = []) => {
   const existingRFQ = await RFQ.findById(id);
 
   if (!existingRFQ) {
@@ -161,6 +144,7 @@ const updateRFQ = async (id, data, files = [], currentUser) => {
 
   // Handle file uploads if any
   if (files.length > 0) {
+    await fileService.deleteFilesByDocument("RFQs", id);
     await handleFileUploads({
       files,
       requestId: updatedRFQ._id,
@@ -172,7 +156,12 @@ const updateRFQ = async (id, data, files = [], currentUser) => {
 };
 
 // Enhanced copy RFQ to vendors - this is where status changes to "sent"
-const copyRFQToVendors = async ({ currentUser, requestId, recipients }) => {
+const copyRFQToVendors = async ({
+  currentUser,
+  requestId,
+  recipients,
+  files = [],
+}) => {
   // Validate input
   if (!requestId || !recipients || !Array.isArray(recipients)) {
     throw new Error("Invalid input parameters");
@@ -186,17 +175,59 @@ const copyRFQToVendors = async ({ currentUser, requestId, recipients }) => {
   // Verify user can share this RFQ
   await verifyCanShareRFQ(originalRFQ, currentUser);
 
-  // Update RFQ status to "sent" and generate proper RFQ code
-  originalRFQ.status = "sent";
-  originalRFQ.copiedTo = [...new Set([...originalRFQ.copiedTo, ...recipients])];
+  // Handle single PDF file upload for sent RFQs
+  let pdfUrl = null;
+  if (files.length > 0) {
+    // Validate it's a PDF file
+    const pdfFile = files[0];
+    if (pdfFile.mimetype !== "application/pdf") {
+      throw new Error("Only PDF files are allowed for RFQ distribution");
+    }
 
-  await originalRFQ.save();
+    const uploadedFile = await fileService.uploadFile(pdfFile);
+    await fileService.associateFile(
+      uploadedFile._id,
+      "RFQs",
+      requestId,
+      "rfq_pdf"
+    );
 
-  // // Generate and attach PDF with proper RFQ code
-  // await generateAndAttachRFQPDF(originalRFQ);
+    pdfUrl = uploadedFile.url;
+    console.log(`PDF uploaded successfully: ${pdfUrl}`);
+  } else {
+    const existingFiles = await fileService.getFilesByDocument(
+      "RFQs",
+      requestId
+    );
+    const existingPDF = existingFiles.find(
+      (file) => file.mimeType === "application/pdf"
+    );
 
-  // Send notifications to vendors
-  await notifyVendors(originalRFQ, currentUser);
+    if (!existingPDF) {
+      throw new Error(
+        "No PDF file found for this RFQ. Please upload a PDF file."
+      );
+    }
+
+    pdfUrl = existingPDF.url;
+  }
+
+  // Use MongoDB's $addToSet to prevent duplicates at database level
+  const updatedRFQ = await RFQ.findByIdAndUpdate(
+    requestId,
+    {
+      $addToSet: { copiedTo: { $each: recipients } },
+      status: "sent",
+      updatedAt: new Date(),
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  // Send notifications to vendors with the PDF URL
+  await notifyVendors(updatedRFQ, currentUser, pdfUrl);
 
   // Populate and return the updated RFQ
   const populatedRFQ = await RFQ.findById(requestId)
@@ -222,57 +253,11 @@ const verifyCanShareRFQ = async (rfq, currentUser) => {
   }
 };
 
-// Generate and attach RFQ PDF (only for sent RFQs)
-const generateAndAttachRFQPDF = async (rfq) => {
+// Update notifyVendors to accept pdfUrl parameter
+const notifyVendors = async (rfq, currentUser, pdfUrl) => {
   try {
-    // Get populated RFQ data for PDF
-    const populatedRFQ = await RFQ.findById(rfq._id)
-      .populate("createdBy", "email first_name last_name role")
-      .lean();
-
-    // Generate PDF buffer
-    const pdfBuffer = await generateRFQPDFBuffer(populatedRFQ);
-
-    // Create file object with proper RFQ code as filename
-    const pdfFile = {
-      buffer: pdfBuffer,
-      originalname: `${rfq.RFQCode}.pdf`,
-      mimetype: "application/pdf",
-      size: pdfBuffer.length,
-    };
-
-    // Upload to file service
-    const uploadedPDF = await fileService.uploadFile(pdfFile);
-
-    // Associate with RFQ using specific field name
-    await fileService.associateFile(
-      uploadedPDF._id,
-      "RFQs",
-      rfq._id,
-      "rfq_pdf"
-    );
-
-    console.log(`PDF generated for RFQ: ${rfq.RFQCode}`);
-    return uploadedPDF;
-  } catch (error) {
-    console.error("Error generating RFQ PDF:", error);
-    throw error;
-  }
-};
-
-// Notify vendors - only sends the RFQ PDF
-const notifyVendors = async (rfq, currentUser) => {
-  try {
-    // Get only the RFQ PDF (not other attachments)
-    const allFiles = await fileService.getFilesByDocument("RFQs", rfq._id);
-    const rfqPDF = allFiles.find(
-      (file) =>
-        file.mimeType === "application/pdf" &&
-        file.name === `${rfq.RFQCode}.pdf`
-    );
-
-    if (!rfqPDF) {
-      throw new Error("RFQ PDF not found");
+    if (!pdfUrl) {
+      throw new Error("PDF URL is required for vendor notifications");
     }
 
     // Send notification to each vendor
@@ -283,7 +268,7 @@ const notifyVendors = async (rfq, currentUser) => {
         vendor,
         rfq,
         currentUser,
-        pdfUrl: rfqPDF.url,
+        pdfUrl: pdfUrl, // Use the provided PDF URL
       });
     }
 
@@ -298,6 +283,8 @@ const notifyVendors = async (rfq, currentUser) => {
 const sendRFQNotification = async ({ vendor, rfq, currentUser, pdfUrl }) => {
   try {
     const subject = `Request for Quotation: ${rfq.RFQCode}`;
+
+    const downloadFilename = `${rfq.RFQCode}.pdf`;
 
     const htmlTemplate = `
     <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
@@ -319,11 +306,18 @@ const sendRFQNotification = async ({ vendor, rfq, currentUser, pdfUrl }) => {
         </p>
       </div>
 
-      <!-- Action Button -->
-      <div style="margin-bottom: 32px;">
-        <a href="${pdfUrl}" download="${rfq.RFQCode}.pdf" style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
-          Download RFQ Document (${rfq.RFQCode}.pdf)
+      <!-- Action Button with better instructions -->
+      <div style="margin-bottom: 24px; padding: 16px; background-color: #f8fafc; border-radius: 6px; border-left: 4px solid #1373B0;">
+        <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
+          <strong>Download Instructions:</strong>
+        </p>
+        <a href="${pdfUrl}" style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
+          Download RFQ Document
         </a>
+        <p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">
+          <strong>File name:</strong> ${downloadFilename}<br>
+          <em>If the file doesn't download as PDF, right-click the link and select "Save link as..."</em>
+        </p>
       </div>
 
       <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
@@ -351,8 +345,7 @@ const sendRFQNotification = async ({ vendor, rfq, currentUser, pdfUrl }) => {
     throw error;
   }
 };
-
-// Get RFQ by ID - ensure it works with all statuses
+// Get RFQ by ID
 const getRFQById = async (id) => {
   const populateOptions = [
     { path: "createdBy", select: "email first_name last_name role" },

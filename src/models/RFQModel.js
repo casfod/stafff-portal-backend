@@ -6,8 +6,8 @@ const itemGroupSchema = new mongoose.Schema({
   frequency: { type: Number, required: true },
   quantity: { type: Number, required: true },
   unit: { type: String, default: "" },
-  unitCost: { type: Number, required: true },
-  total: { type: Number, required: true },
+  unitCost: { type: Number, default: "" },
+  total: { type: Number, default: "" },
 });
 
 const RFQSchema = new mongoose.Schema(
@@ -50,16 +50,19 @@ const RFQSchema = new mongoose.Schema(
 RFQSchema.pre("save", async function (next) {
   if (this.isNew && !this.RFQCode) {
     try {
-      // Generate RFQ code only when status changes to "sent"
-      if (this.status === "sent" && !this.RFQCode.startsWith("RFQ-CASFOD")) {
+      // Generate RFQ code only when status is "preview" or "sent"
+      if (
+        (this.status === "preview" || this.status === "sent") &&
+        !this.RFQCode.startsWith("RFQ-CASFOD")
+      ) {
         const count = await mongoose
           .model("RFQ")
-          .countDocuments({ status: "sent" });
+          .countDocuments({ status: { $in: ["preview", "sent"] } });
         const serial = (count + 1).toString().padStart(3, "0");
         this.RFQCode = `RFQ-CASFOD${serial}`;
-      } else if (this.status === "preview" && !this.RFQCode) {
-        // Preview documents get a temporary code
-        this.RFQCode = `RFQ-PREVIEW-${Date.now()}`;
+      } else if (this.status === "draft" && !this.RFQCode) {
+        // Draft documents get a temporary code
+        this.RFQCode = `RFQ-DRAFT-${Date.now()}`;
       }
       next();
     } catch (error) {
