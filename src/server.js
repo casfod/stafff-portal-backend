@@ -11,13 +11,14 @@ const paymentRequestRoutes = require("./routes/paymentRequestRoutes.js");
 const conceptNoteRoutes = require("./routes/conceptNoteRoutes.js");
 const vendorRouter = require("./routes/vendorRoutes.js");
 const rfqRouter = require("./routes/rfqRoutes.js");
-const fileRoutes = require("./routes/fileRoutes2.js");
+// const fileRoutes = require("./routes/fileRoutes2.js");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const swaggerDocument = require("../swagger.json");
 const swaggerUi = require("swagger-ui-express");
 const globalErrorHandler = require("./controllers/errorController");
 const AppError = require("./utils/appError.js");
+const fileRoutes = require("./routes/fileRoutes");
 
 const app = express();
 

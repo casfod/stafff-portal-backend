@@ -177,6 +177,7 @@ const copyRFQToVendors = async ({
 
   // Handle single PDF file upload for sent RFQs
   let pdfUrl = null;
+  let existingPDF = null;
   if (files.length > 0) {
     // Validate it's a PDF file
     const pdfFile = files[0];
@@ -185,6 +186,7 @@ const copyRFQToVendors = async ({
     }
 
     const uploadedFile = await fileService.uploadFile(pdfFile);
+
     await fileService.associateFile(
       uploadedFile._id,
       "RFQs",
@@ -193,13 +195,13 @@ const copyRFQToVendors = async ({
     );
 
     pdfUrl = uploadedFile.url;
-    console.log(`PDF uploaded successfully: ${pdfUrl}`);
+    existingPDF = uploadedFile;
   } else {
     const existingFiles = await fileService.getFilesByDocument(
       "RFQs",
       requestId
     );
-    const existingPDF = existingFiles.find(
+    existingPDF = existingFiles.find(
       (file) => file.mimeType === "application/pdf"
     );
 
@@ -227,7 +229,7 @@ const copyRFQToVendors = async ({
   );
 
   // Send notifications to vendors with the PDF URL
-  await notifyVendors(updatedRFQ, currentUser, pdfUrl);
+  await notifyVendors(updatedRFQ, currentUser, pdfUrl, existingPDF);
 
   // Populate and return the updated RFQ
   const populatedRFQ = await RFQ.findById(requestId)
@@ -254,7 +256,7 @@ const verifyCanShareRFQ = async (rfq, currentUser) => {
 };
 
 // Update notifyVendors to accept pdfUrl parameter
-const notifyVendors = async (rfq, currentUser, pdfUrl) => {
+const notifyVendors = async (rfq, currentUser, pdfUrl, existingPDF) => {
   try {
     if (!pdfUrl) {
       throw new Error("PDF URL is required for vendor notifications");
@@ -268,7 +270,8 @@ const notifyVendors = async (rfq, currentUser, pdfUrl) => {
         vendor,
         rfq,
         currentUser,
-        pdfUrl: pdfUrl, // Use the provided PDF URL
+        pdfUrl: pdfUrl,
+        existingPDF, // Use the provided PDF URL
       });
     }
 
@@ -280,11 +283,18 @@ const notifyVendors = async (rfq, currentUser, pdfUrl) => {
 };
 
 // Enhanced sendRFQNotification with proper file naming
-const sendRFQNotification = async ({ vendor, rfq, currentUser, pdfUrl }) => {
+const sendRFQNotification = async ({
+  vendor,
+  rfq,
+  currentUser,
+  pdfUrl,
+  existingPDF,
+}) => {
   try {
     const subject = `Request for Quotation: ${rfq.RFQCode}`;
 
     const downloadFilename = `${rfq.RFQCode}.pdf`;
+    const downloadUrl = `${process.env.API_BASE_URL}/files/${existingPDF._id}/download`;
 
     const htmlTemplate = `
     <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
@@ -299,10 +309,10 @@ const sendRFQNotification = async ({ vendor, rfq, currentUser, pdfUrl }) => {
     
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Dear ${vendor.contactPerson},</strong>
+          <strong style="color: #4b5563;">Hello ${vendor.contactPerson},</strong>
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          You have been invited to submit a quotation for the following request:
+          You have been invited to submit a bid for the following quotation:
         </p>
       </div>
 
@@ -311,8 +321,9 @@ const sendRFQNotification = async ({ vendor, rfq, currentUser, pdfUrl }) => {
         <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
           <strong>Download Instructions:</strong>
         </p>
-        <a href="${pdfUrl}" style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
-          Download RFQ Document
+        <a href="${downloadUrl}" 
+        style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px;">
+        Download RFQ Document
         </a>
         <p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">
           <strong>File name:</strong> ${downloadFilename}<br>
