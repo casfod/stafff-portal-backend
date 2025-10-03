@@ -7,7 +7,7 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
-const NotificationService = require("./notificationService");
+const ProcurementNotificationService = require("./procurementNotification");
 
 class RFQCopyService extends BaseCopyService {
   constructor() {
@@ -282,7 +282,7 @@ const notifyVendors = async (rfq, currentUser, pdfUrl, existingPDF) => {
   }
 };
 
-// Enhanced sendRFQNotification with proper file naming
+// Enhanced sendRFQNotification with proper file naming and procurement notification service
 const sendRFQNotification = async ({
   vendor,
   rfq,
@@ -291,58 +291,15 @@ const sendRFQNotification = async ({
   existingPDF,
 }) => {
   try {
-    const subject = `Request for Quotation: ${rfq.RFQCode}`;
-
     const downloadFilename = `${rfq.RFQCode}.pdf`;
     const downloadUrl = `${process.env.API_BASE_URL}/files/${existingPDF._id}/download`;
 
-    const htmlTemplate = `
-    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
-      <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
-        <h1 style="color: #1373B0; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
-          Request for Quotation
-        </h1>
-        <p style="font-size: 15px; color: #4b5563; margin: 0;">
-          <strong>RFQ Code:</strong> ${rfq.RFQCode}
-        </p>
-      </div>
-    
-      <div style="margin-bottom: 16px;">
-        <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Hello ${vendor.contactPerson},</strong>
-        </p>
-        <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          You have been invited to submit a bid for the following quotation:
-        </p>
-      </div>
-
-      <!-- Action Button with better instructions -->
-      <div style="margin-bottom: 24px; padding: 16px; background-color: #f8fafc; border-radius: 6px; border-left: 4px solid #1373B0;">
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
-          <strong>Download Instructions:</strong>
-        </p>
-        <a href="${downloadUrl}" 
-        style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px;">
-        Download RFQ Document
-        </a>
-        <p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">
-          <strong>File name:</strong> ${downloadFilename}<br>
-          <em>If the file doesn't download as PDF, right-click the link and select "Save link as..."</em>
-        </p>
-      </div>
-
-      <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
-        <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
-          This is an automated notification from CASFOD Procurement System.
-        </p>
-      </div>
-    </div>
-    `;
-
-    await NotificationService.sendMail({
-      recipientEmail: vendor.email,
-      subject,
-      htmlTemplate,
+    await ProcurementNotificationService.sendRFQNotification({
+      vendor,
+      rfq,
+      currentUser,
+      downloadUrl,
+      downloadFilename,
     });
 
     console.log(
@@ -356,6 +313,7 @@ const sendRFQNotification = async ({
     throw error;
   }
 };
+
 // Get RFQ by ID
 const getRFQById = async (id) => {
   const populateOptions = [

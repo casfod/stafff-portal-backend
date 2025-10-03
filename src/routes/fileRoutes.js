@@ -1,10 +1,27 @@
 // routes/fileRoutes.js
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const router = express.Router();
-const fileService = require("../services/fileService"); // adjust path
+const fileService = require("../services/fileService");
+
+// Create rate limit for file downloads
+const downloadLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 downloads per windowMs
+  message: {
+    error: "Too many download attempts, please try again later.",
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Too many download attempts. Please try again in 15 minutes.",
+    });
+  },
+});
 
 // GET /api/files/:id/download
-router.get("/:id/download", async (req, res) => {
+router.get("/:id/download", downloadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
 
