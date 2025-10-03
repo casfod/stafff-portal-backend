@@ -228,8 +228,8 @@ const copyRFQToVendors = async ({
     }
   );
 
-  // Send notifications to vendors with the PDF URL
-  await notifyVendors(updatedRFQ, currentUser, pdfUrl, existingPDF);
+  // Send notifications to vendors with BCC
+  await notifyVendors(updatedRFQ, currentUser, pdfUrl, existingPDF, recipients);
 
   // Populate and return the updated RFQ
   const populatedRFQ = await RFQ.findById(requestId)
@@ -255,34 +255,79 @@ const verifyCanShareRFQ = async (rfq, currentUser) => {
   }
 };
 
-// Update notifyVendors to accept pdfUrl parameter
-const notifyVendors = async (rfq, currentUser, pdfUrl, existingPDF) => {
+// Update notifyVendors to use BCC
+const notifyVendors = async (
+  rfq,
+  currentUser,
+  pdfUrl,
+  existingPDF,
+  recipientIds
+) => {
   try {
     if (!pdfUrl) {
       throw new Error("PDF URL is required for vendor notifications");
     }
 
-    // Send notification to each vendor
-    const vendors = await Vendor.find({ _id: { $in: rfq.copiedTo } });
+    // Get all vendor details
+    const vendors = await Vendor.find({ _id: { $in: recipientIds } });
 
-    for (const vendor of vendors) {
-      await sendRFQNotification({
-        vendor,
-        rfq,
-        currentUser,
-        pdfUrl: pdfUrl,
-        existingPDF, // Use the provided PDF URL
-      });
+    if (vendors.length === 0) {
+      console.log("No vendors found for notification");
+      return;
     }
 
-    console.log(`Notifications sent for RFQ: ${rfq.RFQCode}`);
+    // Send single email with BCC to all vendors
+    await sendRFQNotificationWithBCC({
+      vendors,
+      rfq,
+      currentUser,
+      pdfUrl,
+      existingPDF,
+    });
+
+    console.log(`BCC notifications sent for RFQ: ${rfq.RFQCode}`);
   } catch (error) {
     console.error("Error notifying vendors:", error);
     throw error;
   }
 };
 
-// Enhanced sendRFQNotification with proper file naming and procurement notification service
+// Send RFQ notification using BCC
+const sendRFQNotificationWithBCC = async ({
+  vendors,
+  rfq,
+  currentUser,
+  pdfUrl,
+  existingPDF,
+}) => {
+  try {
+    const downloadFilename = `${rfq.RFQCode}.pdf`;
+    const downloadUrl = `${process.env.API_BASE_URL}/files/${existingPDF._id}/download`;
+    console.log("❌API_BASE_URL❌==>:", process.env.API_BASE_URL);
+
+    if (vendors.length === 0) {
+      console.log("No vendors to notify");
+      return;
+    }
+
+    await ProcurementNotificationService.sendRFQNotificationWithBCC({
+      vendors,
+      rfq,
+      currentUser,
+      downloadUrl,
+      downloadFilename,
+    });
+
+    console.log(
+      `✅ RFQ ${rfq.RFQCode} sent via BCC to ${vendors.length} vendors`
+    );
+  } catch (error) {
+    console.error(`❌ Failed to send RFQ notification with BCC:`, error);
+    throw error;
+  }
+};
+
+// Keep individual notification for backward compatibility
 const sendRFQNotification = async ({
   vendor,
   rfq,
