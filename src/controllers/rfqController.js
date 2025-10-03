@@ -20,9 +20,6 @@ const copyRFQ = catchAsync(async (req, res) => {
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
-  console.log("Request body:", req.body);
-  console.log("Request body keys:", Object.keys(req.body));
-
   let vendorIdsArray = [];
 
   // Check for different possible formats
