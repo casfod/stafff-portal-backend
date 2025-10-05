@@ -283,6 +283,126 @@ class NotificationService {
     }
   }
 
+  // Add this method to the ProcurementNotificationService class
+
+  // Send PO with PDF download link to vendor
+  async sendPOWithAttachment({
+    vendor,
+    purchaseOrder,
+    currentUser,
+    downloadUrl,
+    downloadFilename,
+  }) {
+    try {
+      const subject = `Purchase Order: ${purchaseOrder.POCode}`;
+
+      const htmlTemplate = this.getPOAttachmentTemplateWithDownload(
+        vendor,
+        purchaseOrder,
+        currentUser,
+        downloadUrl,
+        downloadFilename
+      );
+
+      await this.sendMail({
+        recipientEmail: vendor.email,
+        subject,
+        htmlTemplate,
+      });
+
+      console.log(
+        `✅ PO ${purchaseOrder.POCode} with PDF download sent to: ${vendor.businessName}`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to send PO with PDF to ${vendor.businessName}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Updated template with download link
+  getPOAttachmentTemplateWithDownload(
+    vendor,
+    purchaseOrder,
+    currentUser,
+    downloadUrl,
+    downloadFilename
+  ) {
+    const totalAmount = purchaseOrder.totalAmount?.toLocaleString() || "0";
+
+    return `
+  <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
+      <h1 style="color: #10b981; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
+        Purchase Order Approved
+      </h1>
+      <p style="font-size: 15px; color: #4b5563; margin: 0;">
+        <strong>PO Code:</strong> ${purchaseOrder.POCode}
+      </p>
+      <p style="font-size: 15px; color: #4b5563; margin: 8px 0 0 0;">
+        <strong>Title:</strong> ${purchaseOrder.RFQTitle || "N/A"}
+      </p>
+    </div>
+  
+    <div style="margin-bottom: 16px;">
+      <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+        <strong style="color: #4b5563;">Dear ${vendor.contactPerson},</strong>
+      </p>
+      <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+        We are pleased to inform you that your Purchase Order has been officially approved. Please find the official Purchase Order document below.
+      </p>
+    </div>
+
+    <!-- PO Details -->
+    <div style="margin-bottom: 24px; padding: 16px; background-color: #f0fdf4; border-radius: 6px; border-left: 4px solid #10b981;">
+      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #10b981;">Approved Purchase Order</h3>
+      <div style="font-size: 14px; color: #4b5563;">
+        <p style="margin: 4px 0;"><strong>PO Code:</strong> ${
+          purchaseOrder.POCode
+        }</p>
+        <p style="margin: 4px 0;"><strong>Title:</strong> ${
+          purchaseOrder.RFQTitle
+        }</p>
+        <p style="margin: 4px 0;"><strong>Delivery Period:</strong> ${
+          purchaseOrder.deliveryPeriod || "N/A"
+        }</p>
+        <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
+        <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">APPROVED</span></p>
+      </div>
+    </div>
+
+    <!-- Download Button -->
+    <div style="margin-bottom: 24px; padding: 16px; background-color: #f8fafc; border-radius: 6px; border-left: 4px solid #1373B0;">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
+        <strong>Download Purchase Order Document:</strong>
+      </p>
+      <a href="${downloadUrl}" 
+      style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
+        Download PO Document
+      </a>
+      <p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">
+        <strong>File name:</strong> ${downloadFilename}<br>
+        <em>If the file doesn't download automatically, right-click the link and select "Save link as..."</em>
+      </p>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+        Please proceed with the delivery of goods/services as per the agreed terms in the Purchase Order document.
+      </p>
+    </div>
+
+    <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+      <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+        This is an automated notification from CASFOD Procurement System. 
+      </p>
+    </div>
+  </div>
+  `;
+  }
+
   // // Alternative: Download and attach PDF
   // async sendRFQWithPDFAttachment({ vendor, rfq, currentUser, pdfUrl }) {
   //   try {

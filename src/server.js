@@ -11,6 +11,7 @@ const paymentRequestRoutes = require("./routes/paymentRequestRoutes.js");
 const conceptNoteRoutes = require("./routes/conceptNoteRoutes.js");
 const vendorRouter = require("./routes/vendorRoutes.js");
 const rfqRouter = require("./routes/rfqRoutes.js");
+const purchaseOrderRouter = require("./routes/purchaseOrderRoutes.js");
 // const fileRoutes = require("./routes/fileRoutes2.js");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
@@ -53,6 +54,7 @@ app.use("/api/v1/casfod/payment-requests", paymentRequestRoutes);
 app.use("/api/v1/casfod/concept-notes", conceptNoteRoutes);
 app.use("/api/v1/casfod/vendors", vendorRouter);
 app.use("/api/v1/casfod/rfqs", rfqRouter);
+app.use("/api/v1/casfod/purchase-orders", purchaseOrderRouter);
 
 app.use("/api/v1/casfod/files", fileRoutes);
 
