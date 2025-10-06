@@ -156,6 +156,7 @@ const updateRFQ = async (id, data, files = []) => {
 };
 
 // Enhanced copy RFQ to vendors - this is where status changes to "sent"
+// Enhanced copy RFQ to vendors - this is where status changes to "sent"
 const copyRFQToVendors = async ({
   currentUser,
   requestId,
@@ -176,8 +177,7 @@ const copyRFQToVendors = async ({
   await verifyCanShareRFQ(originalRFQ, currentUser);
 
   // Handle single PDF file upload for sent RFQs
-  let pdfUrl = null;
-  let existingPDF = null;
+  let uploadedPDF = null;
   if (files.length > 0) {
     // Validate it's a PDF file
     const pdfFile = files[0];
@@ -194,24 +194,7 @@ const copyRFQToVendors = async ({
       "rfq_pdf"
     );
 
-    pdfUrl = uploadedFile.url;
-    existingPDF = uploadedFile;
-  } else {
-    const existingFiles = await fileService.getFilesByDocument(
-      "RFQs",
-      requestId
-    );
-    existingPDF = existingFiles.find(
-      (file) => file.mimeType === "application/pdf"
-    );
-
-    if (!existingPDF) {
-      throw new Error(
-        "No PDF file found for this RFQ. Please upload a PDF file."
-      );
-    }
-
-    pdfUrl = existingPDF.url;
+    uploadedPDF = uploadedFile;
   }
 
   // Use MongoDB's $addToSet to prevent duplicates at database level
@@ -228,8 +211,17 @@ const copyRFQToVendors = async ({
     }
   );
 
+  // Get all files associated with this RFQ
+  const allFiles = await fileService.getFilesByDocument("RFQs", requestId);
+
   // Send notifications to vendors with BCC
-  await notifyVendors(updatedRFQ, currentUser, pdfUrl, existingPDF, recipients);
+  await notifyVendors(
+    updatedRFQ,
+    currentUser,
+    allFiles, // Pass all files instead of just PDF
+    recipients,
+    uploadedPDF // Keep for backward compatibility if needed
+  );
 
   // Populate and return the updated RFQ
   const populatedRFQ = await RFQ.findById(requestId)
@@ -239,33 +231,17 @@ const copyRFQToVendors = async ({
   return populatedRFQ;
 };
 
-// Verify user can share RFQ
-const verifyCanShareRFQ = async (rfq, currentUser) => {
-  const isCreator = rfq.createdBy.toString() === currentUser._id.toString();
-  const canShare =
-    isCreator || ["SUPER-ADMIN", "ADMIN"].includes(currentUser.role);
-
-  if (!canShare) {
-    throw new Error("Unauthorized: You cannot share this RFQ");
-  }
-
-  // Optional: Add additional business rules
-  if (rfq.status === "cancelled") {
-    throw new Error("Cannot share a cancelled RFQ");
-  }
-};
-
-// Update notifyVendors to use BCC
+// Update notifyVendors to handle all files
 const notifyVendors = async (
   rfq,
   currentUser,
-  pdfUrl,
-  existingPDF,
-  recipientIds
+  allFiles, // Now receives all files
+  recipientIds,
+  uploadedPDF = null
 ) => {
   try {
-    if (!pdfUrl) {
-      throw new Error("PDF URL is required for vendor notifications");
+    if (!allFiles || allFiles.length === 0) {
+      throw new Error("No files found for vendor notifications");
     }
 
     // Get all vendor details
@@ -281,8 +257,7 @@ const notifyVendors = async (
       vendors,
       rfq,
       currentUser,
-      pdfUrl,
-      existingPDF,
+      allFiles, // Pass all files
     });
 
     console.log(`BCC notifications sent for RFQ: ${rfq.RFQCode}`);
@@ -292,34 +267,31 @@ const notifyVendors = async (
   }
 };
 
-// Send RFQ notification using BCC
+// Send RFQ notification using BCC with all files
 const sendRFQNotificationWithBCC = async ({
   vendors,
   rfq,
   currentUser,
-  pdfUrl,
-  existingPDF,
+  allFiles,
 }) => {
   try {
-    const downloadFilename = `${rfq.RFQCode}.pdf`;
-    const downloadUrl = `${process.env.API_BASE_URL}/files/${existingPDF._id}/download`;
-    console.log("❌API_BASE_URL❌==>:", process.env.API_BASE_URL);
-
     if (vendors.length === 0) {
       console.log("No vendors to notify");
       return;
     }
 
+    // Create download links for all files, avoiding duplicates
+    const fileDownloads = await createFileDownloads(allFiles);
+
     await ProcurementNotificationService.sendRFQNotificationWithBCC({
       vendors,
       rfq,
       currentUser,
-      downloadUrl,
-      downloadFilename,
+      fileDownloads, // Pass array of file downloads instead of single PDF
     });
 
     console.log(
-      `✅ RFQ ${rfq.RFQCode} sent via BCC to ${vendors.length} vendors`
+      `✅ RFQ ${rfq.RFQCode} sent via BCC to ${vendors.length} vendors with ${fileDownloads.length} files`
     );
   } catch (error) {
     console.error(`❌ Failed to send RFQ notification with BCC:`, error);
@@ -327,28 +299,62 @@ const sendRFQNotificationWithBCC = async ({
   }
 };
 
-// Keep individual notification for backward compatibility
+// Helper function to create download links for all files
+const createFileDownloads = async (files) => {
+  if (!files || !Array.isArray(files)) {
+    return [];
+  }
+
+  // Use Set to track unique file IDs to avoid duplicates
+  const uniqueFiles = [];
+  const seenFileIds = new Set();
+
+  for (const file of files) {
+    const fileId = file._id ? file._id.toString() : file.id;
+
+    // Skip if we've already processed this file
+    if (seenFileIds.has(fileId)) {
+      continue;
+    }
+
+    seenFileIds.add(fileId);
+
+    // Create download URL for each file
+    const downloadUrl = `${process.env.API_BASE_URL}/files/${fileId}/download`;
+
+    uniqueFiles.push({
+      id: fileId,
+      name: file.name || `RFQ-File-${fileId}`,
+      url: downloadUrl,
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      size: file.size,
+    });
+  }
+
+  return uniqueFiles;
+};
+
+// Keep individual notification for backward compatibility (updated)
 const sendRFQNotification = async ({
   vendor,
   rfq,
   currentUser,
-  pdfUrl,
-  existingPDF,
+  allFiles, // Updated parameter
 }) => {
   try {
-    const downloadFilename = `${rfq.RFQCode}.pdf`;
-    const downloadUrl = `${process.env.API_BASE_URL}/files/${existingPDF._id}/download`;
+    // Create download links for all files
+    const fileDownloads = await createFileDownloads(allFiles);
 
     await ProcurementNotificationService.sendRFQNotification({
       vendor,
       rfq,
       currentUser,
-      downloadUrl,
-      downloadFilename,
+      fileDownloads, // Pass array instead of single download
     });
 
     console.log(
-      `✅ RFQ ${rfq.RFQCode} notification sent to: ${vendor.businessName}`
+      `✅ RFQ ${rfq.RFQCode} notification sent to: ${vendor.businessName} with ${fileDownloads.length} files`
     );
   } catch (error) {
     console.error(
@@ -356,6 +362,21 @@ const sendRFQNotification = async ({
       error
     );
     throw error;
+  }
+};
+// Verify user can share RFQ
+const verifyCanShareRFQ = async (rfq, currentUser) => {
+  const isCreator = rfq.createdBy.toString() === currentUser._id.toString();
+  const canShare =
+    isCreator || ["SUPER-ADMIN", "ADMIN"].includes(currentUser.role);
+
+  if (!canShare) {
+    throw new Error("Unauthorized: You cannot share this RFQ");
+  }
+
+  // Optional: Add additional business rules
+  if (rfq.status === "cancelled") {
+    throw new Error("Cannot share a cancelled RFQ");
   }
 };
 

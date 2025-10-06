@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 const itemGroupSchema = new mongoose.Schema({
   description: { type: String, required: true, trim: true },
+  itemName: { type: String, required: true, trim: true },
   frequency: { type: Number, required: true },
   quantity: { type: Number, required: true },
   unit: { type: String, default: "" },
@@ -16,9 +17,9 @@ const RFQSchema = new mongoose.Schema(
     RFQCode: { type: String, default: "", unique: true },
     itemGroups: [itemGroupSchema],
     copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "Vendor" }],
-    deliveryPeriod: { type: String, default: "" },
-    bidValidityPeriod: { type: String, default: "" },
-    guaranteePeriod: { type: String, default: "" },
+    deadlineDate: { type: String, default: "" },
+    rfqDate: { type: String, default: "" },
+    casfodAddressId: { type: String, default: "" },
     pdfUrl: { type: String, default: "" },
     cloudinaryId: { type: String, default: "" },
     createdBy: {

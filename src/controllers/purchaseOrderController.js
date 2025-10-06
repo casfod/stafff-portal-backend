@@ -19,10 +19,16 @@ const cleanFormData = (data) => {
   return cleaned;
 };
 
-// Create Purchase Order from RFQ
+// UPDATED: Create Purchase Order from RFQ - now handles timeline fields
 const createFromRFQ = catchAsync(async (req, res) => {
   const { rfqId, vendorId } = req.params;
-  const { itemGroups, approvedBy } = req.body;
+  const {
+    itemGroups,
+    approvedBy,
+    deliveryPeriod,
+    bidValidityPeriod,
+    guaranteePeriod,
+  } = req.body;
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
@@ -38,9 +44,14 @@ const createFromRFQ = catchAsync(async (req, res) => {
   const purchaseOrder = await purchaseOrderService.createPurchaseOrderFromRFQ(
     rfqId,
     vendorId,
-    parsedItemGroups,
+    {
+      itemGroups: parsedItemGroups,
+      approvedBy: cleanedApprovedBy,
+      deliveryPeriod,
+      bidValidityPeriod,
+      guaranteePeriod,
+    },
     currentUser,
-    cleanedApprovedBy,
     files
   );
 

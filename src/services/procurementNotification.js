@@ -18,12 +18,6 @@ class ProcurementNotificationService {
 
   async sendMail(options) {
     try {
-      console.log("❌PROCUREMENT_MAIL❌==>:", process.env.PROCUREMENT_MAIL);
-      console.log(
-        "❌PROCUREMENT_MAIL_PASSWORD❌==>:",
-        process.env.PROCUREMENT_MAIL_PASSWORD ? "***" : "undefined"
-      );
-
       const mailOptions = {
         from: {
           name: "CASFOD Procurement",
@@ -230,50 +224,6 @@ class ProcurementNotificationService {
     }
   }
 
-  // RFQ notification with BCC (Primary for vendor communications)
-  async sendRFQNotificationWithBCC({
-    vendors,
-    rfq,
-    currentUser,
-    downloadUrl,
-    downloadFilename,
-  }) {
-    try {
-      if (!vendors || vendors.length === 0) {
-        throw new Error("No vendors provided for BCC notification");
-      }
-
-      const subject = `Request for Quotation: ${rfq.RFQCode}`;
-
-      // Use first vendor for template personalization
-      const primaryVendor = vendors[0];
-      const bccEmails = vendors.map((vendor) => vendor.email);
-
-      const htmlTemplate = this.getRFQTemplate(
-        primaryVendor,
-        rfq,
-        currentUser,
-        downloadUrl,
-        downloadFilename
-      );
-
-      // Send to procurement email with all vendors in BCC
-      await this.sendMail({
-        recipientEmail: process.env.PROCUREMENT_MAIL, // Send to ourselves
-        bcc: bccEmails,
-        subject,
-        htmlTemplate,
-      });
-
-      console.log(
-        `✅ RFQ ${rfq.RFQCode} sent via BCC to ${vendors.length} vendors`
-      );
-    } catch (error) {
-      console.error(`❌ Failed to send RFQ notification with BCC:`, error);
-      throw error;
-    }
-  }
-
   // Generic email method with full options
   async sendGenericEmail({
     to,
@@ -364,9 +314,7 @@ class ProcurementNotificationService {
     
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Congratulations ${
-            vendor.contactPerson
-          },</strong>
+          <strong style="color: #4b5563;">Congratulations Vendor
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
           Your bid has been selected for the following Purchase Order from CASFOD.
@@ -424,7 +372,7 @@ class ProcurementNotificationService {
     
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Dear ${vendor.contactPerson},</strong>
+          <strong style="color: #4b5563;">Hello Vendor
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
           We are pleased to inform you that the following Purchase Order has been officially approved and is ready for processing.
@@ -478,7 +426,7 @@ class ProcurementNotificationService {
       
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Dear ${vendor.contactPerson},</strong>
+          <strong style="color: #4b5563;">Hello ${vendor.contactPerson},</strong>
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
           Please find the attached official Purchase Order document. We look forward to your prompt delivery of the requested goods/services.
@@ -500,21 +448,17 @@ class ProcurementNotificationService {
     <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
       <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
         <h1 style="color: #1373B0; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
-          Request for Quotation
+         CASFOD Request for Quotation
         </h1>
         <p style="font-size: 15px; color: #4b5563; margin: 0;">
           <strong>RFQ Code:</strong> ${rfq.RFQCode}
         </p>
-        <p style="font-size: 15px; color: #4b5563; margin: 8px 0 0 0;">
-          <strong>Title:</strong> ${rfq.RFQTitle || "N/A"}
-        </p>
+  
       </div>
     
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Hello ${
-            vendor.contactPerson
-          },</strong>
+          <strong style="color: #4b5563;">Hello Vendor
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
           You have been invited to submit a bid for the following quotation from CASFOD.
@@ -574,6 +518,206 @@ class ProcurementNotificationService {
     </div>
     `;
   }
+
+  ///////////////////////////////////////////
+  ///////////////////////////////////////////
+  ///////////////////////////////////////////
+  // Update the RFQ notification methods to handle multiple files
+
+  // RFQ notification with BCC (Primary for vendor communications)
+  async sendRFQNotificationWithBCC({
+    vendors,
+    rfq,
+    currentUser,
+    fileDownloads = [], // Now accepts array of files
+  }) {
+    try {
+      if (!vendors || vendors.length === 0) {
+        throw new Error("No vendors provided for BCC notification");
+      }
+
+      const subject = `Request for Quotation: ${rfq.RFQCode}`;
+
+      // Use first vendor for template personalization
+      const primaryVendor = vendors[0];
+      const bccEmails = vendors.map((vendor) => vendor.email);
+
+      const htmlTemplate = this.getRFQTemplateWithMultipleFiles(
+        primaryVendor,
+        rfq,
+        currentUser,
+        fileDownloads
+      );
+
+      // Send to procurement email with all vendors in BCC
+      await this.sendMail({
+        recipientEmail: process.env.PROCUREMENT_MAIL, // Send to ourselves
+        bcc: bccEmails,
+        subject,
+        htmlTemplate,
+      });
+
+      console.log(
+        `✅ RFQ ${rfq.RFQCode} sent via BCC to ${vendors.length} vendors with ${fileDownloads.length} files`
+      );
+    } catch (error) {
+      console.error(`❌ Failed to send RFQ notification with BCC:`, error);
+      throw error;
+    }
+  }
+
+  // Single vendor notification (updated)
+  async sendRFQNotification({
+    vendor,
+    rfq,
+    currentUser,
+    fileDownloads = [], // Now accepts array of files
+  }) {
+    try {
+      const subject = `Request for Quotation: ${rfq.RFQCode}`;
+
+      const htmlTemplate = this.getRFQTemplateWithMultipleFiles(
+        vendor,
+        rfq,
+        currentUser,
+        fileDownloads
+      );
+
+      await this.sendMail({
+        recipientEmail: vendor.email,
+        subject,
+        htmlTemplate,
+      });
+
+      console.log(
+        `✅ RFQ ${rfq.RFQCode} sent to ${vendor.businessName} with ${fileDownloads.length} files`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to send RFQ notification to ${vendor.businessName}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // New template for multiple files
+  getRFQTemplateWithMultipleFiles(
+    vendor,
+    rfq,
+    currentUser,
+    fileDownloads = []
+  ) {
+    const filesHtml = fileDownloads
+      .map(
+        (file) => `
+    <table style="width: 100%; margin-bottom: 12px; background-color: #f8fafc; border-radius: 4px; border-left: 3px solid #1373B0;" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding: 12px; width: 75%; vertical-align: top;">
+          <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 500; color: #374151; word-break: break-word;">
+            ${file.name}
+          </p>
+          <p style="margin: 0; font-size: 12px; color: #6b7280;">
+            ${this.formatFileType(file.fileType)} • ${this.formatFileSize(
+          file.size
+        )}
+          </p>
+        </td>
+        <td style="padding: 12px; width: 25%; vertical-align: middle; text-align: right;">
+          <a href="${file.url}" 
+            style="display: inline-block; padding: 8px 16px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 4px; transition: background-color 0.2s; white-space: nowrap;">
+            Download
+          </a>
+        </td>
+      </tr>
+    </table>
+  `
+      )
+      .join("");
+
+    return `
+  <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+    
+    <!-- Header Section -->
+    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
+      <h1 style="color: #1373B0; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
+        CASFOD Request for Quotation
+      </h1>
+      <p style="font-size: 15px; color: #4b5563; margin: 0;">
+        <strong>RFQ Code:</strong> ${rfq.RFQCode}
+      </p>
+    </div>
+  
+    <!-- Greeting Section -->
+    <div style="margin-bottom: 16px;">
+      <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+        <strong style="color: #4b5563;">Hello Vendor</strong>
+      </p>
+      <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+        You have been invited to submit a bid for the following quotation from CASFOD.
+      </p>
+    </div>
+
+    <!-- Files Section -->
+    <div style="margin-bottom: 24px;">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
+        <strong>Download RFQ Documents:</strong>
+      </p>
+      ${
+        fileDownloads.length > 0
+          ? filesHtml
+          : `
+        <p style="font-size: 14px; color: #6b7280; font-style: italic;">
+          No documents available for download.
+        </p>
+      `
+      }
+      ${
+        fileDownloads.length > 0
+          ? `
+        <p style="margin: 12px 0 0 0; font-size: 12px; color: #6b7280;">
+          <em>If files don't download automatically, right-click the links and select "Save link as..."</em>
+        </p>
+      `
+          : ""
+      }
+    </div>
+
+    <!-- Footer Section -->
+    <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+      <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+        This is an automated notification from CASFOD Procurement System. 
+      </p>
+    </div>
+  </div>
+  `;
+  }
+
+  // Helper method to format file type
+  formatFileType(fileType) {
+    const typeMap = {
+      pdf: "PDF Document",
+      image: "Image",
+      document: "Word Document",
+      spreadsheet: "Excel Spreadsheet",
+      text: "Text File",
+      archive: "Archive",
+    };
+    return typeMap[fileType] || fileType || "File";
+  }
+
+  // Helper method to format file size
+  formatFileSize(bytes) {
+    if (!bytes) return "Unknown size";
+
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    if (bytes === 0) return "0 Bytes";
+
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+  }
+  ///////////////////////////////////////////
+  ///////////////////////////////////////////
 }
 
 module.exports = new ProcurementNotificationService();

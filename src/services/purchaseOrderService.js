@@ -92,15 +92,22 @@ const getPurchaseOrders = async (queryParams, currentUser) => {
   };
 };
 
-// Create Purchase Order from RFQ
+// UPDATED: Create Purchase Order from RFQ - now accepts timeline fields
 const createPurchaseOrderFromRFQ = async (
   rfqId,
   vendorId,
-  itemGroupsWithPrices,
+  data,
   currentUser,
-  approvedBy,
   files = []
 ) => {
+  const {
+    itemGroups,
+    approvedBy,
+    deliveryPeriod,
+    bidValidityPeriod,
+    guaranteePeriod,
+  } = data;
+
   // Clean and validate IDs
   const cleanedRfqId = cleanObjectId(rfqId);
   const cleanedVendorId = cleanObjectId(vendorId);
@@ -123,7 +130,7 @@ const createPurchaseOrderFromRFQ = async (
   }
 
   // Validate that all items have prices
-  const validatedItemGroups = itemGroupsWithPrices.map((item) => {
+  const validatedItemGroups = itemGroups.map((item) => {
     if (!item.unitCost || item.unitCost <= 0) {
       throw new Error(
         `Unit cost is required and must be greater than 0 for item: ${item.description}`
@@ -141,6 +148,22 @@ const createPurchaseOrderFromRFQ = async (
     0
   );
 
+  // Use provided timeline fields or fall back to RFQ values
+  const finalDeliveryPeriod = deliveryPeriod || rfq.deliveryPeriod;
+  const finalBidValidityPeriod = bidValidityPeriod || rfq.bidValidityPeriod;
+  const finalGuaranteePeriod = guaranteePeriod || rfq.guaranteePeriod;
+
+  // Validate required timeline fields
+  if (!finalDeliveryPeriod) {
+    throw new Error("Delivery Period is required");
+  }
+  if (!finalBidValidityPeriod) {
+    throw new Error("Bid Validity Period is required");
+  }
+  if (!finalGuaranteePeriod) {
+    throw new Error("Guarantee Period is required");
+  }
+
   // Create purchase order with selectedVendor and isFromRFQ = true
   const purchaseOrder = new PurchaseOrder({
     RFQTitle: rfq.RFQTitle,
@@ -148,9 +171,9 @@ const createPurchaseOrderFromRFQ = async (
     itemGroups: validatedItemGroups,
     copiedTo: [cleanedVendorId],
     selectedVendor: cleanedVendorId,
-    deliveryPeriod: rfq.deliveryPeriod,
-    bidValidityPeriod: rfq.bidValidityPeriod,
-    guaranteePeriod: rfq.guaranteePeriod,
+    deliveryPeriod: finalDeliveryPeriod,
+    bidValidityPeriod: finalBidValidityPeriod,
+    guaranteePeriod: finalGuaranteePeriod,
     createdBy: currentUser._id,
     status: "pending",
     totalAmount: totalAmount,
@@ -190,6 +213,17 @@ const createIndependentPurchaseOrder = async (
   const cleanedCopiedTo = purchaseOrderData.copiedTo
     ? purchaseOrderData.copiedTo.map((id) => cleanObjectId(id))
     : [];
+
+  // Validate required timeline fields
+  if (!purchaseOrderData.deliveryPeriod) {
+    throw new Error("Delivery Period is required");
+  }
+  if (!purchaseOrderData.bidValidityPeriod) {
+    throw new Error("Bid Validity Period is required");
+  }
+  if (!purchaseOrderData.guaranteePeriod) {
+    throw new Error("Guarantee Period is required");
+  }
 
   // Validate that all items have prices
   const validatedItemGroups = purchaseOrderData.itemGroups.map((item) => {
@@ -542,6 +576,17 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
   }
   if (data.copiedTo && Array.isArray(data.copiedTo)) {
     data.copiedTo = data.copiedTo.map((id) => cleanObjectId(id));
+  }
+
+  // Validate required timeline fields if provided
+  if (data.deliveryPeriod !== undefined && !data.deliveryPeriod) {
+    throw new Error("Delivery Period is required");
+  }
+  if (data.bidValidityPeriod !== undefined && !data.bidValidityPeriod) {
+    throw new Error("Bid Validity Period is required");
+  }
+  if (data.guaranteePeriod !== undefined && !data.guaranteePeriod) {
+    throw new Error("Guarantee Period is required");
   }
 
   // Recalculate totals if itemGroups are updated
