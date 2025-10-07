@@ -10,6 +10,7 @@ const requestTypePaths = {
   advanceRequest: "advance-requests/request",
   travelRequest: "travel-requests/request",
   expenseClaim: "expense-claims/request",
+  purchaseOrder: "procurement/purchase-order",
 };
 
 class NotificationService {

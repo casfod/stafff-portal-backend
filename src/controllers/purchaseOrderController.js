@@ -1,3 +1,4 @@
+// purchaseOrderController.js
 const purchaseOrderService = require("../services/purchaseOrderService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -19,7 +20,7 @@ const cleanFormData = (data) => {
   return cleaned;
 };
 
-// UPDATED: Create Purchase Order from RFQ - now handles timeline fields
+// FIXED: Create Purchase Order from RFQ - added casfodAddressId, adjusted service call
 const createFromRFQ = catchAsync(async (req, res) => {
   const { rfqId, vendorId } = req.params;
   const {
@@ -28,6 +29,10 @@ const createFromRFQ = catchAsync(async (req, res) => {
     deliveryPeriod,
     bidValidityPeriod,
     guaranteePeriod,
+    deadlineDate,
+    rfqDate,
+    casfodAddressId, // ADDED: Extract casfodAddressId
+    VAT, // ADDED: Extract casfodAddressId
   } = req.body;
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
@@ -45,6 +50,10 @@ const createFromRFQ = catchAsync(async (req, res) => {
     rfqId,
     vendorId,
     {
+      deadlineDate,
+      rfqDate,
+      casfodAddressId, // ADDED
+      VAT,
       itemGroups: parsedItemGroups,
       approvedBy: cleanedApprovedBy,
       deliveryPeriod,
@@ -65,8 +74,12 @@ const createFromRFQ = catchAsync(async (req, res) => {
 
 // Create Independent Purchase Order
 const createIndependent = catchAsync(async (req, res) => {
+  // Parse JSON fields - copiedTo should already be array from multiple appends
   req.body.itemGroups = parseJsonField(req.body, "itemGroups", true);
-  req.body.copiedTo = parseJsonField(req.body, "copiedTo", false);
+  // For copiedTo, if it's array, keep as is; parseJsonField should handle non-string
+  req.body.copiedTo = Array.isArray(req.body.copiedTo)
+    ? req.body.copiedTo
+    : parseJsonField(req.body, "copiedTo", false);
   req.body.selectedVendor = parseJsonField(req.body, "selectedVendor", false);
 
   // Clean the form data
@@ -91,15 +104,19 @@ const createIndependent = catchAsync(async (req, res) => {
   );
 });
 
-// Update Purchase Order
+// FIXED: Update Purchase Order - handle copiedTo as array
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
+  // Parse JSON fields
   req.body.itemGroups = parseJsonField(req.body, "itemGroups", true);
-  req.body.copiedTo = parseJsonField(req.body, "copiedTo", false);
+  // Handle copiedTo as array from multiple appends
+  req.body.copiedTo = Array.isArray(req.body.copiedTo)
+    ? req.body.copiedTo
+    : parseJsonField(req.body, "copiedTo", false);
   req.body.selectedVendor = parseJsonField(req.body, "selectedVendor", false);
 
   // Clean the form data
@@ -146,18 +163,18 @@ const getById = catchAsync(async (req, res) => {
   );
 });
 
-// Update Purchase Order Status (with PDF support)
+// FIXED: Update Purchase Order Status - handle single pdfFile
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status, comment } = req.body;
-  const files = req.files || [];
+  const pdfFile = req.file; // FIXED: Use req.file for single upload
   const currentUser = await userByToken(req, res);
 
   const purchaseOrder = await purchaseOrderService.updatePurchaseOrderStatus(
     id,
     { status, comment },
     currentUser,
-    files
+    pdfFile // Pass pdfFile directly
   );
 
   handleResponse(

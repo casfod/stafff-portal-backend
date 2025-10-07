@@ -53,19 +53,64 @@ class ProcurementNotificationService {
     }
   }
 
+  // Generic email method with full options
+  async sendGenericEmail({
+    to,
+    subject,
+    htmlTemplate,
+    cc = undefined,
+    bcc = undefined,
+    attachments = undefined,
+  }) {
+    try {
+      await this.sendMail({
+        recipientEmail: to,
+        cc,
+        bcc,
+        subject,
+        htmlTemplate,
+        attachments,
+      });
+    } catch (error) {
+      console.error("❌ Failed to send generic email:", error);
+      throw error;
+    }
+  }
+
   // Purchase Order Notifications
 
-  // Notify vendor about selection for PO
+  // Unified Purchase Order notification
   async sendPurchaseOrderNotification({
     vendor,
     purchaseOrder,
     currentUser,
-    type = "selection", // 'selection' or 'approval'
+    type = "selection", // 'selection', 'approval', or 'status'
+    status,
+    fileDownloads = [],
   }) {
     try {
       let subject, htmlTemplate;
 
-      if (type === "selection") {
+      if (type === "status") {
+        if (status === "approved") {
+          subject = `Purchase Order Approved: ${purchaseOrder.RFQCode}`;
+          htmlTemplate = this.getPOApprovalWithFilesTemplate(
+            vendor,
+            purchaseOrder,
+            currentUser,
+            fileDownloads
+          );
+        } else if (status === "rejected") {
+          subject = `Purchase Order Update: ${purchaseOrder.RFQCode}`;
+          htmlTemplate = this.getPORejectionTemplate(
+            vendor,
+            purchaseOrder,
+            currentUser
+          );
+        } else {
+          throw new Error("Invalid status for PO notification");
+        }
+      } else if (type === "selection") {
         subject = `Purchase Order Selection: ${purchaseOrder.RFQCode}`;
         htmlTemplate = this.getPOSelectionTemplate(
           vendor,
@@ -90,7 +135,11 @@ class ProcurementNotificationService {
       });
 
       console.log(
-        `✅ PO ${type} notification sent to vendor: ${vendor.businessName}`
+        `✅ PO ${type}${
+          status ? ` ${status}` : ""
+        } notification sent to vendor: ${vendor.businessName} with ${
+          fileDownloads.length
+        } files`
       );
     } catch (error) {
       console.error(
@@ -101,13 +150,31 @@ class ProcurementNotificationService {
     }
   }
 
-  // Notify vendor about PO approval
+  // Notify vendor about PO approval (legacy method)
   async sendPOApprovalNotification({ vendor, purchaseOrder, currentUser }) {
     return this.sendPurchaseOrderNotification({
       vendor,
       purchaseOrder,
       currentUser,
       type: "approval",
+    });
+  }
+
+  // Notify vendor about PO status with file downloads
+  async sendPurchaseOrderStatusNotification({
+    vendor,
+    purchaseOrder,
+    currentUser,
+    status,
+    fileDownloads = [],
+  }) {
+    return this.sendPurchaseOrderNotification({
+      vendor,
+      purchaseOrder,
+      currentUser,
+      type: "status",
+      status,
+      fileDownloads,
     });
   }
 
@@ -156,99 +223,84 @@ class ProcurementNotificationService {
     }
   }
 
-  // Single vendor notification (no CC/BCC) - RFQ
+  // RFQ Notifications
+
+  // Unified RFQ notification method
   async sendRFQNotification({
     vendor,
+    vendors,
     rfq,
     currentUser,
-    downloadUrl,
-    downloadFilename,
-  }) {
-    try {
-      const subject = `Request for Quotation: ${rfq.RFQCode}`;
-
-      const htmlTemplate = this.getRFQTemplate(
-        vendor,
-        rfq,
-        currentUser,
-        downloadUrl,
-        downloadFilename
-      );
-
-      await this.sendMail({
-        recipientEmail: vendor.email,
-        subject,
-        htmlTemplate,
-      });
-    } catch (error) {
-      console.error(
-        `❌ Failed to send RFQ notification to ${vendor.businessName}:`,
-        error
-      );
-      throw error;
-    }
-  }
-
-  // RFQ notification with CC
-  async sendRFQNotificationWithCC({
-    vendor,
-    rfq,
-    currentUser,
-    downloadUrl,
-    downloadFilename,
-    cc = [],
-  }) {
-    try {
-      const subject = `Request for Quotation: ${rfq.RFQCode}`;
-
-      const htmlTemplate = this.getRFQTemplate(
-        vendor,
-        rfq,
-        currentUser,
-        downloadUrl,
-        downloadFilename
-      );
-
-      await this.sendMail({
-        recipientEmail: vendor.email,
-        cc: cc,
-        subject,
-        htmlTemplate,
-      });
-    } catch (error) {
-      console.error(
-        `❌ Failed to send RFQ notification with CC to ${vendor.businessName}:`,
-        error
-      );
-      throw error;
-    }
-  }
-
-  // Generic email method with full options
-  async sendGenericEmail({
-    to,
-    subject,
-    htmlTemplate,
+    fileDownloads = [],
     cc = undefined,
     bcc = undefined,
-    attachments = undefined,
   }) {
     try {
+      const subject = `Request for Quotation: ${rfq.RFQCode}`;
+
+      let htmlTemplate;
+      let recipientEmail;
+      let bccEmails;
+
+      // Determine if this is a single vendor or BCC notification
+      if (vendors && vendors.length > 0) {
+        // BCC notification to multiple vendors
+        const primaryVendor = vendors[0];
+        bccEmails = vendors.map((vendor) => vendor.email);
+        recipientEmail = process.env.PROCUREMENT_MAIL; // Send to ourselves
+        htmlTemplate = this.getRFQTemplateWithMultipleFiles(
+          primaryVendor,
+          rfq,
+          currentUser,
+          fileDownloads
+        );
+      } else if (vendor) {
+        // Single vendor notification
+        recipientEmail = vendor.email;
+        htmlTemplate = this.getRFQTemplateWithMultipleFiles(
+          vendor,
+          rfq,
+          currentUser,
+          fileDownloads
+        );
+      } else {
+        throw new Error("Either vendor or vendors must be provided");
+      }
+
       await this.sendMail({
-        recipientEmail: to,
+        recipientEmail,
         cc,
-        bcc,
+        bcc: bccEmails || bcc,
         subject,
         htmlTemplate,
-        attachments,
       });
+
+      const vendorCount = vendors ? vendors.length : 1;
+      console.log(
+        `✅ RFQ ${rfq.RFQCode} sent to ${vendorCount} vendor(s) with ${fileDownloads.length} files`
+      );
     } catch (error) {
-      console.error("❌ Failed to send generic email:", error);
+      console.error(`❌ Failed to send RFQ notification:`, error);
       throw error;
     }
   }
 
-  // Method for sending RFQ with PDF attachment
+  // RFQ notification with BCC (Primary for vendor communications)
+  async sendRFQNotificationWithBCC({
+    vendors,
+    rfq,
+    currentUser,
+    fileDownloads = [],
+  }) {
+    return this.sendRFQNotification({
+      vendors,
+      rfq,
+      currentUser,
+      fileDownloads,
+    });
+  }
+
+  // Send RFQ with PDF attachment to vendor
   async sendRFQWithAttachment({
     vendor,
     rfq,
@@ -307,14 +359,13 @@ class ProcurementNotificationService {
         <p style="font-size: 15px; color: #4b5563; margin: 0;">
           <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
         </p>
-        <p style="font-size: 15px; color: #4b5563; margin: 8px 0 0 0;">
-          <strong>Title:</strong> ${purchaseOrder.RFQTitle || "N/A"}
-        </p>
       </div>
     
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Congratulations Vendor
+          <strong style="color: #4b5563;">Congratulations ${
+            vendor.contactPerson || "Vendor"
+          },</strong>
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
           Your bid has been selected for the following Purchase Order from CASFOD.
@@ -365,14 +416,13 @@ class ProcurementNotificationService {
         <p style="font-size: 15px; color: #4b5563; margin: 0;">
           <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
         </p>
-        <p style="font-size: 15px; color: #4b5563; margin: 8px 0 0 0;">
-          <strong>Title:</strong> ${purchaseOrder.RFQTitle || "N/A"}
-        </p>
       </div>
     
       <div style="margin-bottom: 16px;">
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Hello Vendor
+          <strong style="color: #4b5563;">Hello ${
+            vendor.contactPerson || "Vendor"
+          },</strong>
         </p>
         <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
           We are pleased to inform you that the following Purchase Order has been officially approved and is ready for processing.
@@ -442,52 +492,160 @@ class ProcurementNotificationService {
     `;
   }
 
-  // Existing RFQ template generators (keep these as they are)
-  getRFQTemplate(vendor, rfq, currentUser, downloadUrl, downloadFilename) {
-    return `
-    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
-      <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
-        <h1 style="color: #1373B0; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
-         CASFOD Request for Quotation
-        </h1>
-        <p style="font-size: 15px; color: #4b5563; margin: 0;">
-          <strong>RFQ Code:</strong> ${rfq.RFQCode}
-        </p>
-  
-      </div>
-    
-      <div style="margin-bottom: 16px;">
-        <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          <strong style="color: #4b5563;">Hello Vendor
-        </p>
-        <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-          You have been invited to submit a bid for the following quotation from CASFOD.
-        </p>
-      </div>
+  // Template for PO approval with multiple files
+  getPOApprovalWithFilesTemplate(
+    vendor,
+    purchaseOrder,
+    currentUser,
+    fileDownloads = []
+  ) {
+    const totalAmount = purchaseOrder.totalAmount?.toLocaleString() || "0";
 
-      <!-- Action Button -->
-      <div style="margin-bottom: 24px; padding: 16px; background-color: #f8fafc; border-radius: 6px; border-left: 4px solid #1373B0;">
-        <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
-          <strong>Download RFQ Document:</strong>
+    const filesHtml = fileDownloads
+      .map(
+        (file) => `
+  <table style="width: 100%; margin-bottom: 12px; background-color: #f8fafc; border-radius: 4px; border-left: 3px solid #10b981;" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="padding: 12px; width: 75%; vertical-align: top;">
+        <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 500; color: #374151; word-break: break-word;">
+          ${file.name}
         </p>
-        <a href="${downloadUrl}" 
-        style="display: inline-block; padding: 12px 24px; background-color: #1373B0; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 500; border-radius: 6px; transition: background-color 0.2s;">
-          Download RFQ Document
+        <p style="margin: 0; font-size: 12px; color: #6b7280;">
+          ${this.formatFileType(file.fileType)} • ${this.formatFileSize(
+          file.size
+        )}
+        </p>
+      </td>
+      <td style="padding: 12px; width: 25%; vertical-align: middle; text-align: right;">
+        <a href="${file.url}" 
+          style="display: inline-block; padding: 8px 16px; background-color: #10b981; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 4px; transition: background-color 0.2s; white-space: nowrap;">
+          Download
         </a>
-        <p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">
-          <strong>File name:</strong> ${downloadFilename}<br>
-          <em>If the file doesn't download automatically, right-click the link and select "Save link as..."</em>
-        </p>
-      </div>
+      </td>
+    </tr>
+  </table>
+`
+      )
+      .join("");
 
-      <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
-        <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
-          This is an automated notification from CASFOD Procurement System. 
-        </p>
-      </div>
+    return `
+<div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+  <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
+    <h1 style="color: #10b981; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
+      Purchase Order Approved
+    </h1>
+    <p style="font-size: 15px; color: #4b5563; margin: 0;">
+      <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+    </p>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+      <strong style="color: #4b5563;">Hello Vendor, </strong>
+    </p>
+    <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+      We are pleased to inform you that the following Purchase Order has been officially approved and is ready for processing.
+    </p>
+  </div>
+
+  <!-- Approved PO Details -->
+  <div style="margin-bottom: 24px; padding: 16px; background-color: #f0fdf4; border-radius: 6px; border-left: 4px solid #10b981;">
+    <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #10b981;">Approved Purchase Order</h3>
+    <div style="font-size: 14px; color: #4b5563;">
+      <p style="margin: 4px 0;"><strong>PO Code:</strong> ${
+        purchaseOrder.RFQCode
+      }</p>
+      <p style="margin: 4px 0;"><strong>Title:</strong> ${
+        purchaseOrder.RFQTitle
+      }</p>
+      <p style="margin: 4px 0;"><strong>Delivery Period:</strong> ${
+        purchaseOrder.deliveryPeriod || "N/A"
+      }</p>
+      <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
+      <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">APPROVED</span></p>
     </div>
-    `;
+  </div>
+
+  <!-- Files Section for Approved PO -->
+  ${
+    fileDownloads.length > 0
+      ? `
+  <div style="margin-bottom: 24px;">
+    <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563;">
+      <strong>Download Purchase Order Documents:</strong>
+    </p>
+    ${filesHtml}
+    <p style="margin: 12px 0 0 0; font-size: 12px; color: #6b7280;">
+      <em>If files don't download automatically, right-click the links and select "Save link as..."</em>
+    </p>
+  </div>
+  `
+      : ""
   }
+
+  <div style="margin-bottom: 24px;">
+    <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+      Please proceed with the delivery of goods/services as per the agreed terms.
+    </p>
+  </div>
+
+  <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+    <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+      This is an automated notification from CASFOD Procurement System. 
+    </p>
+  </div>
+</div>
+`;
+  }
+
+  // Template for PO rejection (no files)
+  getPORejectionTemplate(vendor, purchaseOrder, currentUser) {
+    return `
+<div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #ffffff; color: #333333; padding: 40px; max-width: 600px; margin: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
+  <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 24px;">
+    <h1 style="color: #ef4444; margin: 0 0 8px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">
+      Purchase Order Update
+    </h1>
+    <p style="font-size: 15px; color: #4b5563; margin: 0;">
+      <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+    </p>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+      <strong style="color: #4b5563;">Hello Vendor, </strong>
+    </p>
+    <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+      We regret to inform you that the following Purchase Order has been rejected.
+    </p>
+  </div>
+
+  <!-- Rejected PO Details -->
+  <div style="margin-bottom: 24px; padding: 16px; background-color: #fef2f2; border-radius: 6px; border-left: 4px solid #ef4444;">
+    <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #ef4444;">Purchase Order Details</h3>
+    <div style="font-size: 14px; color: #4b5563;">
+      <p style="margin: 4px 0;"><strong>PO Code:</strong> ${purchaseOrder.RFQCode}</p>
+      <p style="margin: 4px 0;"><strong>Title:</strong> ${purchaseOrder.RFQTitle}</p>
+      <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #ef4444; font-weight: 600;">REJECTED</span></p>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 24px;">
+    <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+      Our procurement team may contact you for future opportunities. Thank you for your understanding.
+    </p>
+  </div>
+
+  <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+    <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+      This is an automated notification from CASFOD Procurement System. 
+    </p>
+  </div>
+</div>
+`;
+  }
+
+  // RFQ Template generators
 
   getRFQAttachmentTemplate(vendor, rfq, currentUser) {
     return `
@@ -519,89 +677,7 @@ class ProcurementNotificationService {
     `;
   }
 
-  ///////////////////////////////////////////
-  ///////////////////////////////////////////
-  ///////////////////////////////////////////
-  // Update the RFQ notification methods to handle multiple files
-
-  // RFQ notification with BCC (Primary for vendor communications)
-  async sendRFQNotificationWithBCC({
-    vendors,
-    rfq,
-    currentUser,
-    fileDownloads = [], // Now accepts array of files
-  }) {
-    try {
-      if (!vendors || vendors.length === 0) {
-        throw new Error("No vendors provided for BCC notification");
-      }
-
-      const subject = `Request for Quotation: ${rfq.RFQCode}`;
-
-      // Use first vendor for template personalization
-      const primaryVendor = vendors[0];
-      const bccEmails = vendors.map((vendor) => vendor.email);
-
-      const htmlTemplate = this.getRFQTemplateWithMultipleFiles(
-        primaryVendor,
-        rfq,
-        currentUser,
-        fileDownloads
-      );
-
-      // Send to procurement email with all vendors in BCC
-      await this.sendMail({
-        recipientEmail: process.env.PROCUREMENT_MAIL, // Send to ourselves
-        bcc: bccEmails,
-        subject,
-        htmlTemplate,
-      });
-
-      console.log(
-        `✅ RFQ ${rfq.RFQCode} sent via BCC to ${vendors.length} vendors with ${fileDownloads.length} files`
-      );
-    } catch (error) {
-      console.error(`❌ Failed to send RFQ notification with BCC:`, error);
-      throw error;
-    }
-  }
-
-  // Single vendor notification (updated)
-  async sendRFQNotification({
-    vendor,
-    rfq,
-    currentUser,
-    fileDownloads = [], // Now accepts array of files
-  }) {
-    try {
-      const subject = `Request for Quotation: ${rfq.RFQCode}`;
-
-      const htmlTemplate = this.getRFQTemplateWithMultipleFiles(
-        vendor,
-        rfq,
-        currentUser,
-        fileDownloads
-      );
-
-      await this.sendMail({
-        recipientEmail: vendor.email,
-        subject,
-        htmlTemplate,
-      });
-
-      console.log(
-        `✅ RFQ ${rfq.RFQCode} sent to ${vendor.businessName} with ${fileDownloads.length} files`
-      );
-    } catch (error) {
-      console.error(
-        `❌ Failed to send RFQ notification to ${vendor.businessName}:`,
-        error
-      );
-      throw error;
-    }
-  }
-
-  // New template for multiple files
+  // Template for RFQ with multiple files
   getRFQTemplateWithMultipleFiles(
     vendor,
     rfq,
@@ -716,8 +792,6 @@ class ProcurementNotificationService {
     const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
     return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
   }
-  ///////////////////////////////////////////
-  ///////////////////////////////////////////
 }
 
 module.exports = new ProcurementNotificationService();

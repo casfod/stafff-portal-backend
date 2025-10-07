@@ -1,3 +1,4 @@
+// purchaseOrderRoutes.js
 const express = require("express");
 const {
   createFromRFQ,
@@ -46,10 +47,10 @@ purchaseOrderRouter.put(
   update
 );
 
-// UPDATED: Allow file upload for status update (PDF sending)
+// Status update with optional PDF
 purchaseOrderRouter.patch(
   "/update-status/:id",
-  upload.single("pdfFile"), // NEW: Accept single PDF file
+  upload.single("pdfFile"),
   checkUpdatePermission,
   updateStatus
 );

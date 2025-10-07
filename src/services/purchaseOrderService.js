@@ -1,3 +1,4 @@
+// purchaseOrderService.js
 const PurchaseOrder = require("../models/PurchaseOrderModel");
 const RFQ = require("../models/RFQModel");
 const Vendor = require("../models/VendorModel");
@@ -92,7 +93,7 @@ const getPurchaseOrders = async (queryParams, currentUser) => {
   };
 };
 
-// UPDATED: Create Purchase Order from RFQ - now accepts timeline fields
+// FIXED: Create Purchase Order from RFQ - adjusted params to include vendorId separately, added casfodAddressId handling
 const createPurchaseOrderFromRFQ = async (
   rfqId,
   vendorId,
@@ -106,12 +107,16 @@ const createPurchaseOrderFromRFQ = async (
     deliveryPeriod,
     bidValidityPeriod,
     guaranteePeriod,
+    deadlineDate,
+    rfqDate,
+    casfodAddressId,
+    VAT,
   } = data;
 
   // Clean and validate IDs
   const cleanedRfqId = cleanObjectId(rfqId);
   const cleanedVendorId = cleanObjectId(vendorId);
-  const cleanedApprovedBy = cleanObjectId(approvedBy);
+  const cleanedApprovedBy = approvedBy ? cleanObjectId(approvedBy) : null;
 
   // Fetch the RFQ
   const rfq = await RFQ.findById(cleanedRfqId);
@@ -152,6 +157,10 @@ const createPurchaseOrderFromRFQ = async (
   const finalDeliveryPeriod = deliveryPeriod || rfq.deliveryPeriod;
   const finalBidValidityPeriod = bidValidityPeriod || rfq.bidValidityPeriod;
   const finalGuaranteePeriod = guaranteePeriod || rfq.guaranteePeriod;
+  const finalDeadlineDate = deadlineDate || rfq.deadlineDate;
+  const finalRFQDate = rfqDate || rfq.rfqDate;
+  const finalCasfodAddressId = casfodAddressId || rfq.casfodAddressId; // FIXED: Use casfodAddressId from data
+  const finalVAT = VAT || rfq.VAT; // FIXED: Use casfodAddressId from data
 
   // Validate required timeline fields
   if (!finalDeliveryPeriod) {
@@ -165,11 +174,16 @@ const createPurchaseOrderFromRFQ = async (
   }
 
   // Create purchase order with selectedVendor and isFromRFQ = true
+  // FIXED: copiedTo should inherit from RFQ
   const purchaseOrder = new PurchaseOrder({
     RFQTitle: rfq.RFQTitle,
     RFQCode: rfq.RFQCode,
+    deadlineDate: finalDeadlineDate,
+    rfqDate: finalRFQDate,
+    casfodAddressId: finalCasfodAddressId,
+    VAT: finalVAT,
     itemGroups: validatedItemGroups,
-    copiedTo: [cleanedVendorId],
+    copiedTo: rfq.copiedTo, // FIXED: Use RFQ's copiedTo
     selectedVendor: cleanedVendorId,
     deliveryPeriod: finalDeliveryPeriod,
     bidValidityPeriod: finalBidValidityPeriod,
@@ -177,13 +191,13 @@ const createPurchaseOrderFromRFQ = async (
     createdBy: currentUser._id,
     status: "pending",
     totalAmount: totalAmount,
-    approvedBy: cleanedApprovedBy,
     isFromRFQ: true,
+    approvedBy: cleanedApprovedBy,
   });
 
   await purchaseOrder.save();
 
-  // Handle file uploads if any
+  // Handle file uploads
   if (files.length > 0) {
     await handleFileUploads({
       files,
@@ -192,46 +206,103 @@ const createPurchaseOrderFromRFQ = async (
     });
   }
 
-  // Notify vendor that their bid has been selected
-  await notifyVendorSelection(purchaseOrder, vendor, currentUser);
+  // Notify creator and vendor
+  await notifyStatusUpdate(purchaseOrder, "pending", null, currentUser);
 
-  // Notify approvers for approval
-  await notifyApprovers(purchaseOrder, currentUser);
+  // Populate for response
+  await purchaseOrder.populate([
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    {
+      path: "copiedTo",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    {
+      path: "selectedVendor",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
 
-  return purchaseOrder;
+  const filesData = await fileService.getFilesByDocument(
+    "PurchaseOrders",
+    purchaseOrder._id
+  );
+
+  return normalizeId({
+    ...purchaseOrder.toObject(),
+    files: normalizeFiles(filesData),
+  });
 };
 
-// Create Purchase Order without RFQ
+// Create Independent Purchase Order
 const createIndependentPurchaseOrder = async (
-  purchaseOrderData,
+  data,
   currentUser,
   files = []
 ) => {
-  // Clean and validate IDs
-  const cleanedSelectedVendor = cleanObjectId(purchaseOrderData.selectedVendor);
-  const cleanedApprovedBy = cleanObjectId(purchaseOrderData.approvedBy);
-  const cleanedCopiedTo = purchaseOrderData.copiedTo
-    ? purchaseOrderData.copiedTo.map((id) => cleanObjectId(id))
-    : [];
+  const {
+    RFQTitle,
+    deliveryPeriod,
+    bidValidityPeriod,
+    guaranteePeriod,
+    selectedVendor,
+    approvedBy,
+    itemGroups,
+    copiedTo,
+    deadlineDate,
+    rfqDate,
+    casfodAddressId,
+    VAT,
+  } = data;
 
-  // Validate required timeline fields
-  if (!purchaseOrderData.deliveryPeriod) {
+  // Clean and validate IDs
+  const cleanedSelectedVendor = cleanObjectId(selectedVendor);
+  const cleanedApprovedBy = approvedBy ? cleanObjectId(approvedBy) : null;
+  let cleanedCopiedTo = [];
+  if (copiedTo && Array.isArray(copiedTo)) {
+    cleanedCopiedTo = copiedTo.map((id) => cleanObjectId(id)).filter(Boolean);
+  }
+  if (cleanedCopiedTo.length === 0) {
+    cleanedCopiedTo = [cleanedSelectedVendor];
+  }
+
+  // Verify vendor exists
+  const vendor = await Vendor.findById(cleanedSelectedVendor);
+  if (!vendor) {
+    throw new Error("Selected vendor not found");
+  }
+
+  // Validate required fields
+  if (!RFQTitle || !RFQTitle.trim()) {
+    throw new Error("Purchase Order Title is required");
+  }
+  if (!deliveryPeriod || !deliveryPeriod.trim()) {
     throw new Error("Delivery Period is required");
   }
-  if (!purchaseOrderData.bidValidityPeriod) {
+  if (!bidValidityPeriod || !bidValidityPeriod.trim()) {
     throw new Error("Bid Validity Period is required");
   }
-  if (!purchaseOrderData.guaranteePeriod) {
+  if (!guaranteePeriod || !guaranteePeriod.trim()) {
     throw new Error("Guarantee Period is required");
   }
+  if (!casfodAddressId) {
+    throw new Error("CASFOD Address is required");
+  }
+  if (!VAT) {
+    throw new Error("VAT is required");
+  }
 
-  // Validate that all items have prices
-  const validatedItemGroups = purchaseOrderData.itemGroups.map((item) => {
+  // Validate item groups
+  const validatedItemGroups = itemGroups.map((item) => {
     if (!item.unitCost || item.unitCost <= 0) {
       throw new Error(
         `Unit cost is required and must be greater than 0 for item: ${item.description}`
       );
     }
+    // if (!item.description || !item.description.trim()) {
+    //   throw new Error(`Description is required for item: ${item.itemName}`);
+    // }
     return {
       ...item,
       total: item.quantity * item.unitCost * item.frequency,
@@ -244,23 +315,28 @@ const createIndependentPurchaseOrder = async (
     0
   );
 
-  // Create purchase order with isFromRFQ = false
   const purchaseOrder = new PurchaseOrder({
-    ...purchaseOrderData,
-    RFQTitle: purchaseOrderData.RFQTitle || "Purchase Order",
+    RFQTitle,
+    deadlineDate,
+    rfqDate,
+    casfodAddressId,
+    VAT,
     itemGroups: validatedItemGroups,
     copiedTo: cleanedCopiedTo,
     selectedVendor: cleanedSelectedVendor,
-    approvedBy: cleanedApprovedBy,
+    deliveryPeriod,
+    bidValidityPeriod,
+    guaranteePeriod,
     createdBy: currentUser._id,
     status: "pending",
-    totalAmount: totalAmount,
+    totalAmount,
     isFromRFQ: false,
+    approvedBy: cleanedApprovedBy,
   });
 
   await purchaseOrder.save();
 
-  // Handle file uploads if any
+  // Handle file uploads
   if (files.length > 0) {
     await handleFileUploads({
       files,
@@ -269,207 +345,39 @@ const createIndependentPurchaseOrder = async (
     });
   }
 
-  // Notify vendor that their bid has been selected (if vendor is specified)
-  if (purchaseOrder.selectedVendor) {
-    const vendor = await Vendor.findById(purchaseOrder.selectedVendor);
-    if (vendor) {
-      await notifyVendorSelection(purchaseOrder, vendor, currentUser);
-    }
-  }
+  // Notify creator
+  await notifyStatusUpdate(purchaseOrder, "pending", null, currentUser);
 
-  // Notify approvers for approval
-  await notifyApprovers(purchaseOrder, currentUser);
+  // Populate for response
+  await purchaseOrder.populate([
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    {
+      path: "copiedTo",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    {
+      path: "selectedVendor",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
 
-  return purchaseOrder;
-};
-
-// Notify vendor about selection
-const notifyVendorSelection = async (purchaseOrder, vendor, currentUser) => {
-  try {
-    await ProcurementNotificationService.sendPurchaseOrderNotification({
-      vendor,
-      purchaseOrder,
-      currentUser,
-      type: "selection",
-    });
-
-    console.log(
-      `✅ Vendor ${vendor.businessName} notified about PO selection: ${purchaseOrder.POCode}`
-    );
-  } catch (error) {
-    console.error("Error notifying vendor about selection:", error);
-    throw error;
-  }
-};
-
-// Notify approvers
-const notifyApprovers = async (purchaseOrder, currentUser) => {
-  try {
-    notify.notifyApprovers({
-      request: purchaseOrder,
-      currentUser: currentUser,
-      requestType: "purchaseOrder",
-      title: "Purchase Order",
-      header: "New Purchase Order requires approval",
-    });
-
-    console.log(`✅ Approvers notified for PO: ${purchaseOrder.POCode}`);
-  } catch (error) {
-    console.error("Error notifying approvers:", error);
-    throw error;
-  }
-};
-
-// Update Purchase Order status with comments and handle PDF sending
-const updatePurchaseOrderStatus = async (id, data, currentUser, files = []) => {
-  // Fetch the existing Purchase Order
-  const existingPurchaseOrder = await PurchaseOrder.findById(id);
-  if (!existingPurchaseOrder) {
-    throw new Error("Purchase Order not found");
-  }
-
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    if (!existingPurchaseOrder.comments) {
-      existingPurchaseOrder.comments = [];
-    }
-
-    existingPurchaseOrder.comments.unshift({
-      user: currentUser.id,
-      text: data.comment,
-    });
-
-    data.comments = existingPurchaseOrder.comments;
-  }
-
-  // Store the old status for comparison
-  const oldStatus = existingPurchaseOrder.status;
-
-  // Update the status and other fields
-  if (data.status) {
-    const validStatuses = ["pending", "approved", "rejected"];
-    if (!validStatuses.includes(data.status)) {
-      throw new Error("Invalid status");
-    }
-
-    existingPurchaseOrder.status = data.status;
-
-    // Set approvedBy if status is approved
-    if (data.status === "approved" && currentUser) {
-      existingPurchaseOrder.approvedBy = currentUser._id;
-    }
-  }
-
-  // Save the updated Purchase Order
-  const updatedPurchaseOrder = await existingPurchaseOrder.save();
-
-  // Handle PDF upload if status changed to approved and files are provided
-  if (
-    oldStatus !== "approved" &&
-    data.status === "approved" &&
-    files.length > 0
-  ) {
-    await handleApprovedPOWithPDF(updatedPurchaseOrder, files, currentUser);
-  }
-
-  // Notification
-  await notifyStatusUpdate(
-    updatedPurchaseOrder,
-    data.status,
-    data.comment,
-    currentUser
+  const filesData = await fileService.getFilesByDocument(
+    "PurchaseOrders",
+    purchaseOrder._id
   );
 
-  // Return the updated Purchase Order
-  return updatedPurchaseOrder;
-};
-
-// NEW: Handle approved PO with PDF
-const handleApprovedPOWithPDF = async (purchaseOrder, files, currentUser) => {
-  try {
-    // Validate it's a PDF file
-    const pdfFile = files[0];
-    if (pdfFile.mimetype !== "application/pdf") {
-      throw new Error(
-        "Only PDF files are allowed for Purchase Order distribution"
-      );
-    }
-
-    // Upload and associate the PDF file
-    await handleFileUploads({
-      files: [pdfFile],
-      requestId: purchaseOrder._id,
-      modelTable: "PurchaseOrders",
-      fileType: "po_pdf",
-    });
-
-    // Get the vendor details
-    const vendor = await Vendor.findById(purchaseOrder.selectedVendor);
-    if (!vendor) {
-      throw new Error("Selected vendor not found");
-    }
-
-    // Send PO with PDF attachment to vendor
-    await sendPOWithPDFToVendor(purchaseOrder, vendor, currentUser, pdfFile);
-
-    console.log(
-      `✅ PO ${purchaseOrder.POCode} PDF sent to vendor: ${vendor.businessName}`
-    );
-  } catch (error) {
-    console.error("Error handling approved PO with PDF:", error);
-    throw error;
-  }
-};
-
-// NEW: Send PO with PDF to vendor (similar to RFQ flow)
-const sendPOWithPDFToVendor = async (
-  purchaseOrder,
-  vendor,
-  currentUser,
-  pdfFile
-) => {
-  try {
-    // Upload file to get the URL
-    const uploadedFile = await fileService.uploadFile(pdfFile);
-
-    // Associate the file with the purchase order
-    await fileService.associateFile(
-      uploadedFile._id,
-      "PurchaseOrders",
-      purchaseOrder._id,
-      "po_pdf"
-    );
-
-    const downloadUrl = `${process.env.API_BASE_URL}/files/${uploadedFile._id}/download`;
-    const downloadFilename = `${purchaseOrder.POCode}.pdf`;
-
-    // Send notification with PDF download link
-    await ProcurementNotificationService.sendPOWithAttachment({
-      vendor,
-      purchaseOrder,
-      currentUser,
-      downloadUrl,
-      downloadFilename,
-    });
-
-    console.log(
-      `✅ PO ${purchaseOrder.POCode} with PDF sent to: ${vendor.businessName}`
-    );
-  } catch (error) {
-    console.error(
-      `❌ Failed to send PO with PDF to ${vendor.businessName}:`,
-      error
-    );
-    throw error;
-  }
+  return normalizeId({
+    ...purchaseOrder.toObject(),
+    files: normalizeFiles(filesData),
+  });
 };
 
 // Get Purchase Order by ID
 const getPurchaseOrderById = async (id) => {
+  const cleanedId = cleanObjectId(id);
+
   const populateOptions = [
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
@@ -484,7 +392,7 @@ const getPurchaseOrderById = async (id) => {
     { path: "comments.user", select: "email first_name last_name role" },
   ];
 
-  const purchaseOrder = await PurchaseOrder.findById(id)
+  const purchaseOrder = await PurchaseOrder.findById(cleanedId)
     .populate(populateOptions)
     .lean();
 
@@ -493,7 +401,10 @@ const getPurchaseOrderById = async (id) => {
   }
 
   // Fetch associated files
-  const files = await fileService.getFilesByDocument("PurchaseOrders", id);
+  const files = await fileService.getFilesByDocument(
+    "PurchaseOrders",
+    cleanedId
+  );
 
   return normalizeId({
     ...purchaseOrder,
@@ -518,21 +429,49 @@ const notifyStatusUpdate = async (
       header: `Your Purchase Order has been ${status}`,
     });
 
-    // Notify vendor if approved
-    if (status === "approved" && purchaseOrder.selectedVendor) {
+    // Notify vendor with files if approved, without files if rejected
+    if (
+      ["approved", "rejected"].includes(status) &&
+      purchaseOrder.selectedVendor
+    ) {
       const vendor = await Vendor.findById(purchaseOrder.selectedVendor);
       if (vendor) {
-        await ProcurementNotificationService.sendPurchaseOrderNotification({
-          vendor,
-          purchaseOrder,
-          currentUser: approvedByUser,
-          type: "approval",
-        });
+        let fileDownloads = [];
+
+        // Only include files for approved status
+        if (status === "approved") {
+          // Get all files associated with this purchase order
+          const files = await fileService.getFilesByDocument(
+            "PurchaseOrders",
+            purchaseOrder._id
+          );
+
+          // Create download links for all files
+          fileDownloads = await createFileDownloadsForPO(files);
+        }
+
+        // FIX: Only send rejection emails for POs that are from RFQ
+        if (status === "rejected" && !purchaseOrder.isFromRFQ) {
+          console.log(
+            `ℹ️  Skipping rejection email for independent PO: ${purchaseOrder.RFQCode}`
+          );
+          return; // Skip sending rejection email for independent POs
+        }
+
+        await ProcurementNotificationService.sendPurchaseOrderStatusNotification(
+          {
+            vendor,
+            purchaseOrder,
+            currentUser: approvedByUser,
+            status,
+            fileDownloads, // Empty array for rejected, populated for approved
+          }
+        );
       }
     }
 
     console.log(
-      `✅ Status update notifications sent for PO: ${purchaseOrder.POCode}`
+      `✅ Status update notifications sent for PO: ${purchaseOrder.RFQCode}`
     );
   } catch (error) {
     console.error("Error sending status update notifications:", error);
@@ -540,9 +479,46 @@ const notifyStatusUpdate = async (
   }
 };
 
-// Update Purchase Order
+// Helper function to create download links for all PO files
+const createFileDownloadsForPO = async (files) => {
+  if (!files || !Array.isArray(files)) {
+    return [];
+  }
+
+  // Use Set to track unique file IDs to avoid duplicates
+  const uniqueFiles = [];
+  const seenFileIds = new Set();
+
+  for (const file of files) {
+    const fileId = file._id ? file._id.toString() : file.id;
+
+    // Skip if we've already processed this file
+    if (seenFileIds.has(fileId)) {
+      continue;
+    }
+
+    seenFileIds.add(fileId);
+
+    // Create download URL for each file
+    const downloadUrl = `${process.env.API_BASE_URL}/files/${fileId}/download`;
+
+    uniqueFiles.push({
+      id: fileId,
+      name: file.name || `PO-File-${fileId}`,
+      url: downloadUrl,
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      size: file.size,
+    });
+  }
+
+  return uniqueFiles;
+};
+
+// FIXED: Update Purchase Order - handles optional fields properly
 const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
-  const existingPO = await PurchaseOrder.findById(id);
+  const cleanedId = cleanObjectId(id);
+  const existingPO = await PurchaseOrder.findById(cleanedId);
 
   if (!existingPO) {
     throw new Error("Purchase Order not found");
@@ -575,18 +551,27 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
     data.approvedBy = cleanObjectId(data.approvedBy);
   }
   if (data.copiedTo && Array.isArray(data.copiedTo)) {
-    data.copiedTo = data.copiedTo.map((id) => cleanObjectId(id));
+    data.copiedTo = data.copiedTo
+      .map((id) => cleanObjectId(id))
+      .filter(Boolean);
   }
 
   // Validate required timeline fields if provided
-  if (data.deliveryPeriod !== undefined && !data.deliveryPeriod) {
+  if (data.deliveryPeriod !== undefined && !data.deliveryPeriod.trim()) {
     throw new Error("Delivery Period is required");
   }
-  if (data.bidValidityPeriod !== undefined && !data.bidValidityPeriod) {
+  if (data.bidValidityPeriod !== undefined && !data.bidValidityPeriod.trim()) {
     throw new Error("Bid Validity Period is required");
   }
-  if (data.guaranteePeriod !== undefined && !data.guaranteePeriod) {
+  if (data.guaranteePeriod !== undefined && !data.guaranteePeriod.trim()) {
     throw new Error("Guarantee Period is required");
+  }
+  if (data.casfodAddressId !== undefined && !data.casfodAddressId) {
+    throw new Error("CASFOD Address is required");
+  }
+
+  if (data.VAT !== undefined && !data.VAT) {
+    throw new Error("VAT is required");
   }
 
   // Recalculate totals if itemGroups are updated
@@ -596,6 +581,9 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
         throw new Error(
           `Unit cost is required and must be greater than 0 for item: ${item.description}`
         );
+      }
+      if (!item.description || !item.description.trim()) {
+        throw new Error(`Description is required for item: ${item.itemName}`);
       }
       return {
         ...item,
@@ -611,17 +599,29 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
   }
 
   const updatedPO = await PurchaseOrder.findByIdAndUpdate(
-    id,
+    cleanedId,
     {
       ...data,
       updatedAt: new Date(),
     },
     { new: true, runValidators: true }
-  );
+  ).populate([
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    {
+      path: "copiedTo",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    {
+      path: "selectedVendor",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
 
-  // Handle file uploads if any
+  // Handle file uploads if any - replace existing files
   if (files.length > 0) {
-    await fileService.deleteFilesByDocument("PurchaseOrders", id);
+    await fileService.deleteFilesByDocument("PurchaseOrders", cleanedId);
     await handleFileUploads({
       files,
       requestId: updatedPO._id,
@@ -629,7 +629,90 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
     });
   }
 
-  return updatedPO;
+  const filesData = await fileService.getFilesByDocument(
+    "PurchaseOrders",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...updatedPO.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// FIXED: Update Purchase Order Status - handles pdfFile separately
+const updatePurchaseOrderStatus = async (
+  id,
+  data,
+  currentUser,
+  pdfFile = null
+) => {
+  const cleanedId = cleanObjectId(id);
+  const { status, comment } = data;
+
+  const existingPO = await PurchaseOrder.findById(cleanedId);
+  if (!existingPO) {
+    throw new Error("Purchase Order not found");
+  }
+
+  // Validate status transition
+  if (!["pending", "approved", "rejected"].includes(status)) {
+    throw new Error("Invalid status");
+  }
+
+  // Add comment if provided
+  if (comment && comment.trim()) {
+    if (!existingPO.comments) {
+      existingPO.comments = [];
+    }
+    existingPO.comments.unshift({
+      user: currentUser._id,
+      text: comment.trim(),
+    });
+  }
+
+  // Update status and comments
+  existingPO.status = status;
+  existingPO.updatedAt = new Date();
+
+  await existingPO.save();
+
+  // Handle PDF upload if provided (e.g., approval document)
+  if (pdfFile) {
+    await handleFileUploads({
+      files: [pdfFile],
+      requestId: existingPO._id,
+      modelTable: "PurchaseOrders",
+    });
+  }
+
+  // Notify
+  await notifyStatusUpdate(existingPO, status, comment, currentUser);
+
+  // Populate and return
+  await existingPO.populate([
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    {
+      path: "copiedTo",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    {
+      path: "selectedVendor",
+      select: "businessName email contactPerson businessPhoneNumber address",
+    },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
+
+  const filesData = await fileService.getFilesByDocument(
+    "PurchaseOrders",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...existingPO.toObject(),
+    files: normalizeFiles(filesData),
+  });
 };
 
 // Add comment to Purchase Order
@@ -642,7 +725,8 @@ const addCommentToPurchaseOrder = async (id, commentText, currentUser) => {
     throw new Error("Unauthorized");
   }
 
-  const purchaseOrder = await PurchaseOrder.findById(id);
+  const cleanedId = cleanObjectId(id);
+  const purchaseOrder = await PurchaseOrder.findById(cleanedId);
   if (!purchaseOrder) {
     throw new Error("Purchase Order not found");
   }
@@ -670,8 +754,9 @@ const addCommentToPurchaseOrder = async (id, commentText, currentUser) => {
 
 // Delete Purchase Order
 const deletePurchaseOrder = async (id) => {
-  await fileService.deleteFilesByDocument("PurchaseOrders", id);
-  return await PurchaseOrder.findByIdAndDelete(id);
+  const cleanedId = cleanObjectId(id);
+  await fileService.deleteFilesByDocument("PurchaseOrders", cleanedId);
+  return await PurchaseOrder.findByIdAndDelete(cleanedId);
 };
 
 module.exports = {
