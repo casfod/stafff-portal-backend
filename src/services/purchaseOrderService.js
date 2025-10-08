@@ -31,7 +31,7 @@ const cleanObjectId = (id) => {
 const getPurchaseOrders = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 10 } = queryParams;
 
-  const searchFields = ["RFQTitle", "RFQCode", "deliveryPeriod", "status"];
+  const searchFields = ["RFQTitle", "RFQCode", "POCode", "status"];
 
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
@@ -93,7 +93,7 @@ const getPurchaseOrders = async (queryParams, currentUser) => {
   };
 };
 
-// FIXED: Create Purchase Order from RFQ - adjusted params to include vendorId separately, added casfodAddressId handling
+// Create Purchase Order from RFQ
 const createPurchaseOrderFromRFQ = async (
   rfqId,
   vendorId,
@@ -101,17 +101,8 @@ const createPurchaseOrderFromRFQ = async (
   currentUser,
   files = []
 ) => {
-  const {
-    itemGroups,
-    approvedBy,
-    deliveryPeriod,
-    bidValidityPeriod,
-    guaranteePeriod,
-    deadlineDate,
-    rfqDate,
-    casfodAddressId,
-    VAT,
-  } = data;
+  const { itemGroups, approvedBy, deliveryDate, poDate, casfodAddressId, VAT } =
+    data;
 
   // Clean and validate IDs
   const cleanedRfqId = cleanObjectId(rfqId);
@@ -138,7 +129,7 @@ const createPurchaseOrderFromRFQ = async (
   const validatedItemGroups = itemGroups.map((item) => {
     if (!item.unitCost || item.unitCost <= 0) {
       throw new Error(
-        `Unit cost is required and must be greater than 0 for item: ${item.description}`
+        `Unit cost is required and must be greater than 0 for item: ${item.itemName}`
       );
     }
     return {
@@ -154,40 +145,22 @@ const createPurchaseOrderFromRFQ = async (
   );
 
   // Use provided timeline fields or fall back to RFQ values
-  const finalDeliveryPeriod = deliveryPeriod || rfq.deliveryPeriod;
-  const finalBidValidityPeriod = bidValidityPeriod || rfq.bidValidityPeriod;
-  const finalGuaranteePeriod = guaranteePeriod || rfq.guaranteePeriod;
-  const finalDeadlineDate = deadlineDate || rfq.deadlineDate;
-  const finalRFQDate = rfqDate || rfq.rfqDate;
-  const finalCasfodAddressId = casfodAddressId || rfq.casfodAddressId; // FIXED: Use casfodAddressId from data
-  const finalVAT = VAT || rfq.VAT; // FIXED: Use casfodAddressId from data
-
-  // Validate required timeline fields
-  if (!finalDeliveryPeriod) {
-    throw new Error("Delivery Period is required");
-  }
-  if (!finalBidValidityPeriod) {
-    throw new Error("Bid Validity Period is required");
-  }
-  if (!finalGuaranteePeriod) {
-    throw new Error("Guarantee Period is required");
-  }
+  const finalDeliveryDate = deliveryDate || rfq.deliveryDate;
+  const finalPoDate = poDate || rfq.poDate;
+  const finalCasfodAddressId = casfodAddressId || rfq.casfodAddressId;
+  const finalVAT = VAT || rfq.VAT;
 
   // Create purchase order with selectedVendor and isFromRFQ = true
-  // FIXED: copiedTo should inherit from RFQ
   const purchaseOrder = new PurchaseOrder({
     RFQTitle: rfq.RFQTitle,
     RFQCode: rfq.RFQCode,
-    deadlineDate: finalDeadlineDate,
-    rfqDate: finalRFQDate,
+    deliveryDate: finalDeliveryDate,
+    poDate: finalPoDate,
     casfodAddressId: finalCasfodAddressId,
     VAT: finalVAT,
     itemGroups: validatedItemGroups,
-    copiedTo: rfq.copiedTo, // FIXED: Use RFQ's copiedTo
+    copiedTo: rfq.copiedTo,
     selectedVendor: cleanedVendorId,
-    deliveryPeriod: finalDeliveryPeriod,
-    bidValidityPeriod: finalBidValidityPeriod,
-    guaranteePeriod: finalGuaranteePeriod,
     createdBy: currentUser._id,
     status: "pending",
     totalAmount: totalAmount,
@@ -243,15 +216,12 @@ const createIndependentPurchaseOrder = async (
 ) => {
   const {
     RFQTitle,
-    deliveryPeriod,
-    bidValidityPeriod,
-    guaranteePeriod,
     selectedVendor,
     approvedBy,
     itemGroups,
     copiedTo,
-    deadlineDate,
-    rfqDate,
+    deliveryDate,
+    poDate,
     casfodAddressId,
     VAT,
   } = data;
@@ -277,19 +247,16 @@ const createIndependentPurchaseOrder = async (
   if (!RFQTitle || !RFQTitle.trim()) {
     throw new Error("Purchase Order Title is required");
   }
-  if (!deliveryPeriod || !deliveryPeriod.trim()) {
-    throw new Error("Delivery Period is required");
+  if (!deliveryDate || !deliveryDate.trim()) {
+    throw new Error("Delivery Date is required");
   }
-  if (!bidValidityPeriod || !bidValidityPeriod.trim()) {
-    throw new Error("Bid Validity Period is required");
-  }
-  if (!guaranteePeriod || !guaranteePeriod.trim()) {
-    throw new Error("Guarantee Period is required");
+  if (!poDate || !poDate.trim()) {
+    throw new Error("PO Date is required");
   }
   if (!casfodAddressId) {
     throw new Error("CASFOD Address is required");
   }
-  if (!VAT) {
+  if (VAT === undefined || VAT === null) {
     throw new Error("VAT is required");
   }
 
@@ -297,12 +264,9 @@ const createIndependentPurchaseOrder = async (
   const validatedItemGroups = itemGroups.map((item) => {
     if (!item.unitCost || item.unitCost <= 0) {
       throw new Error(
-        `Unit cost is required and must be greater than 0 for item: ${item.description}`
+        `Unit cost is required and must be greater than 0 for item: ${item.itemName}`
       );
     }
-    // if (!item.description || !item.description.trim()) {
-    //   throw new Error(`Description is required for item: ${item.itemName}`);
-    // }
     return {
       ...item,
       total: item.quantity * item.unitCost * item.frequency,
@@ -317,16 +281,13 @@ const createIndependentPurchaseOrder = async (
 
   const purchaseOrder = new PurchaseOrder({
     RFQTitle,
-    deadlineDate,
-    rfqDate,
+    deliveryDate,
+    poDate,
     casfodAddressId,
     VAT,
     itemGroups: validatedItemGroups,
     copiedTo: cleanedCopiedTo,
     selectedVendor: cleanedSelectedVendor,
-    deliveryPeriod,
-    bidValidityPeriod,
-    guaranteePeriod,
     createdBy: currentUser._id,
     status: "pending",
     totalAmount,
@@ -450,10 +411,10 @@ const notifyStatusUpdate = async (
           fileDownloads = await createFileDownloadsForPO(files);
         }
 
-        // FIX: Only send rejection emails for POs that are from RFQ
+        // Only send rejection emails for POs that are from RFQ
         if (status === "rejected" && !purchaseOrder.isFromRFQ) {
           console.log(
-            `ℹ️  Skipping rejection email for independent PO: ${purchaseOrder.RFQCode}`
+            `ℹ️  Skipping rejection email for independent PO: ${purchaseOrder.POCode}`
           );
           return; // Skip sending rejection email for independent POs
         }
@@ -471,7 +432,7 @@ const notifyStatusUpdate = async (
     }
 
     console.log(
-      `✅ Status update notifications sent for PO: ${purchaseOrder.RFQCode}`
+      `✅ Status update notifications sent for PO: ${purchaseOrder.POCode}`
     );
   } catch (error) {
     console.error("Error sending status update notifications:", error);
@@ -515,7 +476,7 @@ const createFileDownloadsForPO = async (files) => {
   return uniqueFiles;
 };
 
-// FIXED: Update Purchase Order - handles optional fields properly
+// Update Purchase Order - handles optional fields properly
 const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
   const cleanedId = cleanObjectId(id);
   const existingPO = await PurchaseOrder.findById(cleanedId);
@@ -556,21 +517,17 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
       .filter(Boolean);
   }
 
-  // Validate required timeline fields if provided
-  if (data.deliveryPeriod !== undefined && !data.deliveryPeriod.trim()) {
-    throw new Error("Delivery Period is required");
+  // Validate required fields if provided
+  if (data.deliveryDate !== undefined && !data.deliveryDate.trim()) {
+    throw new Error("Delivery Date is required");
   }
-  if (data.bidValidityPeriod !== undefined && !data.bidValidityPeriod.trim()) {
-    throw new Error("Bid Validity Period is required");
-  }
-  if (data.guaranteePeriod !== undefined && !data.guaranteePeriod.trim()) {
-    throw new Error("Guarantee Period is required");
+  if (data.poDate !== undefined && !data.poDate.trim()) {
+    throw new Error("PO Date is required");
   }
   if (data.casfodAddressId !== undefined && !data.casfodAddressId) {
     throw new Error("CASFOD Address is required");
   }
-
-  if (data.VAT !== undefined && !data.VAT) {
+  if (data.VAT !== undefined && (data.VAT === null || data.VAT === "")) {
     throw new Error("VAT is required");
   }
 
@@ -579,11 +536,8 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
     const validatedItemGroups = data.itemGroups.map((item) => {
       if (!item.unitCost || item.unitCost <= 0) {
         throw new Error(
-          `Unit cost is required and must be greater than 0 for item: ${item.description}`
+          `Unit cost is required and must be greater than 0 for item: ${item.itemName}`
         );
-      }
-      if (!item.description || !item.description.trim()) {
-        throw new Error(`Description is required for item: ${item.itemName}`);
       }
       return {
         ...item,
@@ -640,7 +594,7 @@ const updatePurchaseOrder = async (id, data, files = [], currentUser) => {
   });
 };
 
-// FIXED: Update Purchase Order Status - handles pdfFile separately
+// Update Purchase Order Status - handles pdfFile separately
 const updatePurchaseOrderStatus = async (
   id,
   data,

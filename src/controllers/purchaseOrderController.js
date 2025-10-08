@@ -20,20 +20,11 @@ const cleanFormData = (data) => {
   return cleaned;
 };
 
-// FIXED: Create Purchase Order from RFQ - added casfodAddressId, adjusted service call
+// Create Purchase Order from RFQ
 const createFromRFQ = catchAsync(async (req, res) => {
   const { rfqId, vendorId } = req.params;
-  const {
-    itemGroups,
-    approvedBy,
-    deliveryPeriod,
-    bidValidityPeriod,
-    guaranteePeriod,
-    deadlineDate,
-    rfqDate,
-    casfodAddressId, // ADDED: Extract casfodAddressId
-    VAT, // ADDED: Extract casfodAddressId
-  } = req.body;
+  const { itemGroups, approvedBy, deliveryDate, poDate, casfodAddressId, VAT } =
+    req.body;
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
@@ -50,15 +41,12 @@ const createFromRFQ = catchAsync(async (req, res) => {
     rfqId,
     vendorId,
     {
-      deadlineDate,
-      rfqDate,
-      casfodAddressId, // ADDED
+      deliveryDate,
+      poDate,
+      casfodAddressId,
       VAT,
       itemGroups: parsedItemGroups,
       approvedBy: cleanedApprovedBy,
-      deliveryPeriod,
-      bidValidityPeriod,
-      guaranteePeriod,
     },
     currentUser,
     files
@@ -104,7 +92,7 @@ const createIndependent = catchAsync(async (req, res) => {
   );
 });
 
-// FIXED: Update Purchase Order - handle copiedTo as array
+// Update Purchase Order - handle copiedTo as array
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
@@ -163,11 +151,11 @@ const getById = catchAsync(async (req, res) => {
   );
 });
 
-// FIXED: Update Purchase Order Status - handle single pdfFile
+// Update Purchase Order Status - handle single pdfFile
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status, comment } = req.body;
-  const pdfFile = req.file; // FIXED: Use req.file for single upload
+  const pdfFile = req.file; // Use req.file for single upload
   const currentUser = await userByToken(req, res);
 
   const purchaseOrder = await purchaseOrderService.updatePurchaseOrderStatus(
