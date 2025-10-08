@@ -382,8 +382,8 @@ class ProcurementNotificationService {
           <p style="margin: 4px 0;"><strong>Title:</strong> ${
             purchaseOrder.RFQTitle
           }</p>
-          <p style="margin: 4px 0;"><strong>Delivery Period:</strong> ${
-            purchaseOrder.deliveryPeriod || "N/A"
+          <p style="margin: 4px 0;"><strong>Delivery Date:</strong> ${
+            purchaseOrder.deliveryDate || "N/A"
           }</p>
           <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
         </div>
@@ -439,8 +439,8 @@ class ProcurementNotificationService {
           <p style="margin: 4px 0;"><strong>Title:</strong> ${
             purchaseOrder.RFQTitle
           }</p>
-          <p style="margin: 4px 0;"><strong>Delivery Period:</strong> ${
-            purchaseOrder.deliveryPeriod || "N/A"
+          <p style="margin: 4px 0;"><strong>Delivery Date:</strong> ${
+            purchaseOrder.deliveryDate || "N/A"
           }</p>
           <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
           <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">APPROVED</span></p>
@@ -558,8 +558,8 @@ class ProcurementNotificationService {
       <p style="margin: 4px 0;"><strong>Title:</strong> ${
         purchaseOrder.RFQTitle
       }</p>
-      <p style="margin: 4px 0;"><strong>Delivery Period:</strong> ${
-        purchaseOrder.deliveryPeriod || "N/A"
+      <p style="margin: 4px 0;"><strong>Delivery Date:</strong> ${
+        purchaseOrder.deliveryDate || "N/A"
       }</p>
       <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
       <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">APPROVED</span></p>
