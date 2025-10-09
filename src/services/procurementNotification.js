@@ -1,6 +1,14 @@
 // services/procurementNotification.js
 const nodemailer = require("nodemailer");
 
+function formatToDDMMYYYY(dateString) {
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 class ProcurementNotificationService {
   constructor() {
     this.transporter = nodemailer.createTransport({
@@ -383,7 +391,7 @@ class ProcurementNotificationService {
             purchaseOrder.RFQTitle
           }</p>
           <p style="margin: 4px 0;"><strong>Delivery Date:</strong> ${
-            purchaseOrder.deliveryDate || "N/A"
+            formatToDDMMYYYY(purchaseOrder.deliveryDate) || "N/A"
           }</p>
           <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
         </div>
@@ -440,7 +448,8 @@ class ProcurementNotificationService {
             purchaseOrder.RFQTitle
           }</p>
           <p style="margin: 4px 0;"><strong>Delivery Date:</strong> ${
-            purchaseOrder.deliveryDate || "N/A"
+            formatToDDMMYYYY(purchaseOrder.deliveryDateformatToDDMMYYYY) ||
+            "N/A"
           }</p>
           <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
           <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">APPROVED</span></p>
@@ -559,7 +568,7 @@ class ProcurementNotificationService {
         purchaseOrder.RFQTitle
       }</p>
       <p style="margin: 4px 0;"><strong>Delivery Date:</strong> ${
-        purchaseOrder.deliveryDate || "N/A"
+        formatToDDMMYYYY(purchaseOrder.deliveryDate) || "N/A"
       }</p>
       <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${totalAmount}</p>
       <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #10b981; font-weight: 600;">APPROVED</span></p>
@@ -585,7 +594,7 @@ class ProcurementNotificationService {
 
   <div style="margin-bottom: 24px;">
     <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-      Please proceed with the delivery of goods/services as per the agreed terms.
+     <strong>Kindly sign the PO and wait for the countersigned version before proceeding with the delivery of Goods/Services as per the agreed terms. </strong>
     </p>
   </div>
 

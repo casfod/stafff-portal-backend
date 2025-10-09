@@ -387,49 +387,68 @@ const notifyStatusUpdate = async (
       currentUser: approvedByUser,
       requestType: "purchaseOrder",
       title: "Purchase Order",
-      header: `Your Purchase Order has been ${status}`,
+      header: `Your Purchase Order is ${status}`,
     });
 
+    // Notify approvers
+    {
+      purchaseOrder.status !== "approved" &&
+        notify.notifyApprovers({
+          request: purchaseOrder,
+          currentUser: approvedByUser,
+          requestType: "purchaseOrder",
+          title: "Purchase Order",
+          header: "You have been assigned a request",
+        });
+    }
+    // notify.notifyApprovers({
+    //   request: purchaseOrder,
+    //   currentUser: approvedByUser,
+    //   requestType: "purchaseOrder",
+    //   title: "Purchase Order",
+    //   header: `Your Purchase Order has been ${status}`,
+    // });
+
     // Notify vendor with files if approved, without files if rejected
-    // if (
-    //   ["approved", "rejected"].includes(status) &&
-    //   purchaseOrder.selectedVendor
-    // ) {
-    //   const vendor = await Vendor.findById(purchaseOrder.selectedVendor);
-    //   if (vendor) {
-    //     let fileDownloads = [];
+    if (
+      ["approved", "rejected"].includes(status) &&
+      purchaseOrder.selectedVendor
+    ) {
+      const vendor = await Vendor.findById(purchaseOrder.selectedVendor);
+      if (vendor) {
+        let fileDownloads = [];
 
-    //     // Only include files for approved status
-    //     if (status === "approved") {
-    //       // Get all files associated with this purchase order
-    //       const files = await fileService.getFilesByDocument(
-    //         "PurchaseOrders",
-    //         purchaseOrder._id
-    //       );
+        // Only include files for approved status
+        if (status === "approved") {
+          // Get all files associated with this purchase order
+          const files = await fileService.getFilesByDocument(
+            "PurchaseOrders",
+            purchaseOrder._id
+          );
 
-    //       // Create download links for all files
-    //       fileDownloads = await createFileDownloadsForPO(files);
-    //     }
+          // Create download links for all files
+          fileDownloads = await createFileDownloadsForPO(files);
+        }
 
-    //     // Only send rejection emails for POs that are from RFQ
-    //     if (status === "rejected" && !purchaseOrder.isFromRFQ) {
-    //       console.log(
-    //         `ℹ️  Skipping rejection email for independent PO: ${purchaseOrder.POCode}`
-    //       );
-    //       return; // Skip sending rejection email for independent POs
-    //     }
+        // Only send rejection emails for POs that are from RFQ
+        if (status === "rejected" && !purchaseOrder.isFromRFQ) {
+          console.log(
+            `ℹ️  Skipping rejection email for independent PO: ${purchaseOrder.POCode}`
+          );
+          return; // Skip sending rejection email for independent POs
+        }
 
-    //     await ProcurementNotificationService.sendPurchaseOrderStatusNotification(
-    //       {
-    //         vendor,
-    //         purchaseOrder,
-    //         currentUser: approvedByUser,
-    //         status,
-    //         fileDownloads, // Empty array for rejected, populated for approved
-    //       }
-    //     );
-    //   }
-    // }
+        await ProcurementNotificationService.sendPurchaseOrderStatusNotification(
+          {
+            vendor,
+            purchaseOrder,
+            currentUser: approvedByUser,
+            status,
+            fileDownloads, // Empty array for rejected, populated for approved
+          }
+        );
+      }
+    }
 
     console.log(
       `✅ Status update notifications sent for PO: ${purchaseOrder.POCode}`
