@@ -1,4 +1,4 @@
-// goodsReceivedService.js - Updated with filtering and file upload
+// goodsReceivedService.js - Updated with isCompleted logic
 const GoodsReceived = require("../models/GooodsRecievedModel");
 const PurchaseOrder = require("../models/PurchaseOrderModel");
 const fileService = require("./fileService");
@@ -7,6 +7,14 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
+
+/**
+ * Check if all items are fully received and update isCompleted status
+ */
+const updateCompletionStatus = (GRNitems) => {
+  const allItemsFullyReceived = GRNitems.every((item) => item.isFullyReceived);
+  return allItemsFullyReceived;
+};
 
 /**
  * Create or Update Goods Received Note
@@ -133,8 +141,10 @@ const updateExistingGRN = async (existingGRN, newGRNitems, purchaseOrder) => {
     };
   });
 
-  // Update the GRN
+  // Update the GRN with items and check completion status
   existingGRN.GRNitems = updatedItems;
+  existingGRN.isCompleted = updateCompletionStatus(updatedItems);
+
   await existingGRN.save();
 
   return await existingGRN.populate([
@@ -182,9 +192,13 @@ const createNewGRN = async (
     };
   });
 
+  // Check if all items are fully received for initial completion status
+  const isCompleted = updateCompletionStatus(itemsWithStatus);
+
   const goodsReceived = new GoodsReceived({
     ...goodsReceivedData,
     GRNitems: itemsWithStatus,
+    isCompleted: isCompleted,
     createdBy: currentUser.id,
   });
 
@@ -332,6 +346,9 @@ const updateGoodsReceived = async (id, updateData, currentUser, files = []) => {
       goodsReceived.GRNitems,
       po
     );
+
+    // Update completion status based on processed items
+    otherData.isCompleted = updateCompletionStatus(otherData.GRNitems);
   }
 
   const updatedGoodsReceived = await GoodsReceived.findByIdAndUpdate(
@@ -521,6 +538,7 @@ const getGoodsReceivedSummary = async (purchaseOrderId = null) => {
     message: "Goods Received summary fetched successfully",
   };
 };
+
 const addFilesToGoodsReceived = async (id, files, currentUser) => {
   const goodsReceived = await GoodsReceived.findById(id);
   if (!goodsReceived) {
@@ -569,5 +587,5 @@ module.exports = {
   getGoodsReceivedByPurchaseOrder,
   getGoodsReceivedSummary,
   checkGRNExists,
-  addFilesToGoodsReceived, // New function for dedicated file upload
+  addFilesToGoodsReceived,
 };

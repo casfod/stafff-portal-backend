@@ -101,7 +101,7 @@ class ProcurementNotificationService {
 
       if (type === "status") {
         if (status === "approved") {
-          subject = `Purchase Order Approved: ${purchaseOrder.RFQCode}`;
+          subject = `Purchase Order Approved: ${purchaseOrder.POCode}`;
           htmlTemplate = this.getPOApprovalWithFilesTemplate(
             vendor,
             purchaseOrder,
@@ -109,7 +109,7 @@ class ProcurementNotificationService {
             fileDownloads
           );
         } else if (status === "rejected") {
-          subject = `Purchase Order Update: ${purchaseOrder.RFQCode}`;
+          subject = `Purchase Order Update: ${purchaseOrder.POCode}`;
           htmlTemplate = this.getPORejectionTemplate(
             vendor,
             purchaseOrder,
@@ -119,14 +119,14 @@ class ProcurementNotificationService {
           throw new Error("Invalid status for PO notification");
         }
       } else if (type === "selection") {
-        subject = `Purchase Order Selection: ${purchaseOrder.RFQCode}`;
+        subject = `Purchase Order Selection: ${purchaseOrder.POCode}`;
         htmlTemplate = this.getPOSelectionTemplate(
           vendor,
           purchaseOrder,
           currentUser
         );
       } else if (type === "approval") {
-        subject = `Purchase Order Approved: ${purchaseOrder.RFQCode}`;
+        subject = `Purchase Order Approved: ${purchaseOrder.POCode}`;
         htmlTemplate = this.getPOApprovalTemplate(
           vendor,
           purchaseOrder,
@@ -196,7 +196,7 @@ class ProcurementNotificationService {
     bcc = undefined,
   }) {
     try {
-      const subject = `Purchase Order: ${purchaseOrder.RFQCode}`;
+      const subject = `Purchase Order: ${purchaseOrder.POCode}`;
 
       const htmlTemplate = this.getPOAttachmentTemplate(
         vendor,
@@ -212,7 +212,7 @@ class ProcurementNotificationService {
         htmlTemplate,
         attachments: [
           {
-            filename: `PO-${purchaseOrder.RFQCode}.pdf`,
+            filename: `PO-${purchaseOrder.POCode}.pdf`,
             content: pdfBuffer,
             contentType: "application/pdf",
           },
@@ -220,7 +220,7 @@ class ProcurementNotificationService {
       });
 
       console.log(
-        `✅ PO ${purchaseOrder.RFQCode} with attachment sent to: ${vendor.businessName}`
+        `✅ PO ${purchaseOrder.POCode} with attachment sent to: ${vendor.businessName}`
       );
     } catch (error) {
       console.error(
@@ -365,7 +365,7 @@ class ProcurementNotificationService {
           Purchase Order Selection
         </h1>
         <p style="font-size: 15px; color: #4b5563; margin: 0;">
-          <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+          <strong>PO Code:</strong> ${purchaseOrder.POCode}
         </p>
       </div>
     
@@ -385,7 +385,7 @@ class ProcurementNotificationService {
         <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #1373B0;">Purchase Order Details</h3>
         <div style="font-size: 14px; color: #4b5563;">
           <p style="margin: 4px 0;"><strong>PO Code:</strong> ${
-            purchaseOrder.RFQCode
+            purchaseOrder.POCode
           }</p>
           <p style="margin: 4px 0;"><strong>Title:</strong> ${
             purchaseOrder.RFQTitle
@@ -422,7 +422,7 @@ class ProcurementNotificationService {
           Purchase Order Approved
         </h1>
         <p style="font-size: 15px; color: #4b5563; margin: 0;">
-          <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+          <strong>PO Code:</strong> ${purchaseOrder.POCode}
         </p>
       </div>
     
@@ -442,7 +442,7 @@ class ProcurementNotificationService {
         <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #10b981;">Approved Purchase Order</h3>
         <div style="font-size: 14px; color: #4b5563;">
           <p style="margin: 4px 0;"><strong>PO Code:</strong> ${
-            purchaseOrder.RFQCode
+            purchaseOrder.POCode
           }</p>
           <p style="margin: 4px 0;"><strong>Title:</strong> ${
             purchaseOrder.RFQTitle
@@ -479,7 +479,7 @@ class ProcurementNotificationService {
           Purchase Order
         </h1>
         <p style="font-size: 15px; color: #4b5563; margin: 0;">
-          <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+          <strong>PO Code:</strong> ${purchaseOrder.POCode}
         </p>
       </div>
       
@@ -544,7 +544,7 @@ class ProcurementNotificationService {
       Purchase Order Approved
     </h1>
     <p style="font-size: 15px; color: #4b5563; margin: 0;">
-      <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+      <strong>PO Code:</strong> ${purchaseOrder.POCode}
     </p>
   </div>
 
@@ -562,7 +562,7 @@ class ProcurementNotificationService {
     <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #10b981;">Approved Purchase Order</h3>
     <div style="font-size: 14px; color: #4b5563;">
       <p style="margin: 4px 0;"><strong>PO Code:</strong> ${
-        purchaseOrder.RFQCode
+        purchaseOrder.POCode
       }</p>
       <p style="margin: 4px 0;"><strong>Title:</strong> ${
         purchaseOrder.RFQTitle
@@ -616,7 +616,7 @@ class ProcurementNotificationService {
       Purchase Order Update
     </h1>
     <p style="font-size: 15px; color: #4b5563; margin: 0;">
-      <strong>PO Code:</strong> ${purchaseOrder.RFQCode}
+      <strong>PO Code:</strong> ${purchaseOrder.POCode}
     </p>
   </div>
 
@@ -633,7 +633,7 @@ class ProcurementNotificationService {
   <div style="margin-bottom: 24px; padding: 16px; background-color: #fef2f2; border-radius: 6px; border-left: 4px solid #ef4444;">
     <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #ef4444;">Purchase Order Details</h3>
     <div style="font-size: 14px; color: #4b5563;">
-      <p style="margin: 4px 0;"><strong>PO Code:</strong> ${purchaseOrder.RFQCode}</p>
+      <p style="margin: 4px 0;"><strong>PO Code:</strong> ${purchaseOrder.POCode}</p>
       <p style="margin: 4px 0;"><strong>Title:</strong> ${purchaseOrder.RFQTitle}</p>
       <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #ef4444; font-weight: 600;">REJECTED</span></p>
     </div>
