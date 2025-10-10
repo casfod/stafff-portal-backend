@@ -594,7 +594,7 @@ class ProcurementNotificationService {
 
   <div style="margin-bottom: 24px;">
     <p style="font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-     <strong>Kindly sign the PO and wait for the countersigned version before proceeding with the delivery of Goods/Services as per the agreed terms. </strong>
+     <strong>Kindly sign the PO, send to procurement@casfod.org. Wait for the countersigned PO before proceeding to deliver goods/services  as per the agreed terms.</strong>
     </p>
   </div>
 
