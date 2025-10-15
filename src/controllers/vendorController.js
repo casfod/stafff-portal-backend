@@ -36,10 +36,12 @@ const getVendorByCode = catchAsync(async (req, res) => {
 const createVendor = catchAsync(async (req, res) => {
   const vendorData = req.body;
   const files = req.files || [];
+  const currentUser = await userByToken(req, res);
 
-  console.log("files:", files);
-
-  const vendor = await createVendorService(vendorData, files);
+  const vendor = await createVendorService(
+    { ...vendorData, createdBy: currentUser._id },
+    files
+  );
   handleResponse(res, 201, "Vendor created successfully", { vendor });
 });
 

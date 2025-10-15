@@ -86,6 +86,11 @@ const vendorSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     position: {
       type: String,
       required: true,
