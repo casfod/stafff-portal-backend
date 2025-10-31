@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const paymentVoucherSchema = new mongoose.Schema(
   {
     departmentalCode: { type: String, required: true, trim: true },
-    pvNumber: { type: String, required: true, unique: true, trim: true },
+    pvNumber: { type: String, unique: true, trim: true }, // Remove required: true
     payingStation: { type: String, required: true, trim: true },
     payTo: { type: String, required: true, trim: true },
     being: { type: String, required: true, trim: true },
@@ -16,7 +16,7 @@ const paymentVoucherSchema = new mongoose.Schema(
     wht: { type: Number, default: 0, min: 0 },
     devLevy: { type: Number, default: 0, min: 0 },
     otherDeductions: { type: Number, default: 0, min: 0 },
-    netAmount: { type: Number, required: true, min: 0 },
+    netAmount: { type: Number, required: true, min: 0 }, // Keep min: 0 but add validation
     chartOfAccountCategories: { type: String, required: true, trim: true },
     chartOfAccount: { type: String, required: true, trim: true },
     chartOfAccountCode: { type: String, required: true, trim: true },
@@ -70,11 +70,24 @@ paymentVoucherSchema.set("toJSON", {
   },
 });
 
-// Auto-generate PV Number
+// Improved Auto-generate PV Number
 paymentVoucherSchema.pre("save", async function (next) {
   if (this.isNew && !this.pvNumber) {
-    const count = await this.constructor.countDocuments();
-    this.pvNumber = `PV-${String(count + 1).padStart(6, "0")}`;
+    try {
+      const count = await this.constructor.countDocuments();
+      this.pvNumber = `PV-${String(count + 1).padStart(6, "0")}`;
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
+
+// Add validation for netAmount to prevent negative values
+paymentVoucherSchema.pre("save", function (next) {
+  if (this.netAmount < 0) {
+    const error = new Error("Net amount cannot be negative");
+    return next(error);
   }
   next();
 });

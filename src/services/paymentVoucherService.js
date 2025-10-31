@@ -123,16 +123,17 @@ const savePaymentVoucher = async (data, currentUser) => {
   return await paymentVoucher.save();
 };
 
-// Save and send a payment voucher (pending)
+// services/paymentVoucherService.js - Update the calculateNetAmount function
+
+// Calculate net amount with validation
+
+// Update saveAndSendPaymentVoucher to handle calculation errors
 const saveAndSendPaymentVoucher = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
 
   if (!data.reviewedBy) {
     throw new Error("ReviewedBy field is required for submission.");
   }
-
-  // Calculate net amount
-  data.netAmount = calculateNetAmount(data);
 
   const paymentVoucher = new PaymentVoucher({ ...data, status: "pending" });
   await paymentVoucher.save();
@@ -158,16 +159,47 @@ const saveAndSendPaymentVoucher = async (data, currentUser, files = []) => {
   return paymentVoucher;
 };
 
-// Calculate net amount
-const calculateNetAmount = (data) => {
-  const grossAmount = data.grossAmount || 0;
-  const vat = data.vat || 0;
-  const wht = data.wht || 0;
-  const devLevy = data.devLevy || 0;
-  const otherDeductions = data.otherDeductions || 0;
+// Update updatePaymentVoucher to handle calculation errors
+const updatePaymentVoucher = async (id, data, files = [], currentUser) => {
+  // Recalculate net amount if financial fields are updated
 
-  return grossAmount - (vat + wht + devLevy + otherDeductions);
+  const updatedPaymentVoucher = await PaymentVoucher.findByIdAndUpdate(
+    id,
+    data,
+    { new: true }
+  );
+
+  if (files.length > 0) {
+    await handleFileUploads({
+      files,
+      requestId: updatedPaymentVoucher._id,
+      modelTable: "PaymentVouchers",
+    });
+  }
+
+  if (updatedPaymentVoucher.status === "reviewed") {
+    notify.notifyApprovers({
+      request: updatedPaymentVoucher,
+      currentUser: currentUser,
+      requestType: "paymentVoucher",
+      title: "Payment Voucher",
+      header: "You have been assigned a payment voucher for approval",
+    });
+  }
+
+  return updatedPaymentVoucher;
 };
+
+// Calculate net amount
+// const calculateNetAmount = (data) => {
+//   const grossAmount = data.grossAmount || 0;
+//   const vat = data.vat || 0;
+//   const wht = data.wht || 0;
+//   const devLevy = data.devLevy || 0;
+//   const otherDeductions = data.otherDeductions || 0;
+
+//   return grossAmount - (vat + wht + devLevy + otherDeductions);
+// };
 
 // Get payment voucher stats
 const getPaymentVoucherStats = async (currentUser) => {
@@ -245,52 +277,6 @@ const getPaymentVoucherById = async (id) => {
   });
 };
 
-// Update a payment voucher
-const updatePaymentVoucher = async (id, data, files = [], currentUser) => {
-  // Recalculate net amount if financial fields are updated
-  if (
-    data.grossAmount ||
-    data.vat ||
-    data.wht ||
-    data.devLevy ||
-    data.otherDeductions
-  ) {
-    data.netAmount = calculateNetAmount({
-      grossAmount: data.grossAmount,
-      vat: data.vat,
-      wht: data.wht,
-      devLevy: data.devLevy,
-      otherDeductions: data.otherDeductions,
-    });
-  }
-
-  const updatedPaymentVoucher = await PaymentVoucher.findByIdAndUpdate(
-    id,
-    data,
-    { new: true }
-  );
-
-  if (files.length > 0) {
-    await handleFileUploads({
-      files,
-      requestId: updatedPaymentVoucher._id,
-      modelTable: "PaymentVouchers",
-    });
-  }
-
-  if (updatedPaymentVoucher.status === "reviewed") {
-    notify.notifyApprovers({
-      request: updatedPaymentVoucher,
-      currentUser: currentUser,
-      requestType: "paymentVoucher",
-      title: "Payment Voucher",
-      header: "You have been assigned a payment voucher for approval",
-    });
-  }
-
-  return updatedPaymentVoucher;
-};
-
 const updateVoucherStatus = async (id, data, currentUser) => {
   const existingVoucher = await PaymentVoucher.findById(id);
 
@@ -345,5 +331,5 @@ module.exports = {
   updatePaymentVoucher,
   updateVoucherStatus,
   deletePaymentVoucher,
-  calculateNetAmount,
+  // calculateNetAmount,
 };
