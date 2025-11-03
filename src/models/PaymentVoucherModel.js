@@ -71,16 +71,43 @@ paymentVoucherSchema.set("toJSON", {
 });
 
 // Improved Auto-generate PV Number
+// paymentVoucherSchema.pre("save", async function (next) {
+//   if (this.isNew && !this.pvNumber) {
+//     try {
+//       const count = await this.constructor.countDocuments();
+//       this.pvNumber = `PV-${String(count + 1).padStart(6, "0")}`;
+//     } catch (error) {
+//       return next(error);
+//     }
+//   }
+//   next();
+// });
 paymentVoucherSchema.pre("save", async function (next) {
   if (this.isNew && !this.pvNumber) {
     try {
-      const count = await this.constructor.countDocuments();
-      this.pvNumber = `PV-${String(count + 1).padStart(6, "0")}`;
+      // For draft status - temporary number
+      if (this.status === "draft") {
+        this.pvNumber = `PV-DRAFT-${Date.now()}`;
+      }
+      // For other statuses - generate sequential number
+      else {
+        const count = await mongoose.model("PaymentVoucher").countDocuments({
+          status: { $ne: "draft" },
+          pvNumber: { $not: /PV-DRAFT/ },
+        });
+        const serial = (count + 1).toString().padStart(3, "0");
+        this.pvNumber = `PV-CASFOD${serial}`;
+
+        // Alternative: If you want CASFOD prefix
+        // this.pvNumber = `PV-CASFOD-${serial}`;
+      }
+      next();
     } catch (error) {
-      return next(error);
+      next(error);
     }
+  } else {
+    next();
   }
-  next();
 });
 
 // Add validation for netAmount to prevent negative values

@@ -123,11 +123,7 @@ const savePaymentVoucher = async (data, currentUser) => {
   return await paymentVoucher.save();
 };
 
-// services/paymentVoucherService.js - Update the calculateNetAmount function
-
-// Calculate net amount with validation
-
-// Update saveAndSendPaymentVoucher to handle calculation errors
+// Save and send payment voucher
 const saveAndSendPaymentVoucher = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
 
@@ -159,10 +155,8 @@ const saveAndSendPaymentVoucher = async (data, currentUser, files = []) => {
   return paymentVoucher;
 };
 
-// Update updatePaymentVoucher to handle calculation errors
+// Update payment voucher
 const updatePaymentVoucher = async (id, data, files = [], currentUser) => {
-  // Recalculate net amount if financial fields are updated
-
   const updatedPaymentVoucher = await PaymentVoucher.findByIdAndUpdate(
     id,
     data,
@@ -189,17 +183,6 @@ const updatePaymentVoucher = async (id, data, files = [], currentUser) => {
 
   return updatedPaymentVoucher;
 };
-
-// Calculate net amount
-// const calculateNetAmount = (data) => {
-//   const grossAmount = data.grossAmount || 0;
-//   const vat = data.vat || 0;
-//   const wht = data.wht || 0;
-//   const devLevy = data.devLevy || 0;
-//   const otherDeductions = data.otherDeductions || 0;
-
-//   return grossAmount - (vat + wht + devLevy + otherDeductions);
-// };
 
 // Get payment voucher stats
 const getPaymentVoucherStats = async (currentUser) => {
@@ -320,6 +303,27 @@ const deletePaymentVoucher = async (id) => {
   return await PaymentVoucher.findByIdAndDelete(id);
 };
 
+const addFilesService = async (id, files, currentUser) => {
+  const paymentVoucher = await PaymentVoucher.findById(id);
+  if (!paymentVoucher) {
+    throw new Error("Payment Voucher not found");
+  }
+
+  if (files.length > 0) {
+    await fileService.deleteFilesByDocument("PaymentVouchers", id);
+
+    await handleFileUploads({
+      files,
+      requestId: paymentVoucher._id,
+      modelTable: "PaymentVouchers",
+    });
+  }
+
+  // Return the updated payment voucher with files
+  const updatedVoucher = await getPaymentVoucherById(id);
+  return updatedVoucher;
+};
+
 module.exports = {
   paymentVoucherCopyService,
   createPaymentVoucher,
@@ -331,5 +335,5 @@ module.exports = {
   updatePaymentVoucher,
   updateVoucherStatus,
   deletePaymentVoucher,
-  // calculateNetAmount,
+  addFilesService,
 };

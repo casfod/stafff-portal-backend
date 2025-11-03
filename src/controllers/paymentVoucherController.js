@@ -9,6 +9,7 @@ const {
   deletePaymentVoucher,
   getPaymentVoucherStats,
   paymentVoucherCopyService,
+  addFilesService,
 } = require("../services/paymentVoucherService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -175,6 +176,23 @@ const remove = catchAsync(async (req, res) => {
   );
 });
 
+/**
+ * Add files (dedicated endpoint)
+ */
+const addFiles = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const files = req.files || [];
+  const currentUser = await userByToken(req, res);
+
+  if (!files || files.length === 0) {
+    return handleResponse(res, 400, "No files provided");
+  }
+
+  const result = await addFilesService(id, files, currentUser);
+
+  handleResponse(res, 200, "Files added successfully", result);
+});
+
 module.exports = {
   copyVoucher,
   save,
@@ -185,4 +203,5 @@ module.exports = {
   update,
   updateStatus,
   remove,
+  addFiles,
 };
