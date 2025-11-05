@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 
 const paymentVoucherSchema = new mongoose.Schema(
   {
-    departmentalCode: { type: String, required: true, trim: true },
+    // departmentalCode: { type: String, required: true, trim: true },
     pvNumber: { type: String, unique: true, trim: true }, // Remove required: true
     payingStation: { type: String, required: true, trim: true },
     payTo: { type: String, required: true, trim: true },
@@ -18,11 +18,12 @@ const paymentVoucherSchema = new mongoose.Schema(
     otherDeductions: { type: Number, default: 0, min: 0 },
     netAmount: { type: Number, required: true, min: 0 }, // Keep min: 0 but add validation
     chartOfAccountCategories: { type: String, required: true, trim: true },
-    chartOfAccount: { type: String, required: true, trim: true },
+    organisationalChartOfAccount: { type: String, required: true, trim: true },
+    project: { type: String, required: true, trim: true },
     chartOfAccountCode: { type: String, required: true, trim: true },
-    projBudgetLine: { type: String, required: true, trim: true },
+    // projBudgetLine: { type: String, required: true, trim: true },
     note: { type: String, default: "" },
-    mandateReference: { type: String, required: true, trim: true },
+    // mandateReference: { type: String, required: true, trim: true },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

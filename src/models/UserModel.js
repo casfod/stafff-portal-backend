@@ -63,6 +63,24 @@ const userSchema = new mongoose.Schema(
         default: false,
       },
     },
+    financeRole: {
+      canCreate: {
+        type: Boolean,
+        default: false,
+      },
+      canView: {
+        type: Boolean,
+        default: false,
+      },
+      canUpdate: {
+        type: Boolean,
+        default: false,
+      },
+      canDelete: {
+        type: Boolean,
+        default: false,
+      },
+    },
 
     position: {
       type: String,
