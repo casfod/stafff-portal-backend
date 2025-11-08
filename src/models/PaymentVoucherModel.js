@@ -4,26 +4,25 @@ const mongoose = require("mongoose");
 
 const paymentVoucherSchema = new mongoose.Schema(
   {
-    // departmentalCode: { type: String, required: true, trim: true },
-    pvNumber: { type: String, unique: true, trim: true }, // Remove required: true
+    pvNumber: { type: String, unique: true, trim: true },
     payingStation: { type: String, required: true, trim: true },
     payTo: { type: String, required: true, trim: true },
     being: { type: String, required: true, trim: true },
+    pvDate: { type: String, required: true, trim: true },
     amountInWords: { type: String, required: true, trim: true },
-    grantCode: { type: String, required: true, trim: true },
+    accountCode: { type: String, required: true, trim: true },
+    projectCode: { type: String, required: true, trim: true },
+    project: { type: String, required: true, trim: true },
     grossAmount: { type: Number, required: true, min: 0 },
     vat: { type: Number, default: 0, min: 0 },
     wht: { type: Number, default: 0, min: 0 },
     devLevy: { type: Number, default: 0, min: 0 },
     otherDeductions: { type: Number, default: 0, min: 0 },
-    netAmount: { type: Number, required: true, min: 0 }, // Keep min: 0 but add validation
+    netAmount: { type: Number, required: true, min: 0 },
     chartOfAccountCategories: { type: String, required: true, trim: true },
     organisationalChartOfAccount: { type: String, required: true, trim: true },
-    project: { type: String, required: true, trim: true },
     chartOfAccountCode: { type: String, required: true, trim: true },
-    // projBudgetLine: { type: String, required: true, trim: true },
     note: { type: String, default: "" },
-    // mandateReference: { type: String, required: true, trim: true },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -71,39 +70,54 @@ paymentVoucherSchema.set("toJSON", {
   },
 });
 
-// Improved Auto-generate PV Number
-// paymentVoucherSchema.pre("save", async function (next) {
-//   if (this.isNew && !this.pvNumber) {
-//     try {
-//       const count = await this.constructor.countDocuments();
-//       this.pvNumber = `PV-${String(count + 1).padStart(6, "0")}`;
-//     } catch (error) {
-//       return next(error);
-//     }
-//   }
-//   next();
-// });
+// Generate PV Number only for non-draft status using pvDate and projectCode
 paymentVoucherSchema.pre("save", async function (next) {
   if (this.isNew && !this.pvNumber) {
     try {
       // For draft status - temporary number
       if (this.status === "draft") {
         this.pvNumber = `PV-DRAFT-${Date.now()}`;
-      }
-      // For other statuses - generate sequential number
-      else {
+      } else {
+        // For other statuses - generate formatted number using pvDate and projectCode
+        const pvDate = new Date(this.pvDate);
+        const month = String(pvDate.getMonth() + 1).padStart(2, "0");
+        const year = pvDate.getFullYear();
+
+        // Format projectCode: replace spaces with hyphens
+        const formattedProjectCode = this.projectCode.replace(/\s+/g, "-");
+
+        // Count documents with the same projectCode, same month/year, and non-draft status
+        const startOfMonth = new Date(
+          pvDate.getFullYear(),
+          pvDate.getMonth(),
+          1
+        );
+        const endOfMonth = new Date(
+          pvDate.getFullYear(),
+          pvDate.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        );
+
         const count = await mongoose.model("PaymentVoucher").countDocuments({
+          projectCode: this.projectCode,
+          pvDate: {
+            $gte: startOfMonth.toISOString().split("T")[0],
+            $lte: endOfMonth.toISOString().split("T")[0],
+          },
           status: { $ne: "draft" },
           pvNumber: { $not: /PV-DRAFT/ },
         });
-        const serial = (count + 1).toString().padStart(3, "0");
-        this.pvNumber = `PV-CASFOD${serial}`;
 
-        // Alternative: If you want CASFOD prefix
-        // this.pvNumber = `PV-CASFOD-${serial}`;
+        const serial = (count + 1).toString().padStart(3, "0");
+        this.pvNumber = `CASFOD/${formattedProjectCode}/${month}/${year}/${serial}`;
       }
       next();
     } catch (error) {
+      console.error("Error generating PV number:", error);
       next(error);
     }
   } else {

@@ -69,11 +69,14 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
   const sortQuery = buildSortQuery(sort);
   const populateOptions = [
     { path: "project", select: "project_code account_code" },
-    { path: "createdBy", select: "email first_name last_name role" },
-    { path: "reviewedBy", select: "email first_name last_name role" },
-    { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" },
-    { path: "copiedTo", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role position" },
+    { path: "reviewedBy", select: "email first_name last_name role position" },
+    { path: "approvedBy", select: "email first_name last_name role position" },
+    {
+      path: "comments.user",
+      select: "email first_name last_name role position",
+    },
+    { path: "copiedTo", select: "email first_name last_name role position" },
   ];
 
   // Filters, sorting, pagination, and populate
@@ -210,11 +213,14 @@ const getPurchaseRequestStats = async (currentUser) => {
 // Get a single purchase request by ID
 const getPurchaseRequestById = async (id) => {
   const populateOptions = [
-    { path: "createdBy", select: "email first_name last_name role" },
-    { path: "reviewedBy", select: "email first_name last_name role" },
-    { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" },
-    { path: "copiedTo", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role position" },
+    { path: "reviewedBy", select: "email first_name last_name role position" },
+    { path: "approvedBy", select: "email first_name last_name role position" },
+    {
+      path: "comments.user",
+      select: "email first_name last_name role position",
+    },
+    { path: "copiedTo", select: "email first_name last_name role position" },
   ];
 
   const request = await PurchaseRequest.findById(id)

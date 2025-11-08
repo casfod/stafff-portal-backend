@@ -13,7 +13,6 @@ const {
 } = require("../services/paymentVoucherService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
-const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
 
 const copyVoucher = catchAsync(async (req, res) => {
@@ -50,12 +49,23 @@ const save = catchAsync(async (req, res) => {
   const data = req.body;
   const currentUser = await userByToken(req, res);
 
+  console.log("Saving draft payment voucher:", data);
+
+  // Format numeric fields
+  if (data.grossAmount) data.grossAmount = parseFloat(data.grossAmount);
+  if (data.vat) data.vat = parseFloat(data.vat);
+  if (data.wht) data.wht = parseFloat(data.wht);
+  if (data.devLevy) data.devLevy = parseFloat(data.devLevy);
+  if (data.otherDeductions)
+    data.otherDeductions = parseFloat(data.otherDeductions);
+  if (data.netAmount) data.netAmount = parseFloat(data.netAmount);
+
   const paymentVoucher = await savePaymentVoucher(data, currentUser);
 
   handleResponse(
     res,
     201,
-    "Payment voucher saved successfully",
+    "Payment voucher saved successfully as draft",
     paymentVoucher
   );
 });
@@ -64,6 +74,22 @@ const saveAndSend = catchAsync(async (req, res) => {
   const data = req.body;
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
+
+  console.log("Saving and sending payment voucher:", data);
+
+  // Format numeric fields
+  if (data.grossAmount) data.grossAmount = parseFloat(data.grossAmount);
+  if (data.vat) data.vat = parseFloat(data.vat);
+  if (data.wht) data.wht = parseFloat(data.wht);
+  if (data.devLevy) data.devLevy = parseFloat(data.devLevy);
+  if (data.otherDeductions)
+    data.otherDeductions = parseFloat(data.otherDeductions);
+  if (data.netAmount) data.netAmount = parseFloat(data.netAmount);
+
+  // Ensure pvDate is present for PV number generation
+  if (!data.pvDate) {
+    return handleResponse(res, 400, "PV Date is required for submission");
+  }
 
   const paymentVoucher = await saveAndSendPaymentVoucher(
     data,
@@ -128,6 +154,17 @@ const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
   const files = req.files || [];
+
+  console.log("Updating payment voucher:", data);
+
+  // Format numeric fields
+  if (data.grossAmount) data.grossAmount = parseFloat(data.grossAmount);
+  if (data.vat) data.vat = parseFloat(data.vat);
+  if (data.wht) data.wht = parseFloat(data.wht);
+  if (data.devLevy) data.devLevy = parseFloat(data.devLevy);
+  if (data.otherDeductions)
+    data.otherDeductions = parseFloat(data.otherDeductions);
+  if (data.netAmount) data.netAmount = parseFloat(data.netAmount);
 
   const paymentVoucher = await updatePaymentVoucher(
     id,

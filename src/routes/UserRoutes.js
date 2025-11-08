@@ -15,24 +15,22 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 router.use(protect);
 // Protect all routes after this middleware
 
+// Specific routes first
 router.post("/addUser", restrictTo("SUPER-ADMIN"), authController.addUser);
-router.delete(
-  "/deleteUser/:userID",
-  restrictTo("SUPER-ADMIN"),
-  userController.deleteUser
-);
+router.patch("/updatePassword", authController.updatePassword);
+router.get("/me", userController.getUserByToken);
+
+// Collection routes before parameterized routes
+router.get("/admins", userController.getAllAdmins);
+router.get("/reviewers", userController.getAllReviewers);
+router.get("/", userController.getAllUsers);
+
+// Parameterized routes LAST
+router.delete("/:userID", restrictTo("SUPER-ADMIN"), userController.deleteUser);
 router.patch(
   "/updateUserAdmin/:userID",
   restrictTo("SUPER-ADMIN"),
   userController.updateUserAdmin
 );
-
-router.get("/admins", userController.getAllAdmins);
-router.get("/reviewers", userController.getAllReviewers);
-// router.get("/", restrictTo("SUPER-ADMIN", "ADMIN"), userController.getAllUsers);
-router.get("/", userController.getAllUsers);
-
-router.patch("/updatePassword", authController.updatePassword);
-router.get("/me", userController.getUserByToken);
 
 module.exports = router;

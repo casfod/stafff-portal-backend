@@ -22,13 +22,12 @@ const getPaymentVouchers = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
   const searchFields = [
-    "departmentalCode",
     "pvNumber",
     "payTo",
     "being",
-    "grantCode",
+    "accountCode",
     "chartOfAccountCode",
-    "mandateReference",
+    "project",
     "status",
   ];
 
@@ -67,11 +66,14 @@ const getPaymentVouchers = async (queryParams, currentUser) => {
 
   const sortQuery = buildSortQuery(sort);
   const populateOptions = [
-    { path: "createdBy", select: "email first_name last_name role" },
-    { path: "reviewedBy", select: "email first_name last_name role" },
-    { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" },
-    { path: "copiedTo", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role position" },
+    { path: "reviewedBy", select: "email first_name last_name role position" },
+    { path: "approvedBy", select: "email first_name last_name role position" },
+    {
+      path: "comments.user",
+      select: "email first_name last_name role position",
+    },
+    { path: "copiedTo", select: "email first_name last_name role position" },
   ];
 
   const {
@@ -131,6 +133,12 @@ const saveAndSendPaymentVoucher = async (data, currentUser, files = []) => {
     throw new Error("ReviewedBy field is required for submission.");
   }
 
+  // Ensure pvDate is properly formatted
+  if (data.pvDate) {
+    const pvDate = new Date(data.pvDate);
+    data.pvDate = pvDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+  }
+
   const paymentVoucher = new PaymentVoucher({ ...data, status: "pending" });
   await paymentVoucher.save();
 
@@ -157,11 +165,21 @@ const saveAndSendPaymentVoucher = async (data, currentUser, files = []) => {
 
 // Update payment voucher
 const updatePaymentVoucher = async (id, data, files = [], currentUser) => {
+  // Format pvDate if provided
+  if (data.pvDate) {
+    const pvDate = new Date(data.pvDate);
+    data.pvDate = pvDate.toISOString().split("T")[0];
+  }
+
   const updatedPaymentVoucher = await PaymentVoucher.findByIdAndUpdate(
     id,
     data,
-    { new: true }
+    { new: true, runValidators: true }
   );
+
+  if (!updatedPaymentVoucher) {
+    throw new Error("Payment voucher not found");
+  }
 
   if (files.length > 0) {
     await handleFileUploads({
@@ -237,11 +255,14 @@ const getPaymentVoucherStats = async (currentUser) => {
 // Get a single payment voucher by ID
 const getPaymentVoucherById = async (id) => {
   const populateOptions = [
-    { path: "createdBy", select: "email first_name last_name role" },
-    { path: "reviewedBy", select: "email first_name last_name role" },
-    { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "comments.user", select: "email first_name last_name role" },
-    { path: "copiedTo", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role position" },
+    { path: "reviewedBy", select: "email first_name last_name role position" },
+    { path: "approvedBy", select: "email first_name last_name role position" },
+    {
+      path: "comments.user",
+      select: "email first_name last_name role position",
+    },
+    { path: "copiedTo", select: "email first_name last_name role position" },
   ];
 
   const voucher = await PaymentVoucher.findById(id)
