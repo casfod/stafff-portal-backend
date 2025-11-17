@@ -12,7 +12,7 @@ const DB = process.env.DATABASE.replace(
 const connectDB = async () => {
   try {
     await mongoose
-      .connect(DB, {})
+      .connect(DB, { tls: true, minTLSVersion: "TLSv1.2"})
       .then(() => console.log("DB connection successful!"));
 
     await seedSuperUserService();
