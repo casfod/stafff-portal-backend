@@ -26,24 +26,30 @@ const getExpenseClaims = async (queryParams, currentUser) => {
 
   switch (currentUser.role) {
     case "STAFF":
-      query.createdBy = currentUser._id;
+      query.$or = [
+        { createdBy: currentUser._id },
+        { copiedTo: currentUser._id },
+      ];
       break;
     case "ADMIN":
       query.$or = [
         { createdBy: currentUser._id },
         { approvedBy: currentUser._id },
+        { copiedTo: currentUser._id },
       ];
       break;
     case "REVIEWER":
       query.$or = [
         { createdBy: currentUser._id },
         { reviewedBy: currentUser._id },
+        { copiedTo: currentUser._id },
       ];
       break;
     case "SUPER-ADMIN":
       query.$or = [
         { status: { $ne: "draft" } },
         { createdBy: currentUser._id, status: "draft" },
+        { copiedTo: currentUser._id },
       ];
       break;
     default:

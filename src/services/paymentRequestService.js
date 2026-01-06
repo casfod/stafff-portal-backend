@@ -82,16 +82,51 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
+  // // Role-based filtering
+  // switch (currentUser.role) {
+  //   case "STAFF":
+  //     query.requestedBy = currentUser._id; // Only their own requests
+  //     break;
+
+  //   case "ADMIN":
+  //     query.$or = [
+  //       { requestedBy: currentUser._id }, // Their own requests
+  //       { approvedBy: currentUser._id }, // Requests they approved
+  //     ];
+  //     break;
+
+  //   case "REVIEWER":
+  //     query.$or = [
+  //       { requestedBy: currentUser._id }, // Their own requests
+  //       { reviewedBy: currentUser._id }, // Requests they reviewed
+  //     ];
+  //     break;
+
+  //   case "SUPER-ADMIN":
+  //     query.$or = [
+  //       { status: { $ne: "draft" } }, // All non-draft requests
+  //       { requestedBy: currentUser._id, status: "draft" }, // Their own drafts
+  //     ];
+  //     break;
+
+  //   default:
+  //     throw new Error("Invalid user role");
+  // }
+
   // Role-based filtering
   switch (currentUser.role) {
     case "STAFF":
-      query.requestedBy = currentUser._id; // Only their own requests
+      query.$or = [
+        { requestedBy: currentUser._id }, // Their own requests
+        { copiedTo: currentUser._id }, // Requests they're copied on
+      ];
       break;
 
     case "ADMIN":
       query.$or = [
         { requestedBy: currentUser._id }, // Their own requests
         { approvedBy: currentUser._id }, // Requests they approved
+        { copiedTo: currentUser._id }, // Requests they're copied on
       ];
       break;
 
@@ -99,6 +134,7 @@ const getPaymentRequests = async (queryParams, currentUser) => {
       query.$or = [
         { requestedBy: currentUser._id }, // Their own requests
         { reviewedBy: currentUser._id }, // Requests they reviewed
+        { copiedTo: currentUser._id }, // Requests they're copied on
       ];
       break;
 
@@ -106,6 +142,7 @@ const getPaymentRequests = async (queryParams, currentUser) => {
       query.$or = [
         { status: { $ne: "draft" } }, // All non-draft requests
         { requestedBy: currentUser._id, status: "draft" }, // Their own drafts
+        { copiedTo: currentUser._id }, // Requests they're copied on
       ];
       break;
 

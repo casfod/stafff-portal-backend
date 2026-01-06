@@ -38,19 +38,25 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
 
   switch (currentUser.role) {
     case "STAFF":
-      query.createdBy = currentUser._id; // STAFF can only see their own requests
+      query.$or = [
+        { createdBy: currentUser._id },
+        { copiedTo: currentUser._id },
+      ]; // STAFF can only see their own requests
       break;
 
     case "ADMIN":
       query.$or = [
         { createdBy: currentUser._id }, // Requests they created
         { approvedBy: currentUser._id }, // Requests they reviewed
+        { copiedTo: currentUser._id },
       ];
       break;
     case "REVIEWER":
       query.$or = [
         { createdBy: currentUser._id }, // Requests they created
-        { reviewedBy: currentUser._id }, // Requests they reviewed
+        { reviewedBy: currentUser._id },
+        { copiedTo: currentUser._id },
+        // Requests they reviewed
       ];
       break;
 
@@ -58,6 +64,7 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
       query.$or = [
         { status: { $ne: "draft" } }, // All requests except drafts
         { createdBy: currentUser._id, status: "draft" }, // Their own drafts
+        { copiedTo: currentUser._id },
       ];
       break;
 

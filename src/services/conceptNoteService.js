@@ -71,19 +71,25 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
 
   switch (currentUser.role) {
     case "STAFF":
-      query.preparedBy = currentUser._id; // STAFF can only see their own requests
+      query.$or = [
+        { preparedBy: currentUser._id },
+        { copiedTo: currentUser._id },
+      ];
+      // STAFF can only see their own requests
       break;
 
     case "ADMIN":
       query.$or = [
         { preparedBy: currentUser._id }, // Requests they created
         { approvedBy: currentUser._id }, // Requests they reviewed
+        { copiedTo: currentUser._id },
       ];
       break;
 
     case "REVIEWER":
       query.$or = [
         { preparedBy: currentUser._id }, // Requests they created
+        { copiedTo: currentUser._id },
       ];
       break;
 
@@ -91,6 +97,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
       query.$or = [
         { status: { $ne: "draft" } }, // All requests except drafts
         { preparedBy: currentUser._id, status: "draft" }, // Their own drafts
+        { copiedTo: currentUser._id },
       ];
       break;
 
