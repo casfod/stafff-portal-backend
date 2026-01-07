@@ -21,16 +21,23 @@ const rfqCopyService = new RFQCopyService();
 const getRFQs = async (queryParams) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
-  const searchFields = [
-    "RFQTitle",
-    "RFQCode",
-    "deliveryPeriod",
-    "bidValidityPeriod",
-    "status",
-  ];
+  // Only include fields that actually exist in your schema
+  const searchFields = ["RFQTitle", "RFQCode", "status"];
 
   const searchTerms = search ? search.trim().split(/\s+/) : [];
-  let query = buildQuery(searchTerms, searchFields);
+  let query = {};
+
+  // Simpler search logic - find if ANY term matches ANY field
+  if (searchTerms.length > 0) {
+    query.$or = [];
+    searchTerms.forEach((term) => {
+      searchFields.forEach((field) => {
+        query.$or.push({
+          [field]: { $regex: term, $options: "i" },
+        });
+      });
+    });
+  }
 
   const sortQuery = buildSortQuery(sort);
   const populateOptions = [
@@ -62,7 +69,6 @@ const getRFQs = async (queryParams) => {
     currentPage,
   };
 };
-
 // Update RFQ status
 const updateRFQStatus = async (id, status) => {
   const validStatuses = ["draft", "sent", "cancelled"];

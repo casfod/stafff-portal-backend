@@ -20,7 +20,13 @@ const ExpenseClaimCopyService = new copyService();
 // Get all ExpenseClaims
 const getExpenseClaims = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
-  const searchFields = ["project", "location", "staffName", "budget"];
+  const searchFields = [
+    "project",
+    "expenseClaim.from",
+    "expenseClaim.to",
+    "staffName",
+    "budget",
+  ];
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 

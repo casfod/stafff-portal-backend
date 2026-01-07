@@ -29,13 +29,19 @@ const conceptNoteSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      default: null,
     },
     status: {
       type: String,
-      enum: ["draft", "pending", "approved", "rejected"],
+      enum: ["draft", "pending", "reviewed", "approved", "rejected"],
       default: "draft",
     },
 

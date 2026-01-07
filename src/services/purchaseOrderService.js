@@ -31,55 +31,157 @@ const cleanObjectId = (id) => {
 const getPurchaseOrders = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 10 } = queryParams;
 
-  const searchFields = ["RFQTitle", "RFQCode", "POCode", "status"];
-
   const searchTerms = search ? search.trim().split(/\s+/) : [];
-  let query = buildQuery(searchTerms, searchFields);
+
+  // Build aggregation pipeline
+  const pipeline = [];
+
+  // Add $lookup to join with Vendor collection
+  pipeline.push({
+    $lookup: {
+      from: "vendors",
+      localField: "selectedVendor",
+      foreignField: "_id",
+      as: "selectedVendorDetails",
+    },
+  });
+
+  // Add $lookup for createdBy
+  pipeline.push({
+    $lookup: {
+      from: "users",
+      localField: "createdBy",
+      foreignField: "_id",
+      as: "createdByDetails",
+    },
+  });
+
+  // Add $lookup for approvedBy
+  pipeline.push({
+    $lookup: {
+      from: "users",
+      localField: "approvedBy",
+      foreignField: "_id",
+      as: "approvedByDetails",
+    },
+  });
+
+  // Unwind the arrays (but preserve empty arrays for documents without references)
+  pipeline.push({
+    $addFields: {
+      selectedVendorDetails: { $arrayElemAt: ["$selectedVendorDetails", 0] },
+      createdByDetails: { $arrayElemAt: ["$createdByDetails", 0] },
+      approvedByDetails: { $arrayElemAt: ["$approvedByDetails", 0] },
+    },
+  });
+
+  // Build match stage for filtering
+  let matchStage = {};
 
   // Role-based filtering
   switch (currentUser.role) {
     case "STAFF":
-      query.createdBy = currentUser._id;
+      matchStage.createdBy = currentUser._id;
       break;
     case "ADMIN":
     case "SUPER-ADMIN":
       // Admins can see all purchase orders
       break;
     default:
-      query.createdBy = currentUser._id;
+      matchStage.createdBy = currentUser._id;
       break;
   }
 
-  const sortQuery = buildSortQuery(sort);
-  const populateOptions = [
-    { path: "createdBy", select: "email first_name last_name role" },
-    { path: "approvedBy", select: "email first_name last_name role" },
-    { path: "copiedTo", select: "businessName email contactPerson" },
-    { path: "selectedVendor", select: "businessName email contactPerson" },
-    { path: "comments.user", select: "email first_name last_name role" },
-  ];
+  // Search filtering
+  if (searchTerms.length > 0) {
+    const searchConditions = [];
 
-  const {
-    results: purchaseOrders,
-    total,
-    totalPages,
-    currentPage,
-  } = await paginate(
-    PurchaseOrder,
-    query,
-    { page, limit },
-    sortQuery,
-    populateOptions
-  );
+    // Search in local fields
+    searchConditions.push(
+      { RFQTitle: { $regex: searchTerms.join("|"), $options: "i" } },
+      { RFQCode: { $regex: searchTerms.join("|"), $options: "i" } },
+      { POCode: { $regex: searchTerms.join("|"), $options: "i" } },
+      { status: { $regex: searchTerms.join("|"), $options: "i" } }
+    );
 
+    // Search in vendor business name
+    searchConditions.push({
+      "selectedVendorDetails.businessName": {
+        $regex: searchTerms.join("|"),
+        $options: "i",
+      },
+    });
+
+    // If we already have role-based conditions, combine with AND
+    if (Object.keys(matchStage).length > 0) {
+      matchStage = {
+        $and: [matchStage, { $or: searchConditions }],
+      };
+    } else {
+      matchStage.$or = searchConditions;
+    }
+  }
+
+  if (Object.keys(matchStage).length > 0) {
+    pipeline.push({ $match: matchStage });
+  }
+
+  // Add sort stage
+  if (sort) {
+    const sortField = sort.startsWith("-") ? sort.substring(1) : sort;
+    const sortOrder = sort.startsWith("-") ? -1 : 1;
+
+    // Handle sorting by vendor business name
+    if (sortField === "selectedVendor.businessName") {
+      pipeline.push({
+        $addFields: {
+          vendorBusinessNameSort: "$selectedVendorDetails.businessName",
+        },
+      });
+      pipeline.push({ $sort: { vendorBusinessNameSort: sortOrder } });
+    } else {
+      pipeline.push({ $sort: { [sortField]: sortOrder } });
+    }
+  }
+
+  // Add pagination
+  const skip = (page - 1) * limit;
+  pipeline.push({ $skip: skip });
+  pipeline.push({ $limit: parseInt(limit) });
+
+  // Execute aggregation
+  const [purchaseOrders, totalCount] = await Promise.all([
+    PurchaseOrder.aggregate(pipeline),
+    PurchaseOrder.aggregate([...pipeline.slice(0, -2), { $count: "total" }]),
+  ]);
+
+  const total = totalCount.length > 0 ? totalCount[0].total : 0;
+  const totalPages = Math.ceil(total / limit);
+  const currentPage = parseInt(page);
+
+  // Format the results to match the expected structure
+  const formattedPurchaseOrders = purchaseOrders.map((po) => ({
+    ...po,
+    id: po._id.toString(),
+    createdBy: po.createdByDetails,
+    approvedBy: po.appendedByDetails,
+    selectedVendor: po.selectedVendorDetails,
+    // Remove the temporary fields
+    selectedVendorDetails: undefined,
+    createdByDetails: undefined,
+    approvedByDetails: undefined,
+    vendorBusinessNameSort: undefined,
+  }));
+
+  // Get files for each purchase order
   const purchaseOrdersWithFiles = await Promise.all(
-    purchaseOrders.map(async (po) => {
+    formattedPurchaseOrders.map(async (po) => {
       const files = await fileService.getFilesByDocument(
         "PurchaseOrders",
         po._id
       );
       return {
-        ...po.toJSON(),
+        ...po,
         files: normalizeFiles(files),
       };
     })

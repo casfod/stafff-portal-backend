@@ -3,6 +3,7 @@ const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const parseJsonField = require("../utils/parseJsonField");
 const userByToken = require("../utils/userByToken");
+const appError = require("../utils/appError");
 
 const copyRequest = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -38,12 +39,17 @@ const getStats = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Concept notes stats fetched successfully", stats);
 });
 
-// Create a new concept note
+// Create a new concept note (with review step)
 const createConceptNote = catchAsync(async (req, res) => {
   req.body.activity_period = parseJsonField(req.body, "activity_period", true);
 
-  // Get current user from token (moved to auth middleware)
-  const currentUser = await userByToken(req, res); // Assuming user is attached to req by auth middleware
+  // Get current user from token
+  const currentUser = await userByToken(req, res);
+
+  // Check if reviewedBy is provided for submission
+  if (req.body.status === "pending" && !req.body.reviewedBy) {
+    throw new appError("ReviewedBy field is required for submission", 400);
+  }
 
   // Prepare concept note data
   const conceptNoteData = {
@@ -66,9 +72,10 @@ const createConceptNote = catchAsync(async (req, res) => {
   handleResponse(res, 201, "Concept note created successfully", conceptNote);
 });
 
+// Save a concept note as draft
 const saveConceptNote = catchAsync(async (req, res) => {
-  // Get current user from token (moved to auth middleware)
-  const currentUser = await userByToken(req, res); // Assuming user is attached to req by auth middleware
+  // Get current user from token
+  const currentUser = await userByToken(req, res);
 
   // Prepare concept note data
   const conceptNoteData = {
@@ -76,9 +83,10 @@ const saveConceptNote = catchAsync(async (req, res) => {
     staff_name: `${currentUser.first_name} ${currentUser.last_name}`,
     staff_role: currentUser.role,
     preparedBy: currentUser.id,
+    status: "draft", // Ensure status is draft
   };
 
-  // Create concept note
+  // Create concept note draft
   const conceptNote = await conceptNoteService.saveConceptNote(conceptNoteData);
 
   // Return response
@@ -92,7 +100,7 @@ const saveConceptNote = catchAsync(async (req, res) => {
 
 // Get all concept notes
 const getAllConceptNotes = catchAsync(async (req, res) => {
-  const currentUser = await userByToken(req, res); // Assuming user is attached to req by auth middleware
+  const currentUser = await userByToken(req, res);
 
   const { search, sort, page, limit } = req.query;
   const result = await conceptNoteService.getAllConceptNotes(
@@ -126,6 +134,7 @@ const updateConceptNote = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Concept note updated successfully", conceptNote);
 });
 
+// Update concept note status (for review/approval)
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;
@@ -134,6 +143,19 @@ const updateStatus = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
   if (!currentUser) {
     return handleResponse(res, 401, "Unauthorized");
+  }
+
+  // Validate status transition if needed
+  if (
+    data.status === "reviewed" &&
+    !data.approvedBy &&
+    currentUser.role !== "REVIEWER"
+  ) {
+    return handleResponse(
+      res,
+      400,
+      "Approver must be assigned when marking as reviewed"
+    );
   }
 
   const updatedRequest = await conceptNoteService.updateRequestStatus(

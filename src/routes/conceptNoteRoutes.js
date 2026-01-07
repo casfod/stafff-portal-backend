@@ -17,21 +17,23 @@ conceptNoteRouter.get("/", conceptNoteController.getAllConceptNotes);
 // Get a conceptNote by ID
 conceptNoteRouter.get("/:id", conceptNoteController.getConceptNoteById);
 
-// Create a new conceptNote
+// Create a new conceptNote (with review step)
 conceptNoteRouter.post(
   "/",
   upload.array("files", 10),
   conceptNoteController.createConceptNote
 );
 
-// Save a new conceptNote
+// Save a conceptNote as draft (without review step)
 conceptNoteRouter.post("/save", conceptNoteController.saveConceptNote);
 
+// Update conceptNote status (for review/approval workflow)
 conceptNoteRouter.patch(
   "/update-status/:id",
   conceptNoteController.updateStatus
 );
 
+// Copy conceptNote to other users
 conceptNoteRouter.patch("/copy/:id", conceptNoteController.copyRequest);
 
 // Update a conceptNote by ID

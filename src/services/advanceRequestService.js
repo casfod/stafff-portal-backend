@@ -184,16 +184,15 @@ const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
     });
   }
 
-  // Send notification to reviewers/admins if needed
-  if (advanceRequest.status === "pending") {
-    notify.notifyReviewers({
-      request: advanceRequest,
-      currentUser: currentUser,
-      requestType: "advanceRequest",
-      title: "Advance Request",
-      header: "You have been assigned a request",
-    });
-  }
+  // Send notification to reviewers
+  notify.notifyReviewers({
+    request: advanceRequest,
+    currentUser: currentUser,
+    requestType: "advanceRequest",
+    title: "Advance Request",
+    header: "You have been assigned an advance request to review",
+  });
+
   return advanceRequest;
 };
 
@@ -266,7 +265,7 @@ const updateAdvanceRequest = async (id, data, files = [], currentUser) => {
       currentUser: currentUser,
       requestType: "advanceRequest",
       title: "Advance Request",
-      header: "You have been assigned a request",
+      header: "An advance request has been reviewed and needs your approval",
     });
   }
 
@@ -298,22 +297,90 @@ const updateRequestStatus = async (id, data, currentUser) => {
     data.comments = existingRequest.comments;
   }
 
-  // Update the status and other fields
+  // Handle status transitions and user assignments
   if (data.status) {
     existingRequest.status = data.status;
+
+    // Set reviewedBy when status changes to "reviewed"
+    if (data.status === "reviewed") {
+      existingRequest.reviewedBy = currentUser._id;
+
+      // If approver is defined, assign it
+      if (data.approvedBy) {
+        existingRequest.approvedBy = data.approvedBy;
+      }
+    }
+
+    // Set approvedBy when status changes to "approved"
+    if (data.status === "approved") {
+      existingRequest.approvedBy = currentUser._id;
+    }
+
+    // Set reviewedBy to null when rejected (to allow re-review)
+    if (data.status === "rejected") {
+      existingRequest.reviewedBy = null;
+      existingRequest.approvedBy = null;
+    }
   }
 
-  // Save and return the updated  request
+  // Save and return the updated request
   const updatedRequest = await existingRequest.save();
 
-  // Notification
-  notify.notifyCreator({
-    request: updatedRequest,
-    currentUser: currentUser,
-    requestType: "advanceRequest",
-    title: "Advance Request",
-    header: "Your request has been updated",
-  });
+  // Enhanced notifications based on status transition
+  if (data.status === "reviewed") {
+    // Notify the approver when reviewed
+    if (updatedRequest.approvedBy) {
+      notify.notifyApprovers({
+        request: updatedRequest,
+        currentUser: currentUser,
+        requestType: "advanceRequest",
+        title: "Advance Request",
+        header: "An advance request has been reviewed and needs your approval",
+      });
+    }
+
+    // Also notify the creator
+    notify.notifyCreator({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "advanceRequest",
+      title: "Advance Request",
+      header: "Your advance request has been reviewed",
+    });
+  } else if (data.status === "approved" || data.status === "rejected") {
+    // Notify the creator when approved or rejected
+    notify.notifyCreator({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "advanceRequest",
+      title: "Advance Request",
+      header: `Your advance request has been ${data.status}`,
+    });
+
+    notify.notifyReviewers({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "advanceRequest",
+      title: "Advance Request",
+      header: `This advance request has been ${data.status}`,
+    });
+
+    // If approved, also notify the reviewer
+    if (
+      (data.status === "approved" || data.status === "rejected") &&
+      updatedRequest.reviewedBy
+    ) {
+      notify.notifyReviewers({
+        userId: updatedRequest.reviewedBy,
+        request: updatedRequest,
+        currentUser: currentUser,
+        requestType: "advanceRequest",
+        title: "Advance Request",
+        header: "An advance request you reviewed has been approved",
+      });
+    }
+  }
+
   return updatedRequest;
 };
 

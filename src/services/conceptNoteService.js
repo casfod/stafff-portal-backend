@@ -63,7 +63,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = Infinity } = queryParams;
 
   // Define the fields you want to search in
-  const searchFields = ["Staff_Name", "activity_title", "project_code"];
+  const searchFields = ["staff_name", "activity_title", "account_Code"];
 
   // Build the query
   const searchTerms = search ? search.trim().split(/\s+/) : [];
@@ -81,7 +81,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     case "ADMIN":
       query.$or = [
         { preparedBy: currentUser._id }, // Requests they created
-        { approvedBy: currentUser._id }, // Requests they reviewed
+        { approvedBy: currentUser._id }, // Requests they approved
         { copiedTo: currentUser._id },
       ];
       break;
@@ -89,6 +89,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
     case "REVIEWER":
       query.$or = [
         { preparedBy: currentUser._id }, // Requests they created
+        { reviewedBy: currentUser._id }, // Requests they reviewed
         { copiedTo: currentUser._id },
       ];
       break;
@@ -111,6 +112,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   const populateOptions = [
     { path: "project", select: "project_code account_code" },
     { path: "preparedBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
     { path: "copiedTo", select: "email first_name last_name role" },
@@ -160,6 +162,11 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
 };
 
 const createConceptNote = async (currentUser, conceptNoteData, files = []) => {
+  // For concept notes, when sending (pending), we need reviewedBy
+  if (!conceptNoteData.reviewedBy) {
+    throw new Error("ReviewedBy field is required for submission.");
+  }
+
   const conceptNote = new ConceptNote({
     ...conceptNoteData,
     status: "pending",
@@ -175,16 +182,14 @@ const createConceptNote = async (currentUser, conceptNoteData, files = []) => {
     });
   }
 
-  // Send notification to reviewers/admins if needed
-  if (conceptNote.status === "pending") {
-    notify.notifyApprovers({
-      request: conceptNote,
-      currentUser: currentUser,
-      requestType: "conceptNote",
-      title: "Concept Note",
-      header: "You have been assigned a request",
-    });
-  }
+  // Send notification to reviewers
+  notify.notifyReviewers({
+    request: conceptNote,
+    currentUser: currentUser,
+    requestType: "conceptNote",
+    title: "Concept Note",
+    header: "You have been assigned a concept note to review",
+  });
 
   return conceptNote;
 };
@@ -202,6 +207,7 @@ const getConceptNoteById = async (id) => {
   const populateOptions = [
     { path: "project", select: "project_code account_code" },
     { path: "preparedBy", select: "email first_name last_name role" },
+    { path: "reviewedBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
     { path: "copiedTo", select: "email first_name last_name role" },
@@ -279,25 +285,89 @@ const updateRequestStatus = async (id, data, currentUser) => {
     data.comments = existingConceptNote.comments;
   }
 
-  // Update the status and other fields
+  // Handle status transitions and user assignments
   if (data.status) {
     existingConceptNote.status = data.status;
+
+    // Set reviewedBy when status changes to "reviewed"
+    if (data.status === "reviewed") {
+      existingConceptNote.reviewedBy = currentUser._id;
+
+      // If approver is defined, assign it
+      if (data.approvedBy) {
+        existingConceptNote.approvedBy = data.approvedBy;
+      }
+    }
+
+    // Set approvedBy when status changes to "approved"
+    if (data.status === "approved") {
+      existingConceptNote.approvedBy = currentUser._id;
+    }
+
+    // Set reviewedBy to null when rejected (to allow re-review)
+    if (data.status === "rejected") {
+      existingConceptNote.reviewedBy = null;
+      existingConceptNote.approvedBy = null;
+    }
   }
 
   // Save the updated Concept Note
-  const UpdatedConceptNote = await existingConceptNote.save();
+  const updatedConceptNote = await existingConceptNote.save();
 
-  // Notification
-  notify.notifyCreator({
-    request: UpdatedConceptNote,
-    currentUser: currentUser,
-    requestType: "conceptNote",
-    title: "Concept Note",
-    header: "Your request has been updated",
-  });
+  // Enhanced notifications based on status transition
+  if (data.status === "reviewed") {
+    // Notify the approver when reviewed
+    if (updatedConceptNote.approvedBy) {
+      notify.notifyApprovers({
+        request: updatedConceptNote,
+        currentUser: currentUser,
+        requestType: "conceptNote",
+        title: "Concept Note",
+        header: "A concept note has been reviewed and needs your approval",
+      });
+    }
+
+    // Also notify the creator
+    notify.notifyCreator({
+      request: updatedConceptNote,
+      currentUser: currentUser,
+      requestType: "conceptNote",
+      title: "Concept Note",
+      header: "Your concept note has been reviewed",
+    });
+  } else if (data.status === "approved" || data.status === "rejected") {
+    // Notify the creator when approved or rejected
+    notify.notifyCreator({
+      request: updatedConceptNote,
+      currentUser: currentUser,
+      requestType: "conceptNote",
+      title: "Concept Note",
+      header: `Your concept note has been ${data.status}`,
+    });
+
+    notify.notifyReviewers({
+      request: updatedConceptNote,
+      currentUser: currentUser,
+      requestType: "conceptNote",
+      title: "Concept Note",
+      header: `This concept note has been ${data.status}`,
+    });
+
+    // If approved, also notify the reviewer
+    if (data.status === "approved" && updatedConceptNote.reviewedBy) {
+      notify.notifyReviewers({
+        userId: updatedConceptNote.reviewedBy,
+        request: updatedConceptNote,
+        currentUser: currentUser,
+        requestType: "conceptNote",
+        title: "Concept Note",
+        header: "A concept note you reviewed has been approved",
+      });
+    }
+  }
 
   // Return the updated Concept Note
-  return UpdatedConceptNote;
+  return updatedConceptNote;
 };
 
 module.exports = {
