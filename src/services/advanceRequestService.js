@@ -328,24 +328,12 @@ const updateRequestStatus = async (id, data, currentUser) => {
 
   // Enhanced notifications based on status transition
   if (data.status === "reviewed") {
-    // Notify the approver when reviewed
-    if (updatedRequest.approvedBy) {
-      notify.notifyApprovers({
-        request: updatedRequest,
-        currentUser: currentUser,
-        requestType: "advanceRequest",
-        title: "Advance Request",
-        header: "An advance request has been reviewed and needs your approval",
-      });
-    }
-
-    // Also notify the creator
     notify.notifyCreator({
       request: updatedRequest,
       currentUser: currentUser,
       requestType: "advanceRequest",
       title: "Advance Request",
-      header: "Your advance request has been reviewed",
+      header: "Your request has been reviewed",
     });
   } else if (data.status === "approved" || data.status === "rejected") {
     // Notify the creator when approved or rejected
@@ -354,31 +342,17 @@ const updateRequestStatus = async (id, data, currentUser) => {
       currentUser: currentUser,
       requestType: "advanceRequest",
       title: "Advance Request",
-      header: `Your advance request has been ${data.status}`,
+      header: `Your request has been ${data.status}`,
     });
 
+    // If approved, also notify the reviewer
     notify.notifyReviewers({
       request: updatedRequest,
       currentUser: currentUser,
       requestType: "advanceRequest",
       title: "Advance Request",
-      header: `This advance request has been ${data.status}`,
+      header: `This request has been ${data.status}`,
     });
-
-    // If approved, also notify the reviewer
-    if (
-      (data.status === "approved" || data.status === "rejected") &&
-      updatedRequest.reviewedBy
-    ) {
-      notify.notifyReviewers({
-        userId: updatedRequest.reviewedBy,
-        request: updatedRequest,
-        currentUser: currentUser,
-        requestType: "advanceRequest",
-        title: "Advance Request",
-        header: "An advance request you reviewed has been approved",
-      });
-    }
   }
 
   return updatedRequest;

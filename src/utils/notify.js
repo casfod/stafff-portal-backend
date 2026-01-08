@@ -34,7 +34,8 @@ class Notify {
    * Notify reviewers when request needs review
    */
   async notifyReviewers({ request, currentUser, requestType, title, header }) {
-    if (request.status !== "pending") return;
+    // Allow notifications for pending, approved, and rejected states
+    if (!["pending", "approved", "rejected"].includes(request.status)) return;
 
     const recipients = [request.reviewedBy].filter(Boolean);
     await this._sendNotification({

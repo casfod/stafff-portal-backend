@@ -288,6 +288,37 @@ const updateRequestStatus = async (id, data, currentUser) => {
     title: "Expense Claim",
     header: "Your request has been updated",
   });
+
+  // Enhanced notifications based on status transition
+  if (data.status === "reviewed") {
+    // Also notify the creator
+    notify.notifyCreator({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "expenseClaim",
+      title: "Expense Claim",
+      header: "Your request has been reviewed",
+    });
+  } else if (data.status === "approved" || data.status === "rejected") {
+    // Notify the creator when approved or rejected
+    notify.notifyCreator({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "expenseClaim",
+      title: "Expense Claim",
+      header: `Your request has been ${data.status}`,
+    });
+
+    // If approved, also notify the reviewer
+
+    notify.notifyReviewers({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "expenseClaim",
+      title: "Expense Claim",
+      header: `This request has been ${data.status}`,
+    });
+  }
 };
 
 // Delete a expense claim and its files

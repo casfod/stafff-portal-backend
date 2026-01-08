@@ -313,13 +313,34 @@ const updateRequestStatus = async (id, data, currentUser) => {
   const updatedRequest = await existingRequest.save();
 
   // Notification
-  notify.notifyCreator({
-    request: updatedRequest,
-    currentUser: currentUser,
-    requestType: "purchaseRequest",
-    title: "Purchase Request",
-    header: "Your request has been updated",
-  });
+  if (data.status === "reviewed") {
+    // Also notify the creator
+    notify.notifyCreator({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "purchaseRequest",
+      title: "Purchase Request",
+      header: "Your request has been reviewed",
+    });
+  } else if (data.status === "approved" || data.status === "rejected") {
+    // Notify the creator when approved or rejected
+    notify.notifyCreator({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "purchaseRequest",
+      title: "Purchase Request",
+      header: `Your request has been ${data.status}`,
+    });
+
+    // If approved, also notify the reviewer
+    notify.notifyReviewers({
+      request: updatedRequest,
+      currentUser: currentUser,
+      requestType: "purchaseRequest",
+      title: "Purchase Request",
+      header: `This request has been ${data.status}`,
+    });
+  }
 
   return updatedRequest;
 };

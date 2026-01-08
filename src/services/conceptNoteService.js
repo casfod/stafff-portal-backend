@@ -230,7 +230,7 @@ const getConceptNoteById = async (id) => {
   });
 };
 
-const updateConceptNote = async (id, updateData, files = []) => {
+const updateConceptNote = async (id, updateData, files = [], currentUser) => {
   const conceptNote = await ConceptNote.findByIdAndUpdate(id, updateData, {
     new: true,
   });
@@ -241,6 +241,16 @@ const updateConceptNote = async (id, updateData, files = []) => {
       files,
       requestId: conceptNote._id,
       modelTable: "ConceptNotes",
+    });
+  }
+
+  if (conceptNote.status === "reviewed") {
+    notify.notifyApprovers({
+      request: conceptNote,
+      currentUser: currentUser,
+      requestType: "conceptNote",
+      title: "Concept Note",
+      header: "A request has been reviewed and needs your approval",
     });
   }
 
@@ -316,24 +326,13 @@ const updateRequestStatus = async (id, data, currentUser) => {
 
   // Enhanced notifications based on status transition
   if (data.status === "reviewed") {
-    // Notify the approver when reviewed
-    if (updatedConceptNote.approvedBy) {
-      notify.notifyApprovers({
-        request: updatedConceptNote,
-        currentUser: currentUser,
-        requestType: "conceptNote",
-        title: "Concept Note",
-        header: "A concept note has been reviewed and needs your approval",
-      });
-    }
-
     // Also notify the creator
     notify.notifyCreator({
       request: updatedConceptNote,
       currentUser: currentUser,
       requestType: "conceptNote",
       title: "Concept Note",
-      header: "Your concept note has been reviewed",
+      header: "Your request has been reviewed",
     });
   } else if (data.status === "approved" || data.status === "rejected") {
     // Notify the creator when approved or rejected
@@ -342,28 +341,18 @@ const updateRequestStatus = async (id, data, currentUser) => {
       currentUser: currentUser,
       requestType: "conceptNote",
       title: "Concept Note",
-      header: `Your concept note has been ${data.status}`,
+      header: `Your request has been ${data.status}`,
     });
+
+    // If approved, also notify the reviewer
 
     notify.notifyReviewers({
       request: updatedConceptNote,
       currentUser: currentUser,
       requestType: "conceptNote",
       title: "Concept Note",
-      header: `This concept note has been ${data.status}`,
+      header: `This request has been ${data.status}`,
     });
-
-    // If approved, also notify the reviewer
-    if (data.status === "approved" && updatedConceptNote.reviewedBy) {
-      notify.notifyReviewers({
-        userId: updatedConceptNote.reviewedBy,
-        request: updatedConceptNote,
-        currentUser: currentUser,
-        requestType: "conceptNote",
-        title: "Concept Note",
-        header: "A concept note you reviewed has been approved",
-      });
-    }
   }
 
   // Return the updated Concept Note
