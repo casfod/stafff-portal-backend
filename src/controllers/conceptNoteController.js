@@ -148,18 +148,18 @@ const updateStatus = catchAsync(async (req, res) => {
     return handleResponse(res, 401, "Unauthorized");
   }
 
-  // Validate status transition if needed
-  if (
-    data.status === "reviewed" &&
-    !data.approvedBy &&
-    currentUser.role !== "REVIEWER"
-  ) {
-    return handleResponse(
-      res,
-      400,
-      "Approver must be assigned when marking as reviewed"
-    );
-  }
+  // // Validate status transition if needed
+  // if (
+  //   data.status === "reviewed" &&
+  //   !data.approvedBy &&
+  //   currentUser.role !== "REVIEWER"
+  // ) {
+  //   return handleResponse(
+  //     res,
+  //     400,
+  //     "Approver must be assigned when marking as reviewed"
+  //   );
+  // }
 
   const updatedRequest = await conceptNoteService.updateRequestStatus(
     id,
