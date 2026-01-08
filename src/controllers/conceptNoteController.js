@@ -157,7 +157,7 @@ const updateStatus = catchAsync(async (req, res) => {
   //   return handleResponse(
   //     res,
   //     400,
-  //     "Approver must be assigned when marking as reviewed"
+  //     ""
   //   );
   // }
 
