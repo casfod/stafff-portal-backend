@@ -202,7 +202,7 @@ const addCommentToRequest = catchAsync(async (req, res) => {
     return handleResponse(res, 401, "Unauthorized");
   }
 
-  const comment = await addComment(id, currentUser._id, text);
+  const comment = await addComment(id, currentUser, text);
 
   handleResponse(res, 201, "Comment added successfully", comment);
 });

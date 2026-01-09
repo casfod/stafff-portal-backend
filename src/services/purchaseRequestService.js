@@ -367,8 +367,9 @@ const deletePurchaseRequest = async (id) => {
 //////////////////////////
 
 // Add a comment to Request
-const addComment = async (id, userId, text) => {
+const addComment = async (id, currentUser, text) => {
   const request = await PurchaseRequest.findById(id);
+  const userId = currentUser._id;
 
   if (!request) {
     throw new Error("Request not found");
@@ -382,7 +383,9 @@ const addComment = async (id, userId, text) => {
     ) ||
     (request.reviewedBy &&
       request.reviewedBy.toString() === userId.toString()) ||
-    (request.approvedBy && request.approvedBy.toString() === userId.toString());
+    (request.approvedBy &&
+      request.approvedBy.toString() === userId.toString()) ||
+    currentUser.role === "SUPER-ADMIN";
 
   if (!canComment) {
     throw new Error("You don't have permission to comment on this request");

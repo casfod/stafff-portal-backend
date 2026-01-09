@@ -377,8 +377,9 @@ const updateRequestStatus = async (id, data, currentUser) => {
 //////////////////////////
 
 // Add a comment to Request
-const addComment = async (id, userId, text) => {
+const addComment = async (id, currentUser, text) => {
   const request = await ConceptNote.findById(id);
+  const userId = currentUser._id;
 
   if (!request) {
     throw new Error("Request not found");
@@ -386,13 +387,15 @@ const addComment = async (id, userId, text) => {
 
   // Check if user has permission to comment
   const canComment =
-    request.createdBy.toString() === userId.toString() ||
+    request.preparedBy.toString() === userId.toString() ||
     request.copiedTo.some(
       (copiedUserId) => copiedUserId.toString() === userId.toString()
     ) ||
     (request.reviewedBy &&
       request.reviewedBy.toString() === userId.toString()) ||
-    (request.approvedBy && request.approvedBy.toString() === userId.toString());
+    (request.approvedBy &&
+      request.approvedBy.toString() === userId.toString()) ||
+    currentUser.role === "SUPER-ADMIN";
 
   if (!canComment) {
     throw new Error("You don't have permission to comment on this request");

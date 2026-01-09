@@ -379,11 +379,12 @@ const deleteAdvanceRequest = async (id) => {
 // comment to Request
 //////////////////////////
 // Add a comment to advance request
-const addComment = async (id, userId, text) => {
+const addComment = async (id, currentUser, text) => {
   const request = await AdvanceRequest.findById(id);
+  const userId = currentUser._id;
 
   if (!request) {
-    throw new Error("Advance request not found");
+    throw new Error("Request not found");
   }
 
   // Check if user has permission to comment
@@ -394,7 +395,9 @@ const addComment = async (id, userId, text) => {
     ) ||
     (request.reviewedBy &&
       request.reviewedBy.toString() === userId.toString()) ||
-    (request.approvedBy && request.approvedBy.toString() === userId.toString());
+    (request.approvedBy &&
+      request.approvedBy.toString() === userId.toString()) ||
+    currentUser.role === "SUPER-ADMIN";
 
   if (!canComment) {
     throw new Error("You don't have permission to comment on this request");
