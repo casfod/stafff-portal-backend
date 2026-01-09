@@ -8,6 +8,9 @@ const {
   deletePurchaseRequest,
   getPurchaseRequestStats,
   PurchaseRequestCopyService,
+  addComment,
+  updateComment,
+  deleteComment,
 } = require("../services/purchaseRequestService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -185,6 +188,63 @@ const remove = catchAsync(async (req, res) => {
   );
 });
 
+// Add a comment to advance request
+const addCommentToRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+
+  if (!text || text.trim() === "") {
+    throw new appError("Comment text is required", 400);
+  }
+
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) {
+    return handleResponse(res, 401, "Unauthorized");
+  }
+
+  const comment = await addComment(id, currentUser._id, text);
+
+  handleResponse(res, 201, "Comment added successfully", comment);
+});
+
+// Update a comment
+const updateCommentInRequest = catchAsync(async (req, res) => {
+  const { id, commentId } = req.params;
+  const { text } = req.body;
+
+  if (!text || text.trim() === "") {
+    throw new appError("Comment text is required", 400);
+  }
+
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) {
+    return handleResponse(res, 401, "Unauthorized");
+  }
+
+  const updatedComment = await updateComment(
+    id,
+    commentId,
+    currentUser._id,
+    text
+  );
+
+  handleResponse(res, 200, "Comment updated successfully", updatedComment);
+});
+
+// Delete a comment
+const deleteCommentFromRequest = catchAsync(async (req, res) => {
+  const { id, commentId } = req.params;
+
+  const currentUser = await userByToken(req, res);
+  if (!currentUser) {
+    return handleResponse(res, 401, "Unauthorized");
+  }
+
+  const result = await deleteComment(id, commentId, currentUser._id);
+
+  handleResponse(res, 200, result.message, result);
+});
+
 module.exports = {
   copyRequest,
   save,
@@ -195,4 +255,7 @@ module.exports = {
   update,
   updateStatus,
   remove,
+  addCommentToRequest,
+  updateCommentInRequest,
+  deleteCommentFromRequest,
 };

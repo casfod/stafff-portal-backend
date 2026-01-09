@@ -100,9 +100,11 @@ const getAdvanceRequests = async (queryParams, currentUser) => {
     populateOptions
   );
 
-  // Fetch associated files
   const advanceRequestsWithFiles = await Promise.all(
     advanceRequests.map(async (request) => {
+      // Filter out deleted comments
+      request.comments = request.comments.filter((comment) => !comment.deleted);
+
       const files = await fileService.getFilesByDocument(
         "AdvanceRequests",
         request._id
@@ -137,8 +139,11 @@ const getAdvanceRequestById = async (id) => {
     .lean();
 
   if (!request) {
-    throw new Error("Advance request not found");
+    throw new Error("Request not found");
   }
+
+  // Filter out deleted comments
+  request.comments = request.comments.filter((comment) => !comment.deleted);
 
   // Fetch associated files
   const files = await fileService.getFilesByDocument("AdvanceRequests", id);
@@ -148,6 +153,7 @@ const getAdvanceRequestById = async (id) => {
     files: normalizeFiles(files),
   });
 };
+
 // Create a new advance request
 const createAdvanceRequest = async (data) => {
   const advanceRequest = new AdvanceRequest(data);
@@ -291,6 +297,10 @@ const updateRequestStatus = async (id, data, currentUser) => {
     existingRequest.comments.unshift({
       user: currentUser.id,
       text: data.comment,
+      edited: false,
+      deleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     // Update the data object to include the modified comments
@@ -365,6 +375,130 @@ const deleteAdvanceRequest = async (id) => {
   return await AdvanceRequest.findByIdAndDelete(id);
 };
 
+//////////////////////////
+// comment to Request
+//////////////////////////
+// Add a comment to advance request
+const addComment = async (id, userId, text) => {
+  const request = await AdvanceRequest.findById(id);
+
+  if (!request) {
+    throw new Error("Advance request not found");
+  }
+
+  // Check if user has permission to comment
+  const canComment =
+    request.createdBy.toString() === userId.toString() ||
+    request.copiedTo.some(
+      (copiedUserId) => copiedUserId.toString() === userId.toString()
+    ) ||
+    (request.reviewedBy &&
+      request.reviewedBy.toString() === userId.toString()) ||
+    (request.approvedBy && request.approvedBy.toString() === userId.toString());
+
+  if (!canComment) {
+    throw new Error("You don't have permission to comment on this request");
+  }
+
+  const newComment = {
+    user: userId,
+    text: text.trim(),
+    edited: false,
+    deleted: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  request.comments.unshift(newComment);
+  await request.save();
+
+  // Populate the user field in the new comment
+  const populatedRequest = await AdvanceRequest.findById(id)
+    .populate("comments.user", "email first_name last_name role")
+    .lean();
+
+  // Filter out deleted comments and return the new comment
+  const populatedComments = populatedRequest.comments.filter(
+    (comment) => !comment.deleted
+  );
+  const addedComment = populatedComments.find(
+    (comment) =>
+      comment.user._id.toString() === userId.toString() &&
+      comment.text === text.trim() &&
+      comment.createdAt.toString() === newComment.createdAt.toString()
+  );
+
+  return addedComment;
+};
+
+// Update a comment
+const updateComment = async (id, commentId, userId, text) => {
+  const request = await AdvanceRequest.findById(id);
+
+  if (!request) {
+    throw new Error("Advance request not found");
+  }
+
+  const comment = request.comments.id(commentId);
+
+  if (!comment) {
+    throw new Error("Comment not found");
+  }
+
+  // Check if user is the owner of the comment
+  if (comment.user.toString() !== userId.toString()) {
+    throw new Error("You can only edit your own comments");
+  }
+
+  comment.text = text.trim();
+  comment.edited = true;
+  comment.updatedAt = new Date();
+
+  await request.save();
+
+  // Populate the user field
+  const populatedRequest = await AdvanceRequest.findById(id)
+    .populate("comments.user", "email first_name last_name role")
+    .lean();
+
+  // Find and return the updated comment
+  const updatedComment = populatedRequest.comments.find(
+    (c) => c._id.toString() === commentId.toString()
+  );
+  return updatedComment;
+};
+
+// Delete a comment (soft delete)
+const deleteComment = async (id, commentId, userId) => {
+  const request = await AdvanceRequest.findById(id);
+
+  if (!request) {
+    throw new Error("Advance request not found");
+  }
+
+  const comment = request.comments.id(commentId);
+
+  if (!comment) {
+    throw new Error("Comment not found");
+  }
+
+  // Check if user is the owner of the comment or has admin privileges
+  const isOwner = comment.user.toString() === userId.toString();
+  const isAdminOrReviewer = false; // You can add role checking here if needed
+
+  if (!isOwner && !isAdminOrReviewer) {
+    throw new Error("You don't have permission to delete this comment");
+  }
+
+  // Soft delete the comment
+  comment.deleted = true;
+  comment.updatedAt = new Date();
+
+  await request.save();
+
+  return { success: true, message: "Comment deleted successfully" };
+};
+
 module.exports = {
   AdvanceRequestCopyService,
   createAdvanceRequest,
@@ -376,4 +510,7 @@ module.exports = {
   updateAdvanceRequest,
   updateRequestStatus,
   deleteAdvanceRequest,
+  addComment,
+  updateComment,
+  deleteComment,
 };

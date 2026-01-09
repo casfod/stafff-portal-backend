@@ -8,6 +8,9 @@ const {
   updateStatus,
   getStats,
   copyRequest,
+  addCommentToRequest,
+  updateCommentInRequest,
+  deleteCommentFromRequest,
 } = require("../controllers/travelRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -17,9 +20,6 @@ const travelRequestRouter = express.Router();
 
 // Protect all routes after this middleware
 travelRequestRouter.use(protect);
-
-// // Create a new advance request (supports both "save" and "save and send")
-// travelRequestRouter.post("/", create);
 
 // Save a advance request (draft)
 travelRequestRouter.post("/save", save);
@@ -44,7 +44,19 @@ travelRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 travelRequestRouter.patch("/update-status/:id", updateStatus);
+
 travelRequestRouter.patch("/copy/:id", copyRequest);
+
+// Copy advance request
+travelRequestRouter.patch("/copy/:id", copyRequest);
+
+// Comment routes
+travelRequestRouter.post("/:id/comments", addCommentToRequest);
+travelRequestRouter.put("/:id/comments/:commentId", updateCommentInRequest);
+travelRequestRouter.delete(
+  "/:id/comments/:commentId",
+  deleteCommentFromRequest
+);
 
 // Delete a advance request
 travelRequestRouter.delete("/:id", remove);

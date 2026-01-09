@@ -8,6 +8,9 @@ const {
   updateStatus,
   getStats,
   copyRequest,
+  addCommentToRequest,
+  updateCommentInRequest,
+  deleteCommentFromRequest,
 } = require("../controllers/expenseClaimsController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -43,6 +46,11 @@ expenseClaimRouter.put("/:id", upload.array("files", 10), update);
 // Update advance request status
 expenseClaimRouter.patch("/update-status/:id", updateStatus);
 expenseClaimRouter.patch("/copy/:id", copyRequest);
+
+// Comment routes
+expenseClaimRouter.post("/:id/comments", addCommentToRequest);
+expenseClaimRouter.put("/:id/comments/:commentId", updateCommentInRequest);
+expenseClaimRouter.delete("/:id/comments/:commentId", deleteCommentFromRequest);
 
 // Delete a advance request
 expenseClaimRouter.delete("/:id", remove);

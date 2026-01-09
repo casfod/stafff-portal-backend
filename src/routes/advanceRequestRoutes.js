@@ -8,6 +8,9 @@ const {
   updateStatus,
   getStats,
   copyRequest,
+  addCommentToRequest,
+  updateCommentInRequest,
+  deleteCommentFromRequest,
 } = require("../controllers/advanceRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -17,9 +20,6 @@ const advanceRequestRouter = express.Router();
 
 // Protect all routes after this middleware
 advanceRequestRouter.use(protect);
-
-// // Create a new advance request (supports both "save" and "save and send")
-// advanceRequestRouter.post("/", create);
 
 // Save a advance request (draft)
 advanceRequestRouter.post("/save", save);
@@ -33,6 +33,7 @@ advanceRequestRouter.post(
 
 // Get all advance requests stats
 advanceRequestRouter.get("/stats", getStats);
+
 // Get all advance requests
 advanceRequestRouter.get("/", getAll);
 
@@ -44,7 +45,17 @@ advanceRequestRouter.put("/:id", upload.array("files", 10), update);
 
 // Update advance request status
 advanceRequestRouter.patch("/update-status/:id", updateStatus);
+
+// Copy advance request
 advanceRequestRouter.patch("/copy/:id", copyRequest);
+
+// Comment routes
+advanceRequestRouter.post("/:id/comments", addCommentToRequest);
+advanceRequestRouter.put("/:id/comments/:commentId", updateCommentInRequest);
+advanceRequestRouter.delete(
+  "/:id/comments/:commentId",
+  deleteCommentFromRequest
+);
 
 // Delete a advance request
 advanceRequestRouter.delete("/:id", remove);

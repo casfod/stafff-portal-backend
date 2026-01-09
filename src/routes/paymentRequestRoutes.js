@@ -8,6 +8,9 @@ const {
   updateStatus,
   getStats,
   copyRequest,
+  addCommentToRequest,
+  updateCommentInRequest,
+  deleteCommentFromRequest,
 } = require("../controllers/paymentRequestController");
 const express = require("express");
 const protect = require("../middleware/protect");
@@ -45,6 +48,14 @@ paymentRequestRouter.put("/:id", upload.array("files", 10), update);
 // Update payment Request status
 paymentRequestRouter.patch("/update-status/:id", updateStatus);
 paymentRequestRouter.patch("/copy/:id", copyRequest);
+
+// Comment routes
+paymentRequestRouter.post("/:id/comments", addCommentToRequest);
+paymentRequestRouter.put("/:id/comments/:commentId", updateCommentInRequest);
+paymentRequestRouter.delete(
+  "/:id/comments/:commentId",
+  deleteCommentFromRequest
+);
 
 // Delete a payment request
 paymentRequestRouter.delete("/:id", remove);

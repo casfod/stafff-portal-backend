@@ -43,6 +43,20 @@ conceptNoteRouter.put(
   conceptNoteController.updateConceptNote
 );
 
+// Comment routes
+conceptNoteRouter.post(
+  "/:id/comments",
+  conceptNoteController.addCommentToRequest
+);
+conceptNoteRouter.put(
+  "/:id/comments/:commentId",
+  conceptNoteController.updateCommentInRequest
+);
+conceptNoteRouter.delete(
+  "/:id/comments/:commentId",
+  conceptNoteController.deleteCommentFromRequest
+);
+
 // Delete a conceptNote by ID
 conceptNoteRouter.delete("/:id", conceptNoteController.deleteConceptNote);
 

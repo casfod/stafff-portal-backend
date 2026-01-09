@@ -82,37 +82,6 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
-  // // Role-based filtering
-  // switch (currentUser.role) {
-  //   case "STAFF":
-  //     query.requestedBy = currentUser._id; // Only their own requests
-  //     break;
-
-  //   case "ADMIN":
-  //     query.$or = [
-  //       { requestedBy: currentUser._id }, // Their own requests
-  //       { approvedBy: currentUser._id }, // Requests they approved
-  //     ];
-  //     break;
-
-  //   case "REVIEWER":
-  //     query.$or = [
-  //       { requestedBy: currentUser._id }, // Their own requests
-  //       { reviewedBy: currentUser._id }, // Requests they reviewed
-  //     ];
-  //     break;
-
-  //   case "SUPER-ADMIN":
-  //     query.$or = [
-  //       { status: { $ne: "draft" } }, // All non-draft requests
-  //       { requestedBy: currentUser._id, status: "draft" }, // Their own drafts
-  //     ];
-  //     break;
-
-  //   default:
-  //     throw new Error("Invalid user role");
-  // }
-
   // Role-based filtering
   switch (currentUser.role) {
     case "STAFF":
@@ -179,6 +148,9 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   // Fetch associated files
   const paymentRequestsWithFiles = await Promise.all(
     paymentRequests.map(async (request) => {
+      // Filter out deleted comments
+      request.comments = request.comments.filter((comment) => !comment.deleted);
+
       const files = await fileService.getFilesByDocument(
         "PaymentRequests",
         request._id
@@ -264,6 +236,9 @@ const getPaymentRequestById = async (id) => {
     throw new Error("Payment Request not found");
   }
 
+  // Filter out deleted comments
+  request.comments = request.comments.filter((comment) => !comment.deleted);
+
   // Fetch associated files
   const files = await fileService.getFilesByDocument("PaymentRequests", id);
 
@@ -308,8 +283,8 @@ const updatePaymentRequest = async (id, data, files = [], currentUser) => {
 
 const updateRequestStatus = async (id, data, currentUser) => {
   // Fetch the existing Concept Note
-  const existingPaymentRequest = await PaymentRequest.findById(id);
-  if (!existingPaymentRequest) {
+  const existingRequest = await PaymentRequest.findById(id);
+  if (!existingRequest) {
     throw new Error("Concept Note not found");
   }
 
@@ -320,27 +295,31 @@ const updateRequestStatus = async (id, data, currentUser) => {
   // Add a new comment if it exists in the request body
   if (data.comment) {
     // Initialize comments as an empty array if it doesn't exist
-    if (!existingPaymentRequest.comments) {
-      existingPaymentRequest.comments = [];
+    if (!existingRequest.comments) {
+      existingRequest.comments = [];
     }
 
     // Add the new comment to the top of the comments array
-    existingPaymentRequest.comments.unshift({
+    existingRequest.comments.unshift({
       user: currentUser.id,
       text: data.comment,
+      edited: false,
+      deleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     // Update the data object to include the modified comments
-    data.comments = existingPaymentRequest.comments;
+    data.comments = existingRequest.comments;
   }
 
   // Update the status and other fields
   if (data.status) {
-    existingPaymentRequest.status = data.status;
+    existingRequest.status = data.status;
   }
 
   // Save and return the updated Concept Note
-  const updatedRequest = await existingPaymentRequest.save();
+  const updatedRequest = await existingRequest.save();
 
   if (data.status === "reviewed") {
     // Also notify the creator
@@ -381,6 +360,131 @@ const deleteRequest = async (id) => {
   return await PaymentRequest.findByIdAndDelete(id);
 };
 
+//////////////////////////
+// comment to Request
+//////////////////////////
+
+// Add a comment to Request
+const addComment = async (id, userId, text) => {
+  const request = await PaymentRequest.findById(id);
+
+  if (!request) {
+    throw new Error("Request not found");
+  }
+
+  // Check if user has permission to comment
+  const canComment =
+    request.createdBy.toString() === userId.toString() ||
+    request.copiedTo.some(
+      (copiedUserId) => copiedUserId.toString() === userId.toString()
+    ) ||
+    (request.reviewedBy &&
+      request.reviewedBy.toString() === userId.toString()) ||
+    (request.approvedBy && request.approvedBy.toString() === userId.toString());
+
+  if (!canComment) {
+    throw new Error("You don't have permission to comment on this request");
+  }
+
+  const newComment = {
+    user: userId,
+    text: text.trim(),
+    edited: false,
+    deleted: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  request.comments.unshift(newComment);
+  await request.save();
+
+  // Populate the user field in the new comment
+  const populatedRequest = await PaymentRequest.findById(id)
+    .populate("comments.user", "email first_name last_name role")
+    .lean();
+
+  // Filter out deleted comments and return the new comment
+  const populatedComments = populatedRequest.comments.filter(
+    (comment) => !comment.deleted
+  );
+  const addedComment = populatedComments.find(
+    (comment) =>
+      comment.user._id.toString() === userId.toString() &&
+      comment.text === text.trim() &&
+      comment.createdAt.toString() === newComment.createdAt.toString()
+  );
+
+  return addedComment;
+};
+
+// Update a comment
+const updateComment = async (id, commentId, userId, text) => {
+  const request = await PaymentRequest.findById(id);
+
+  if (!request) {
+    throw new Error("Request not found");
+  }
+
+  const comment = request.comments.id(commentId);
+
+  if (!comment) {
+    throw new Error("Comment not found");
+  }
+
+  // Check if user is the owner of the comment
+  if (comment.user.toString() !== userId.toString()) {
+    throw new Error("You can only edit your own comments");
+  }
+
+  comment.text = text.trim();
+  comment.edited = true;
+  comment.updatedAt = new Date();
+
+  await request.save();
+
+  // Populate the user field
+  const populatedRequest = await PaymentRequest.findById(id)
+    .populate("comments.user", "email first_name last_name role")
+    .lean();
+
+  // Find and return the updated comment
+  const updatedComment = populatedRequest.comments.find(
+    (c) => c._id.toString() === commentId.toString()
+  );
+  return updatedComment;
+};
+
+// Delete a comment (soft delete)
+const deleteComment = async (id, commentId, userId) => {
+  const request = await PaymentRequest.findById(id);
+
+  if (!request) {
+    throw new Error("Request not found");
+  }
+
+  const comment = request.comments.id(commentId);
+
+  if (!comment) {
+    throw new Error("Comment not found");
+  }
+
+  // Check if user is the owner of the comment or has admin privileges
+  const isOwner = comment.user.toString() === userId.toString();
+  const isAdminOrReviewer = false; // You can add role checking here if needed
+
+  if (!isOwner && !isAdminOrReviewer) {
+    throw new Error("You don't have permission to delete this comment");
+  }
+
+  // Soft delete the comment
+  comment.deleted = true;
+  comment.updatedAt = new Date();
+
+  await request.save();
+
+  return { success: true, message: "Comment deleted successfully" };
+};
+
 module.exports = {
   PaymentRequestCopyService,
   getPaymentRequests,
@@ -391,4 +495,7 @@ module.exports = {
   updatePaymentRequest,
   updateRequestStatus,
   deleteRequest,
+  addComment,
+  updateComment,
+  deleteComment,
 };
