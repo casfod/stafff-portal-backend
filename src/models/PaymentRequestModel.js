@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const paymentRequestSchema = new mongoose.Schema(
   {
+    pmrNumber: { type: String, unique: true, trim: true },
     requestBy: { type: String, required: true, trim: true },
     amountInFigure: { type: Number, required: true },
     amountInWords: { type: String, required: true },
@@ -77,6 +78,36 @@ paymentRequestSchema.set("toJSON", {
     }
     delete returnedObject.__v;
   },
+});
+
+// PMR Number generation middleware
+paymentRequestSchema.pre("save", async function (next) {
+  // Only generate PMR number when status changes to pending AND pmrNumber doesn't exist
+  if (
+    this.isModified("status") &&
+    this.status === "pending" &&
+    !this.pmrNumber
+  ) {
+    try {
+      // Count only non-draft documents to get the correct serial
+      const count = await mongoose.model("PaymentRequest").countDocuments({
+        status: { $ne: "draft" },
+      });
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.pmrNumber = `PMR-CASFOD${serial}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else if (this.status === "draft" && !this.pmrNumber) {
+    // Draft documents get a temporary code
+    this.pmrNumber = `PMR-DRAFT-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    next();
+  } else {
+    next();
+  }
 });
 
 // Middleware to auto-set timestamps when reviewedBy/approvedBy changes

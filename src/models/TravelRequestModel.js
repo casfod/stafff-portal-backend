@@ -11,6 +11,7 @@ const itemGroupSchema = new mongoose.Schema({
 
 const travelRequestSchema = new mongoose.Schema(
   {
+    trNumber: { type: String, unique: true, trim: true },
     staffName: { type: String, required: true, trim: true },
     travelRequest: {
       from: { type: String, required: true, trim: true },
@@ -91,6 +92,35 @@ travelRequestSchema.set("toJSON", {
     }
     delete returnedObject.__v;
   },
+});
+
+travelRequestSchema.pre("save", async function (next) {
+  // Only generate TR number when status changes to pending AND trNumber doesn't exist
+  if (
+    this.isModified("status") &&
+    this.status === "pending" &&
+    !this.trNumber
+  ) {
+    try {
+      // Count only non-draft documents to get the correct serial
+      const count = await mongoose.model("TravelRequests").countDocuments({
+        status: { $ne: "draft" },
+      });
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.trNumber = `TR-CASFOD${serial}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else if (this.status === "draft" && !this.trNumber) {
+    // Draft documents get a temporary code
+    this.trNumber = `TR-DRAFT-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    next();
+  } else {
+    next();
+  }
 });
 
 const TravelRequest = mongoose.model("TravelRequests", travelRequestSchema);

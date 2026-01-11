@@ -12,6 +12,7 @@ const itemGroupSchema = new mongoose.Schema({
 
 const purchaseRequestSchema = new mongoose.Schema(
   {
+    pcrNumber: { type: String, unique: true, trim: true },
     department: { type: String, required: true, trim: true },
     suggestedSupplier: { type: String, required: true, trim: true },
     requestedBy: { type: String, required: true, trim: true },
@@ -79,6 +80,35 @@ purchaseRequestSchema.set("toJSON", {
     }
     delete returnedObject.__v;
   },
+});
+
+purchaseRequestSchema.pre("save", async function (next) {
+  // Only generate PCR number when status changes to pending AND pcrNumber doesn't exist
+  if (
+    this.isModified("status") &&
+    this.status === "pending" &&
+    !this.pcrNumber
+  ) {
+    try {
+      // Count only non-draft documents to get the correct serial
+      const count = await mongoose.model("PurchaseRequest").countDocuments({
+        status: { $ne: "draft" },
+      });
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.pcrNumber = `PCR-CASFOD${serial}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else if (this.status === "draft" && !this.pcrNumber) {
+    // Draft documents get a temporary code
+    this.pcrNumber = `PCR-DRAFT-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    next();
+  } else {
+    next();
+  }
 });
 
 const PurchaseRequest = mongoose.model(

@@ -7,6 +7,7 @@ const BaseCopyService = require("./BaseCopyService");
 const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
+const searchConfig = require("../utils/searchConfig");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -68,16 +69,7 @@ const getPaymentRequests = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
   // Fields to search in
-  const searchFields = [
-    "PurposeOfExpense",
-    "grantCode",
-    "accountNumber",
-    "accountName",
-    "bankName",
-    "status",
-    "requestedBy",
-  ];
-
+  const searchFields = searchConfig.paymentRequest;
   // Build search query
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);

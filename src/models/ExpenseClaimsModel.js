@@ -11,6 +11,7 @@ const itemGroupSchema = new mongoose.Schema({
 
 const expenseClaimsSchema = new mongoose.Schema(
   {
+    ecNumber: { type: String, unique: true, trim: true },
     staffName: { type: String, required: true, trim: true },
     expenseClaim: {
       from: { type: String, required: true, trim: true },
@@ -93,6 +94,35 @@ expenseClaimsSchema.set("toJSON", {
     }
     delete returnedObject.__v;
   },
+});
+
+expenseClaimsSchema.pre("save", async function (next) {
+  // Only generate EC number when status changes to pending AND ecNumber doesn't exist
+  if (
+    this.isModified("status") &&
+    this.status === "pending" &&
+    !this.ecNumber
+  ) {
+    try {
+      // Count only non-draft documents to get the correct serial
+      const count = await mongoose.model("ExpenseClaims").countDocuments({
+        status: { $ne: "draft" },
+      });
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.ecNumber = `EC-CASFOD${serial}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else if (this.status === "draft" && !this.ecNumber) {
+    // Draft documents get a temporary code
+    this.ecNumber = `EC-DRAFT-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    next();
+  } else {
+    next();
+  }
 });
 
 const ExpenseClaims = mongoose.model("ExpenseClaims", expenseClaimsSchema);

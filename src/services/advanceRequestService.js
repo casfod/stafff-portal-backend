@@ -7,6 +7,7 @@ const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const BaseCopyService = require("./BaseCopyService");
+const searchConfig = require("../utils/searchConfig");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -21,14 +22,7 @@ const getAdvanceRequests = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
   // Define the fields you want to search in
-  const searchFields = [
-    "department",
-    "suggestedSupplier",
-    "status",
-    "requestedBy",
-    "finalDeliveryPoint",
-    "address",
-  ];
+  const searchFields = searchConfig.advanceRequest;
 
   // Build the search query
   const searchTerms = search ? search.trim().split(/\s+/) : [];

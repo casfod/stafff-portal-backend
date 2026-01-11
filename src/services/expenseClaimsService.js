@@ -8,6 +8,7 @@ const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const paginate = require("../utils/paginate");
 const BaseCopyService = require("./BaseCopyService");
+const searchConfig = require("../utils/searchConfig");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -20,13 +21,8 @@ const ExpenseClaimCopyService = new copyService();
 // Get all ExpenseClaims
 const getExpenseClaims = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
-  const searchFields = [
-    "project",
-    "expenseClaim.from",
-    "expenseClaim.to",
-    "staffName",
-    "budget",
-  ];
+  const searchFields = searchConfig.expenseClaims;
+
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 

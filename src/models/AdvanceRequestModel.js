@@ -12,6 +12,7 @@ const itemGroupSchema = new mongoose.Schema({
 
 const advanceRequestSchema = new mongoose.Schema(
   {
+    arNumber: { type: String, unique: true, trim: true },
     department: { type: String, required: true, trim: true },
     suggestedSupplier: { type: String, required: true, trim: true },
     requestedBy: { type: String, required: true, trim: true },
@@ -82,6 +83,35 @@ advanceRequestSchema.set("toJSON", {
     }
     delete returnedObject.__v;
   },
+});
+
+advanceRequestSchema.pre("save", async function (next) {
+  // Only generate AR number when status changes to pending AND arNumber doesn't exist
+  if (
+    this.isModified("status") &&
+    this.status === "pending" &&
+    !this.arNumber
+  ) {
+    try {
+      // Count only non-draft documents to get the correct serial
+      const count = await mongoose.model("AdvanceRequest").countDocuments({
+        status: { $ne: "draft" },
+      });
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.arNumber = `AR-CASFOD${serial}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else if (this.status === "draft" && !this.arNumber) {
+    // Draft documents get a temporary code
+    this.arNumber = `AR-DRAFT-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    next();
+  } else {
+    next();
+  }
 });
 
 const AdvanceRequest = mongoose.model("AdvanceRequest", advanceRequestSchema);

@@ -8,6 +8,7 @@ const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const BaseCopyService = require("./BaseCopyService");
+const searchConfig = require("../utils/searchConfig");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -63,8 +64,7 @@ const getAllConceptNotes = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = Infinity } = queryParams;
 
   // Define the fields you want to search in
-  const searchFields = ["staff_name", "activity_title", "account_Code"];
-
+  const searchFields = searchConfig.conceptNote;
   // Build the query
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   const query = buildQuery(searchTerms, searchFields);

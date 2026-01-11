@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const conceptNoteSchema = new mongoose.Schema(
   {
+    cnNumber: { type: String, unique: true, trim: true },
     staff_name: { type: String, required: true, trim: true },
     staff_role: { type: String, required: true, trim: true },
     expense_Charged_To: { type: String, required: true, trim: true },
@@ -23,7 +24,6 @@ const conceptNoteSchema = new mongoose.Schema(
     detailed_activity_description: { type: String, required: true, trim: true },
     strategic_plan: { type: String, required: true, trim: true },
     benefits_of_project: { type: String, required: true, trim: true },
-    staff_role: { type: String, required: true, trim: true },
     preparedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -77,6 +77,35 @@ conceptNoteSchema.set("toJSON", {
     }
     delete returnedObject.__v;
   },
+});
+
+conceptNoteSchema.pre("save", async function (next) {
+  // Only generate CN number when status changes to pending AND cnNumber doesn't exist
+  if (
+    this.isModified("status") &&
+    this.status === "pending" &&
+    !this.cnNumber
+  ) {
+    try {
+      // Count only non-draft documents to get the correct serial
+      const count = await mongoose.model("ConceptNote").countDocuments({
+        status: { $ne: "draft" },
+      });
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.cnNumber = `CN-CASFOD${serial}`;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else if (this.status === "draft" && !this.cnNumber) {
+    // Draft documents get a temporary code
+    this.cnNumber = `CN-DRAFT-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    next();
+  } else {
+    next();
+  }
 });
 
 const ConceptNote = mongoose.model("ConceptNote", conceptNoteSchema);
