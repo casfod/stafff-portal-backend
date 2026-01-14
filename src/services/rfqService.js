@@ -8,6 +8,7 @@ const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const ProcurementNotificationService = require("./procurementNotification");
+const searchConfig = require("../utils/searchConfig");
 
 class RFQCopyService extends BaseCopyService {
   constructor() {
@@ -22,22 +23,23 @@ const getRFQs = async (queryParams) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
   // Only include fields that actually exist in your schema
-  const searchFields = ["RFQTitle", "RFQCode", "status"];
+  const searchFields = searchConfig.rfq;
 
+  // Build the search query
   const searchTerms = search ? search.trim().split(/\s+/) : [];
-  let query = {};
+  let query = buildQuery(searchTerms, searchFields);
 
   // Simpler search logic - find if ANY term matches ANY field
-  if (searchTerms.length > 0) {
-    query.$or = [];
-    searchTerms.forEach((term) => {
-      searchFields.forEach((field) => {
-        query.$or.push({
-          [field]: { $regex: term, $options: "i" },
-        });
-      });
-    });
-  }
+  // if (searchTerms.length > 0) {
+  //   query.$or = [];
+  //   searchTerms.forEach((term) => {
+  //     searchFields.forEach((field) => {
+  //       query.$or.push({
+  //         [field]: { $regex: term, $options: "i" },
+  //       });
+  //     });
+  //   });
+  // }
 
   const sortQuery = buildSortQuery(sort);
   const populateOptions = [

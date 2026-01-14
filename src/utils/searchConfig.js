@@ -89,6 +89,8 @@ const searchConfig = {
     "amountInWords",
     "status",
   ],
+
+  rfq: ["RFQTitle", "RFQCode", "status"],
 };
 
 module.exports = searchConfig;
