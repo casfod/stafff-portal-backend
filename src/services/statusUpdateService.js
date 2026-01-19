@@ -13,7 +13,7 @@ class StatusUpdateService {
    * @param {string} options.title - Request title for notifications
    * @returns {Promise<Object>} Updated document
    */
-  async updateRequestStatus({
+  async updateRequestStatusWithComment({
     Model,
     id,
     data,

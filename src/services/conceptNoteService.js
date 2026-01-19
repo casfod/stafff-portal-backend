@@ -374,7 +374,7 @@ const deleteConceptNote = async (id) => {
 // };
 
 const updateRequestStatus = async (id, data, currentUser) => {
-  return await statusUpdateService.updateRequestStatus({
+  return await statusUpdateService.updateRequestStatusWithComment({
     Model: ConceptNote,
     id,
     data,

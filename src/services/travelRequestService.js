@@ -333,7 +333,7 @@ const updateTravelRequest = async (id, data, files = [], currentUser) => {
 // };
 
 const updateRequestStatus = async (id, data, currentUser) => {
-  return await statusUpdateService.updateRequestStatus({
+  return await statusUpdateService.updateRequestStatusWithComment({
     Model: TravelRequest,
     id,
     data,

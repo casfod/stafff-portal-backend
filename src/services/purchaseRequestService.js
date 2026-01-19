@@ -349,7 +349,7 @@ const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
 // };
 
 const updateRequestStatus = async (id, data, currentUser) => {
-  return await statusUpdateService.updateRequestStatus({
+  return await statusUpdateService.updateRequestStatusWithComment({
     Model: PurchaseRequest,
     id,
     data,

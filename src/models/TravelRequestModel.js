@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const itemGroupSchema = new mongoose.Schema({
   expense: { type: String, required: true, trim: true },
-  description: { type: String, required: true, trim: true },
+  description: { type: String, trim: true },
   frequency: { type: Number, required: true },
   quantity: { type: Number, required: true },
   unit: { type: String, default: "" },
