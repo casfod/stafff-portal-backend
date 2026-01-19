@@ -34,14 +34,16 @@ class Notify {
    * Notify reviewers when request needs review
    */
   async notifyReviewers({ request, currentUser, requestType, title, header }) {
-    // Allow notifications for pending, approved, and rejected states
-    if (!["pending", "approved", "rejected"].includes(request.status)) return;
+    // Only notify if there's a reviewer assigned
+    if (!request.reviewedBy) return;
 
-    const recipients = [request.reviewedBy].filter(Boolean);
+    // Don't notify if the current user is the reviewer
+    if (request.reviewedBy.toString() === currentUser._id.toString()) return;
+
     await this._sendNotification({
       request,
       currentUser,
-      recipientIds: recipients,
+      recipientIds: [request.reviewedBy],
       requestType,
       title,
       header,
@@ -52,32 +54,38 @@ class Notify {
    * Notify approvers when request needs approval
    */
   async notifyApprovers({ request, currentUser, requestType, title, header }) {
-    const recipients = [request.approvedBy].filter(Boolean);
+    // Only notify if there's an approver assigned
+    if (!request.approvedBy) return;
+
+    // Don't notify if the current user is the approver
+    if (request.approvedBy.toString() === currentUser._id.toString()) return;
+
     await this._sendNotification({
       request,
       currentUser,
-      recipientIds: recipients,
+      recipientIds: [request.approvedBy],
       requestType,
       title,
       header,
     });
   }
-
   /**
    * Notify creator about status changes
    */
   async notifyCreator({ request, currentUser, requestType, title, header }) {
-    // if (["pending", "approved", "rejected"].includes(request.status)) return;
-
-    const creatorId = request.preparedBy || request.createdBy;
+    const creatorId =
+      request.preparedBy || request.createdBy || request.requestedBy;
     if (!creatorId) return;
+
+    // Don't notify if the current user is the creator
+    if (creatorId.toString() === currentUser._id.toString()) return;
 
     await this._sendNotification({
       request,
       currentUser,
       recipientIds: [creatorId],
       requestType,
-      title, // Differentiate status updates
+      title,
       header,
     });
   }

@@ -8,6 +8,7 @@ const handleFileUploads = require("../utils/FileUploads");
 const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const searchConfig = require("../utils/searchConfig");
+const statusUpdateService = require("./statusUpdateService");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -273,76 +274,87 @@ const updatePaymentRequest = async (id, data, files = [], currentUser) => {
   return updatedPaymentRequest;
 };
 
+// const updateRequestStatus = async (id, data, currentUser) => {
+//   // Fetch the existing Concept Note
+//   const existingRequest = await PaymentRequest.findById(id);
+//   if (!existingRequest) {
+//     throw new Error("Concept Note not found");
+//   }
+
+//   if (!currentUser) {
+//     throw new Error("Unauthorized");
+//   }
+
+//   // Add a new comment if it exists in the request body
+//   if (data.comment) {
+//     // Initialize comments as an empty array if it doesn't exist
+//     if (!existingRequest.comments) {
+//       existingRequest.comments = [];
+//     }
+
+//     // Add the new comment to the top of the comments array
+//     existingRequest.comments.unshift({
+//       user: currentUser.id,
+//       text: data.comment,
+//       edited: false,
+//       deleted: false,
+//       createdAt: new Date(),
+//       updatedAt: new Date(),
+//     });
+
+//     // Update the data object to include the modified comments
+//     data.comments = existingRequest.comments;
+//   }
+
+//   // Update the status and other fields
+//   if (data.status) {
+//     existingRequest.status = data.status;
+//   }
+
+//   // Save and return the updated Concept Note
+//   const updatedRequest = await existingRequest.save();
+
+//   if (data.status === "reviewed") {
+//     // Also notify the creator
+//     notify.notifyCreator({
+//       request: updatedRequest,
+//       currentUser: currentUser,
+//       requestType: "paymentRequest",
+//       title: "Payment Request",
+//       header: "Your request has been reviewed",
+//     });
+//   } else if (data.status === "approved" || data.status === "rejected") {
+//     // Notify the creator when approved or rejected
+//     notify.notifyCreator({
+//       request: updatedRequest,
+//       currentUser: currentUser,
+//       requestType: "paymentRequest",
+//       title: "Payment Request",
+//       header: `Your request has been ${data.status}`,
+//     });
+
+//     // If approved, also notify the reviewer
+//     notify.notifyReviewers({
+//       request: updatedRequest,
+//       currentUser: currentUser,
+//       requestType: "paymentRequest",
+//       title: "Payment Request",
+//       header: `This request has been ${data.status}`,
+//     });
+//   }
+
+//   return updatedRequest;
+// };
+
 const updateRequestStatus = async (id, data, currentUser) => {
-  // Fetch the existing Concept Note
-  const existingRequest = await PaymentRequest.findById(id);
-  if (!existingRequest) {
-    throw new Error("Concept Note not found");
-  }
-
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingRequest.comments) {
-      existingRequest.comments = [];
-    }
-
-    // Add the new comment to the top of the comments array
-    existingRequest.comments.unshift({
-      user: currentUser.id,
-      text: data.comment,
-      edited: false,
-      deleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingRequest.comments;
-  }
-
-  // Update the status and other fields
-  if (data.status) {
-    existingRequest.status = data.status;
-  }
-
-  // Save and return the updated Concept Note
-  const updatedRequest = await existingRequest.save();
-
-  if (data.status === "reviewed") {
-    // Also notify the creator
-    notify.notifyCreator({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "paymentRequest",
-      title: "Payment Request",
-      header: "Your request has been reviewed",
-    });
-  } else if (data.status === "approved" || data.status === "rejected") {
-    // Notify the creator when approved or rejected
-    notify.notifyCreator({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "paymentRequest",
-      title: "Payment Request",
-      header: `Your request has been ${data.status}`,
-    });
-
-    // If approved, also notify the reviewer
-    notify.notifyReviewers({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "paymentRequest",
-      title: "Payment Request",
-      header: `This request has been ${data.status}`,
-    });
-  }
-
-  return updatedRequest;
+  return await statusUpdateService.updateRequestStatus({
+    Model: PaymentRequest,
+    id,
+    data,
+    currentUser,
+    requestType: "paymentRequest",
+    title: "Payment Request",
+  });
 };
 
 // Delete a Payment request

@@ -9,6 +9,7 @@ const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const BaseCopyService = require("./BaseCopyService");
 const searchConfig = require("../utils/searchConfig");
+const statusUpdateService = require("./statusUpdateService");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -276,100 +277,111 @@ const deleteConceptNote = async (id) => {
   return conceptNote;
 };
 
+// const updateRequestStatus = async (id, data, currentUser) => {
+//   // Fetch the existing Concept Note
+//   const existingConceptNote = await ConceptNote.findById(id);
+//   if (!existingConceptNote) {
+//     throw new Error("Concept Note not found");
+//   }
+
+//   if (!currentUser) {
+//     throw new Error("Unauthorized");
+//   }
+
+//   // Add a new comment if it exists in the request body
+//   if (data.comment) {
+//     // Initialize comments as an empty array if it doesn't exist
+//     if (!existingConceptNote.comments) {
+//       existingConceptNote.comments = [];
+//     }
+
+//     // Add the new comment to the top of the comments array
+//     existingConceptNote.comments.unshift({
+//       user: currentUser.id,
+//       text: data.comment,
+//       edited: false,
+//       deleted: false,
+//       createdAt: new Date(),
+//       updatedAt: new Date(),
+//     });
+
+//     // Update the data object to include the modified comments
+//     data.comments = existingConceptNote.comments;
+//   }
+
+//   // Handle status transitions and user assignments
+//   if (data.status) {
+//     existingConceptNote.status = data.status;
+
+//     // Set reviewedBy when status changes to "reviewed"
+//     if (data.status === "reviewed") {
+//       existingConceptNote.reviewedBy = currentUser._id;
+
+//       // If approver is defined, assign it
+//       if (data.approvedBy) {
+//         existingConceptNote.approvedBy = data.approvedBy;
+//       }
+//     }
+
+//     // Set approvedBy when status changes to "approved"
+//     if (data.status === "approved") {
+//       existingConceptNote.approvedBy = currentUser._id;
+//     }
+
+//     // Set reviewedBy to null when rejected (to allow re-review)
+//     if (data.status === "rejected") {
+//       existingConceptNote.reviewedBy = null;
+//       existingConceptNote.approvedBy = null;
+//     }
+//   }
+
+//   // Save the updated Concept Note
+//   const updatedConceptNote = await existingConceptNote.save();
+
+//   // Enhanced notifications based on status transition
+//   if (data.status === "reviewed") {
+//     // Also notify the creator
+//     notify.notifyCreator({
+//       request: updatedConceptNote,
+//       currentUser: currentUser,
+//       requestType: "conceptNote",
+//       title: "Concept Note",
+//       header: "Your request has been reviewed",
+//     });
+//   } else if (data.status === "approved" || data.status === "rejected") {
+//     // Notify the creator when approved or rejected
+//     notify.notifyCreator({
+//       request: updatedConceptNote,
+//       currentUser: currentUser,
+//       requestType: "conceptNote",
+//       title: "Concept Note",
+//       header: `Your request has been ${data.status}`,
+//     });
+
+//     // If approved, also notify the reviewer
+
+//     notify.notifyReviewers({
+//       request: updatedConceptNote,
+//       currentUser: currentUser,
+//       requestType: "conceptNote",
+//       title: "Concept Note",
+//       header: `This request has been ${data.status}`,
+//     });
+//   }
+
+//   // Return the updated Concept Note
+//   return updatedConceptNote;
+// };
+
 const updateRequestStatus = async (id, data, currentUser) => {
-  // Fetch the existing Concept Note
-  const existingConceptNote = await ConceptNote.findById(id);
-  if (!existingConceptNote) {
-    throw new Error("Concept Note not found");
-  }
-
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingConceptNote.comments) {
-      existingConceptNote.comments = [];
-    }
-
-    // Add the new comment to the top of the comments array
-    existingConceptNote.comments.unshift({
-      user: currentUser.id,
-      text: data.comment,
-      edited: false,
-      deleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingConceptNote.comments;
-  }
-
-  // Handle status transitions and user assignments
-  if (data.status) {
-    existingConceptNote.status = data.status;
-
-    // Set reviewedBy when status changes to "reviewed"
-    if (data.status === "reviewed") {
-      existingConceptNote.reviewedBy = currentUser._id;
-
-      // If approver is defined, assign it
-      if (data.approvedBy) {
-        existingConceptNote.approvedBy = data.approvedBy;
-      }
-    }
-
-    // Set approvedBy when status changes to "approved"
-    if (data.status === "approved") {
-      existingConceptNote.approvedBy = currentUser._id;
-    }
-
-    // Set reviewedBy to null when rejected (to allow re-review)
-    if (data.status === "rejected") {
-      existingConceptNote.reviewedBy = null;
-      existingConceptNote.approvedBy = null;
-    }
-  }
-
-  // Save the updated Concept Note
-  const updatedConceptNote = await existingConceptNote.save();
-
-  // Enhanced notifications based on status transition
-  if (data.status === "reviewed") {
-    // Also notify the creator
-    notify.notifyCreator({
-      request: updatedConceptNote,
-      currentUser: currentUser,
-      requestType: "conceptNote",
-      title: "Concept Note",
-      header: "Your request has been reviewed",
-    });
-  } else if (data.status === "approved" || data.status === "rejected") {
-    // Notify the creator when approved or rejected
-    notify.notifyCreator({
-      request: updatedConceptNote,
-      currentUser: currentUser,
-      requestType: "conceptNote",
-      title: "Concept Note",
-      header: `Your request has been ${data.status}`,
-    });
-
-    // If approved, also notify the reviewer
-
-    notify.notifyReviewers({
-      request: updatedConceptNote,
-      currentUser: currentUser,
-      requestType: "conceptNote",
-      title: "Concept Note",
-      header: `This request has been ${data.status}`,
-    });
-  }
-
-  // Return the updated Concept Note
-  return updatedConceptNote;
+  return await statusUpdateService.updateRequestStatus({
+    Model: ConceptNote,
+    id,
+    data,
+    currentUser,
+    requestType: "conceptNote",
+    title: "Concept Note",
+  });
 };
 
 //////////////////////////

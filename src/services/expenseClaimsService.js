@@ -9,6 +9,7 @@ const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const paginate = require("../utils/paginate");
 const BaseCopyService = require("./BaseCopyService");
 const searchConfig = require("../utils/searchConfig");
+const statusUpdateService = require("./statusUpdateService");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -250,81 +251,92 @@ const updateExpenseClaim = async (id, data, files = [], currentUser) => {
   return expenseClaim;
 };
 
+// const updateRequestStatus = async (id, data, currentUser) => {
+//   const existingRequest = await ExpenseClaims.findById(id);
+
+//   if (!existingRequest) {
+//     throw new Error("Request not found");
+//   }
+
+//   // Add a new comment if it exists in the request body
+//   if (data.comment) {
+//     // Initialize comments as an empty array if it doesn't exist
+//     if (!existingRequest.comments) {
+//       existingRequest.comments = [];
+//     }
+
+//     // Add the new comment to the top of the comments array
+//     existingRequest.comments.unshift({
+//       user: currentUser.id,
+//       text: data.comment,
+//       edited: false,
+//       deleted: false,
+//       createdAt: new Date(),
+//       updatedAt: new Date(),
+//     });
+
+//     // Update the data object to include the modified comments
+//     data.comments = existingRequest.comments;
+//   }
+
+//   // Update the status and other fields
+//   if (data.status) {
+//     existingRequest.status = data.status;
+//   }
+
+//   // Save and return the updated  request
+//   const updatedRequest = await existingRequest.save();
+
+//   // Notification
+//   notify.notifyCreator({
+//     request: updatedRequest,
+//     currentUser: currentUser,
+//     requestType: "expenseClaim",
+//     title: "Expense Claim",
+//     header: "Your request has been updated",
+//   });
+
+//   // Enhanced notifications based on status transition
+//   if (data.status === "reviewed") {
+//     // Also notify the creator
+//     notify.notifyCreator({
+//       request: updatedRequest,
+//       currentUser: currentUser,
+//       requestType: "expenseClaim",
+//       title: "Expense Claim",
+//       header: "Your request has been reviewed",
+//     });
+//   } else if (data.status === "approved" || data.status === "rejected") {
+//     // Notify the creator when approved or rejected
+//     notify.notifyCreator({
+//       request: updatedRequest,
+//       currentUser: currentUser,
+//       requestType: "expenseClaim",
+//       title: "Expense Claim",
+//       header: `Your request has been ${data.status}`,
+//     });
+
+//     // If approved, also notify the reviewer
+
+//     notify.notifyReviewers({
+//       request: updatedRequest,
+//       currentUser: currentUser,
+//       requestType: "expenseClaim",
+//       title: "Expense Claim",
+//       header: `This request has been ${data.status}`,
+//     });
+//   }
+// };
+
 const updateRequestStatus = async (id, data, currentUser) => {
-  const existingRequest = await ExpenseClaims.findById(id);
-
-  if (!existingRequest) {
-    throw new Error("Request not found");
-  }
-
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingRequest.comments) {
-      existingRequest.comments = [];
-    }
-
-    // Add the new comment to the top of the comments array
-    existingRequest.comments.unshift({
-      user: currentUser.id,
-      text: data.comment,
-      edited: false,
-      deleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingRequest.comments;
-  }
-
-  // Update the status and other fields
-  if (data.status) {
-    existingRequest.status = data.status;
-  }
-
-  // Save and return the updated  request
-  const updatedRequest = await existingRequest.save();
-
-  // Notification
-  notify.notifyCreator({
-    request: updatedRequest,
-    currentUser: currentUser,
+  return await statusUpdateService.updateRequestStatus({
+    Model: ExpenseClaims,
+    id,
+    data,
+    currentUser,
     requestType: "expenseClaim",
     title: "Expense Claim",
-    header: "Your request has been updated",
   });
-
-  // Enhanced notifications based on status transition
-  if (data.status === "reviewed") {
-    // Also notify the creator
-    notify.notifyCreator({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "expenseClaim",
-      title: "Expense Claim",
-      header: "Your request has been reviewed",
-    });
-  } else if (data.status === "approved" || data.status === "rejected") {
-    // Notify the creator when approved or rejected
-    notify.notifyCreator({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "expenseClaim",
-      title: "Expense Claim",
-      header: `Your request has been ${data.status}`,
-    });
-
-    // If approved, also notify the reviewer
-
-    notify.notifyReviewers({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "expenseClaim",
-      title: "Expense Claim",
-      header: `This request has been ${data.status}`,
-    });
-  }
 };
 
 // Delete a expense claim and its files

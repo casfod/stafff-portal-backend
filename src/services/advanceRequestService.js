@@ -8,6 +8,7 @@ const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const BaseCopyService = require("./BaseCopyService");
 const searchConfig = require("../utils/searchConfig");
+const statusUpdateService = require("./statusUpdateService");
 
 class copyService extends BaseCopyService {
   constructor() {
@@ -172,6 +173,7 @@ const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
   if (!data.reviewedBy) {
     throw new Error("ReviewedBy field is required for submission.");
   }
+
   const advanceRequest = new AdvanceRequest({ ...data, status: "pending" });
   await advanceRequest.save();
 
@@ -184,17 +186,18 @@ const saveAndSendAdvanceRequest = async (data, currentUser, files = []) => {
     });
   }
 
-  // Send notification to reviewers
+  // Send notification to reviewers ONLY (not to creator)
   notify.notifyReviewers({
     request: advanceRequest,
     currentUser: currentUser,
     requestType: "advanceRequest",
     title: "Advance Request",
-    header: "You have been assigned an advance request to review",
+    header: "You have been assigned a request to review",
   });
 
   return advanceRequest;
 };
+3;
 
 // Get advance request stats
 const getAdvanceRequestStats = async (currentUser) => {
@@ -273,93 +276,14 @@ const updateAdvanceRequest = async (id, data, files = [], currentUser) => {
 };
 
 const updateRequestStatus = async (id, data, currentUser) => {
-  // Fetch the existing advance request
-  const existingRequest = await AdvanceRequest.findById(id);
-
-  if (!existingRequest) {
-    throw new Error("Request not found");
-  }
-
-  // Add a new comment if it exists in the request body
-  if (data.comment) {
-    // Initialize comments as an empty array if it doesn't exist
-    if (!existingRequest.comments) {
-      existingRequest.comments = [];
-    }
-
-    // Add the new comment to the top of the comments array
-    existingRequest.comments.unshift({
-      user: currentUser.id,
-      text: data.comment,
-      edited: false,
-      deleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // Update the data object to include the modified comments
-    data.comments = existingRequest.comments;
-  }
-
-  // Handle status transitions and user assignments
-  if (data.status) {
-    existingRequest.status = data.status;
-
-    // Set reviewedBy when status changes to "reviewed"
-    if (data.status === "reviewed") {
-      existingRequest.reviewedBy = currentUser._id;
-
-      // If approver is defined, assign it
-      if (data.approvedBy) {
-        existingRequest.approvedBy = data.approvedBy;
-      }
-    }
-
-    // Set approvedBy when status changes to "approved"
-    if (data.status === "approved") {
-      existingRequest.approvedBy = currentUser._id;
-    }
-
-    // Set reviewedBy to null when rejected (to allow re-review)
-    if (data.status === "rejected") {
-      existingRequest.reviewedBy = null;
-      existingRequest.approvedBy = null;
-    }
-  }
-
-  // Save and return the updated request
-  const updatedRequest = await existingRequest.save();
-
-  // Enhanced notifications based on status transition
-  if (data.status === "reviewed") {
-    notify.notifyCreator({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "advanceRequest",
-      title: "Advance Request",
-      header: "Your request has been reviewed",
-    });
-  } else if (data.status === "approved" || data.status === "rejected") {
-    // Notify the creator when approved or rejected
-    notify.notifyCreator({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "advanceRequest",
-      title: "Advance Request",
-      header: `Your request has been ${data.status}`,
-    });
-
-    // If approved, also notify the reviewer
-    notify.notifyReviewers({
-      request: updatedRequest,
-      currentUser: currentUser,
-      requestType: "advanceRequest",
-      title: "Advance Request",
-      header: `This request has been ${data.status}`,
-    });
-  }
-
-  return updatedRequest;
+  return await statusUpdateService.updateRequestStatus({
+    Model: AdvanceRequest,
+    id,
+    data,
+    currentUser,
+    requestType: "advanceRequest",
+    title: "Advance Request",
+  });
 };
 
 // Delete a pdvance request
