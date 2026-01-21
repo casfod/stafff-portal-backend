@@ -112,6 +112,41 @@ class Notify {
       this.notifyCreator({ request, currentUser, requestType, title, header }),
     ]);
   }
+
+  /**
+   * Notify purchase request reviewers (finance and procurement)
+   */
+  async notifyPurchaseRequestReviewers({
+    request,
+    currentUser,
+    requestType,
+    title,
+    header,
+  }) {
+    const recipientIds = [];
+
+    // Add finance reviewer if exists
+    if (request.financeReviewBy) {
+      recipientIds.push(request.financeReviewBy);
+    }
+
+    // Add procurement reviewer if exists
+    if (request.procurementReviewBy) {
+      recipientIds.push(request.procurementReviewBy);
+    }
+
+    // Don't notify if no reviewers assigned
+    if (recipientIds.length === 0) return;
+
+    await this._sendNotification({
+      request,
+      currentUser,
+      recipientIds,
+      requestType,
+      title,
+      header,
+    });
+  }
 }
 
 module.exports = new Notify();

@@ -32,16 +32,43 @@ const purchaseRequestSchema = new mongoose.Schema(
       ref: "Project",
       default: null,
     },
-    approvedBy: {
+
+    // Two-step approval reviewers
+    financeReviewBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
+    financeReviewStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+
+    procurementReviewBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    procurementReviewStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+
+    // Backward compatibility - keep for other request types
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     itemGroups: [itemGroupSchema],
     comments: [
       {
