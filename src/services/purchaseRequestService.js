@@ -150,6 +150,8 @@ const savePurchaseRequest = async (data, currentUser) => {
 };
 
 // Save and send a purchase request (pending)
+// In the saveAndSendPurchaseRequest function, update the notification:
+
 const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
@@ -176,7 +178,7 @@ const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
     });
   }
 
-  // Send notification to finance reviewer
+  // Send notification to BOTH reviewers
   await notify.notifyPurchaseRequestReviewers({
     request: purchaseRequest,
     currentUser: currentUser,
@@ -275,7 +277,32 @@ const getPurchaseRequestById = async (id) => {
 };
 
 // Update a purchase request
+// const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
+//   const updatedPurchaseRequest = await PurchaseRequest.findByIdAndUpdate(
+//     id,
+//     data,
+//     {
+//       new: true,
+//     }
+//   );
+
+//   // Handle file uploads if any
+//   if (files.length > 0) {
+//     await handleFileUploads({
+//       files,
+//       requestId: updatedPurchaseRequest._id,
+//       modelTable: "PurchaseRequests",
+//     });
+//   }
+
+//   return updatedPurchaseRequest;
+// };
+
+// Update a purchase request
 const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
+  // First get the previous request to check status changes
+  const previousRequest = await PurchaseRequest.findById(id);
+
   const updatedPurchaseRequest = await PurchaseRequest.findByIdAndUpdate(
     id,
     data,
@@ -291,6 +318,55 @@ const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
       requestId: updatedPurchaseRequest._id,
       modelTable: "PurchaseRequests",
     });
+  }
+
+  // Check for status changes
+  const statusChanged =
+    previousRequest.status !== updatedPurchaseRequest.status;
+  const approverChanged =
+    (!previousRequest.approvedBy && updatedPurchaseRequest.approvedBy) ||
+    (previousRequest.approvedBy &&
+      updatedPurchaseRequest.approvedBy &&
+      previousRequest.approvedBy.toString() !==
+        updatedPurchaseRequest.approvedBy.toString());
+
+  // Handle approver notifications
+  if (updatedPurchaseRequest.approvedBy) {
+    const isCurrentUserApprover =
+      updatedPurchaseRequest.approvedBy.toString() ===
+      currentUser._id.toString();
+
+    // Scenario 1: Approver newly assigned
+    if (approverChanged && !isCurrentUserApprover) {
+      await notify.notifyApprovers({
+        request: updatedPurchaseRequest,
+        currentUser: currentUser,
+        requestType: "purchaseRequest",
+        title: "Purchase Request",
+        header:
+          "You have been assigned as the approver for this purchase request",
+      });
+    }
+
+    // Scenario 2: Status changed to "reviewed" and approver exists
+    if (
+      statusChanged &&
+      updatedPurchaseRequest.status === "reviewed" &&
+      !isCurrentUserApprover
+    ) {
+      // Different message if approver was just assigned vs. already assigned
+      const header = approverChanged
+        ? "You have been assigned as the approver for this purchase request"
+        : "Purchase request is ready for your final approval";
+
+      await notify.notifyApprovers({
+        request: updatedPurchaseRequest,
+        currentUser: currentUser,
+        requestType: "purchaseRequest",
+        title: "Purchase Request",
+        header: header,
+      });
+    }
   }
 
   return updatedPurchaseRequest;

@@ -49,15 +49,21 @@ class StatusUpdateService {
       });
     }
 
+    // Track which review was just completed
+    let completedReviewType = null;
+    let completedReviewStatus = null;
+
     // Handle purchase request specific logic
     if (requestType === "purchaseRequest") {
-      await this._handlePurchaseRequestStatus({
+      const result = await this._handlePurchaseRequestStatus({
         document,
         data,
         currentUser,
         previousStatus,
         newStatus,
       });
+      completedReviewType = result.completedReviewType;
+      completedReviewStatus = result.completedReviewStatus;
     } else {
       // Handle other request types (original logic)
       await this._handleGenericRequestStatus({
@@ -82,11 +88,12 @@ class StatusUpdateService {
       creatorId,
       creatorField,
       assignedApprover: data.approvedBy,
+      completedReviewType,
+      completedReviewStatus,
     });
 
     return updatedDocument;
   }
-  // In statusUpdateService.js, update the _handlePurchaseRequestStatus function:
 
   /**
    * Handle purchase request specific status logic
@@ -99,31 +106,50 @@ class StatusUpdateService {
     previousStatus,
     newStatus,
   }) {
+    const result = {
+      completedReviewType: null,
+      completedReviewStatus: null,
+    };
+
+    const isFinanceReviewer =
+      document.financeReviewBy &&
+      document.financeReviewBy.toString() === currentUser._id.toString();
+    const isProcurementReviewer =
+      document.procurementReviewBy &&
+      document.procurementReviewBy.toString() === currentUser._id.toString();
+
     // Handle finance review status
-    if (data.financeReviewStatus) {
+    if (data.financeReviewStatus && isFinanceReviewer) {
+      const previousFinanceStatus = document.financeReviewStatus;
       document.financeReviewStatus = data.financeReviewStatus;
+
       if (
         data.financeReviewStatus === "approved" ||
         data.financeReviewStatus === "rejected"
       ) {
         document.financeReviewBy = currentUser._id;
+        result.completedReviewType = "finance";
+        result.completedReviewStatus = data.financeReviewStatus;
       }
     }
 
     // Handle procurement review status
-    if (data.procurementReviewStatus) {
+    if (data.procurementReviewStatus && isProcurementReviewer) {
+      const previousProcurementStatus = document.procurementReviewStatus;
       document.procurementReviewStatus = data.procurementReviewStatus;
+
       if (
         data.procurementReviewStatus === "approved" ||
         data.procurementReviewStatus === "rejected"
       ) {
         document.procurementReviewBy = currentUser._id;
+        result.completedReviewType = "procurement";
+        result.completedReviewStatus = data.procurementReviewStatus;
       }
     }
 
     // Handle main status ONLY from approver
     if (newStatus) {
-      // Only allow status change from "reviewed" to "approved"/"rejected" by approver
       const isApprover =
         document.approvedBy &&
         document.approvedBy.toString() === currentUser._id.toString();
@@ -142,7 +168,6 @@ class StatusUpdateService {
         }
       } else {
         // Finance/Procurement reviewers should not change main status
-        // So we delete newStatus from data
         delete data.status;
       }
     }
@@ -154,18 +179,7 @@ class StatusUpdateService {
 
     if (isFinanceRejected || isProcurementRejected) {
       document.status = "rejected";
-
-      // Also update the other review status if one is rejected
-      if (isFinanceRejected) {
-        document.financeReviewStatus = "rejected";
-        document.financeReviewBy = currentUser._id;
-      }
-      if (isProcurementRejected) {
-        document.procurementReviewStatus = "rejected";
-        document.procurementReviewBy = currentUser._id;
-      }
-
-      return;
+      return result;
     }
 
     // Check if both finance and procurement approved
@@ -179,15 +193,14 @@ class StatusUpdateService {
         document.status = "reviewed";
         document.reviewedBy = currentUser._id;
       }
-    } else if (isFinanceApproved || isProcurementApproved) {
-      // If only one is approved, keep status as "pending"
-      document.status = "pending";
     }
 
     // Update approvedBy if provided when status is "reviewed"
     if (data.approvedBy && document.status === "reviewed") {
       document.approvedBy = data.approvedBy;
     }
+
+    return result;
   }
 
   /**
@@ -289,8 +302,25 @@ class StatusUpdateService {
     creatorId,
     creatorField,
     assignedApprover,
+    completedReviewType,
+    completedReviewStatus,
   }) {
-    // No notification if status didn't change
+    // For purchase requests, handle specialized notification flow
+    if (requestType === "purchaseRequest") {
+      await this._sendPurchaseRequestNotifications({
+        document,
+        previousStatus,
+        newStatus,
+        currentUser,
+        title,
+        creatorId,
+        completedReviewType,
+        completedReviewStatus,
+      });
+      return;
+    }
+
+    // Original notification logic for non-purchase requests
     if (previousStatus === newStatus) return;
 
     switch (newStatus) {
@@ -338,110 +368,65 @@ class StatusUpdateService {
           });
         }
     }
-
-    // Special notification logic for purchase request two-step approval
-    if (requestType === "purchaseRequest") {
-      await this._sendPurchaseRequestReviewNotifications({
-        document,
-        currentUser,
-        title,
-        creatorId,
-        newStatus,
-        previousStatus,
-      });
-    }
   }
 
   /**
    * Special notification handler for purchase request two-step approval
    * @private
    */
-  async _sendPurchaseRequestReviewNotifications({
+  async _sendPurchaseRequestNotifications({
     document,
+    previousStatus,
+    newStatus,
     currentUser,
     title,
     creatorId,
-    newStatus,
-    previousStatus,
+    completedReviewType,
+    completedReviewStatus,
   }) {
-    // Handle finance review completion
-    if (
-      document.financeReviewStatus === "approved" &&
-      previousStatus !== "rejected"
-    ) {
-      // Notify creator
-      if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
-        notify.notifyCreator({
+    // Handle review completion notifications
+    if (completedReviewType && completedReviewStatus) {
+      if (completedReviewStatus === "rejected") {
+        // Request was rejected by a reviewer
+        await notify.notifyReviewRejection({
           request: document,
           currentUser,
           requestType: "purchaseRequest",
           title,
-          header: "Finance review completed - Awaiting procurement review",
+          rejectingReviewType: completedReviewType,
         });
-      }
+      } else if (completedReviewStatus === "approved") {
+        // One review was approved
+        const otherReviewStatus =
+          completedReviewType === "finance"
+            ? document.procurementReviewStatus
+            : document.financeReviewStatus;
 
-      // Notify procurement reviewer if not completed yet
-      if (
-        document.procurementReviewBy &&
-        document.procurementReviewStatus === "pending"
-      ) {
-        notify.notifyReviewers({
-          request: document,
-          currentUser,
-          requestType: "purchaseRequest",
-          title,
-          header: "Purchase request ready for procurement review",
-          recipientIds: [document.procurementReviewBy],
-        });
-      }
-    }
-
-    // Handle procurement review completion
-    if (
-      document.procurementReviewStatus === "approved" &&
-      previousStatus !== "rejected"
-    ) {
-      // Notify creator
-      if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
-        notify.notifyCreator({
-          request: document,
-          currentUser,
-          requestType: "purchaseRequest",
-          title,
-          header: "Procurement review completed - Ready for final approval",
-        });
-      }
-
-      // Notify finance reviewer
-      if (document.financeReviewBy) {
-        notify.notifyReviewers({
-          request: document,
-          currentUser,
-          requestType: "purchaseRequest",
-          title,
-          header: "Purchase request ready for final approval",
-          recipientIds: [document.financeReviewBy],
-        });
-      }
-
-      // Notify approver if assigned
-      if (document.approvedBy) {
-        notify.notifyApprovers({
-          request: document,
-          currentUser,
-          requestType: "purchaseRequest",
-          title,
-          header: "Purchase request ready for final approval",
-        });
+        if (otherReviewStatus === "pending") {
+          // First review approved, awaiting second review
+          await notify.notifyAwaitingSecondReview({
+            request: document,
+            currentUser,
+            requestType: "purchaseRequest",
+            title,
+            completedReviewType,
+            completedReviewStatus,
+          });
+        } else if (otherReviewStatus === "approved") {
+          // Both reviews approved
+          await notify.notifyReadyForFinalApproval({
+            request: document,
+            currentUser,
+            requestType: "purchaseRequest",
+            title,
+          });
+        }
       }
     }
 
-    // Notify all parties when both reviews are approved
-    if (
-      document.financeReviewStatus === "approved" &&
-      document.procurementReviewStatus === "approved" &&
-      document.status === "reviewed"
-    ) {
+    // Handle final approval/rejection by approver
+    if (newStatus && (newStatus === "approved" || newStatus === "rejected")) {
+      // Notify all parties about final decision
       const recipientIds = [];
       if (creatorId) recipientIds.push(creatorId);
       if (document.financeReviewBy) recipientIds.push(document.financeReviewBy);
@@ -449,77 +434,30 @@ class StatusUpdateService {
         recipientIds.push(document.procurementReviewBy);
 
       if (recipientIds.length > 0) {
-        notify.notifyReviewers({
+        await notify.notifyPurchaseRequestUsers({
           request: document,
           currentUser,
           requestType: "purchaseRequest",
           title,
-          header: "All reviews completed - Ready for final approval",
+          header: `Purchase request has been ${newStatus.toUpperCase()}`,
           recipientIds,
         });
       }
     }
 
-    // Handle rejection notifications
-    if (newStatus === "rejected") {
-      await this._handlePurchaseRequestRejectionNotifications({
-        document,
-        currentUser,
-        title,
-        creatorId,
-      });
-    }
-  }
-
-  /**
-   * Handle purchase request rejection notifications
-   * @private
-   */
-  async _handlePurchaseRequestRejectionNotifications({
-    document,
-    currentUser,
-    title,
-    creatorId,
-  }) {
-    // Notify creator (if not the one rejecting)
-    if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
-      notify.notifyCreator({
-        request: document,
-        currentUser,
-        requestType: "purchaseRequest",
-        title,
-        header: "Your purchase request has been REJECTED",
-      });
-    }
-
-    // Notify the other reviewer if one rejected
-    const recipientIds = [];
-
-    if (
-      document.financeReviewStatus === "rejected" &&
-      document.procurementReviewBy &&
-      document.procurementReviewBy.toString() !== currentUser._id.toString()
-    ) {
-      recipientIds.push(document.procurementReviewBy);
-    }
-
-    if (
-      document.procurementReviewStatus === "rejected" &&
-      document.financeReviewBy &&
-      document.financeReviewBy.toString() !== currentUser._id.toString()
-    ) {
-      recipientIds.push(document.financeReviewBy);
-    }
-
-    if (recipientIds.length > 0) {
-      notify.notifyReviewers({
-        request: document,
-        currentUser,
-        requestType: "purchaseRequest",
-        title,
-        header: "Purchase request has been rejected",
-        recipientIds,
-      });
+    // Handle status change to "reviewed" (both reviews completed)
+    if (newStatus === "reviewed" && previousStatus === "pending") {
+      // Notify approver if assigned
+      if (document.approvedBy) {
+        await notify.notifyApprovers({
+          request: document,
+          currentUser,
+          requestType: "purchaseRequest",
+          title,
+          header:
+            "Finance and procurement reviews completed - Awaiting final decision",
+        });
+      }
     }
   }
 
