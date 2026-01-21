@@ -29,7 +29,7 @@ const cleanObjectId = (id) => {
 
 // Get all Purchase Orders
 const getPurchaseOrders = async (queryParams, currentUser) => {
-  const { search, sort, page = 1, limit = 10 } = queryParams;
+  const { search, sort = "-createdAt", page = 1, limit = 10 } = queryParams; // Changed default sort to -createdAt
 
   const searchTerms = search ? search.trim().split(/\s+/) : [];
 
@@ -126,28 +126,85 @@ const getPurchaseOrders = async (queryParams, currentUser) => {
     pipeline.push({ $match: matchStage });
   }
 
-  // Add sort stage
-  if (sort) {
-    const sortField = sort.startsWith("-") ? sort.substring(1) : sort;
-    const sortOrder = sort.startsWith("-") ? -1 : 1;
+  // Add sort stage - IMPORTANT: Always sort by createdAt descending by default
+  let sortField = "createdAt";
+  let sortOrder = -1; // Default: newest first
 
-    // Handle sorting by vendor business name
-    if (sortField === "selectedVendor.businessName") {
-      pipeline.push({
-        $addFields: {
-          vendorBusinessNameSort: "$selectedVendorDetails.businessName",
-        },
-      });
-      pipeline.push({ $sort: { vendorBusinessNameSort: sortOrder } });
+  if (sort) {
+    // Parse the sort parameter
+    if (sort.startsWith("-")) {
+      sortField = sort.substring(1);
+      sortOrder = -1;
     } else {
-      pipeline.push({ $sort: { [sortField]: sortOrder } });
+      sortField = sort;
+      sortOrder = 1;
     }
+  }
+
+  // Handle special sorting cases
+  if (sortField === "selectedVendor.businessName") {
+    pipeline.push({
+      $addFields: {
+        vendorBusinessNameSort: "$selectedVendorDetails.businessName",
+      },
+    });
+    pipeline.push({ $sort: { vendorBusinessNameSort: sortOrder } });
+  } else if (sortField === "createdAt" || sortField === "updatedAt") {
+    // Sort by date fields
+    pipeline.push({ $sort: { [sortField]: sortOrder } });
+  } else if (sortField === "createdBy") {
+    // Sort by creator's name
+    pipeline.push({
+      $addFields: {
+        creatorNameSort: {
+          $concat: [
+            "$createdByDetails.first_name",
+            " ",
+            "$createdByDetails.last_name",
+          ],
+        },
+      },
+    });
+    pipeline.push({ $sort: { creatorNameSort: sortOrder } });
+  } else if (sortField === "approvedBy") {
+    // Sort by approver's name
+    pipeline.push({
+      $addFields: {
+        approverNameSort: {
+          $concat: [
+            "$approvedByDetails.first_name",
+            " ",
+            "$approvedByDetails.last_name",
+          ],
+        },
+      },
+    });
+    pipeline.push({ $sort: { approverNameSort: sortOrder } });
+  } else {
+    // Default sorting by createdAt descending (newest first)
+    pipeline.push({ $sort: { createdAt: -1 } });
+  }
+
+  // ALWAYS ensure newest documents are at the top as secondary sort
+  // This ensures consistent ordering when primary sort fields are equal
+  const currentSortStage = pipeline[pipeline.length - 1];
+  if (currentSortStage && currentSortStage.$sort) {
+    // Add createdAt as secondary sort if not already the primary
+    if (!currentSortStage.$sort.createdAt) {
+      currentSortStage.$sort.createdAt = -1; // Newest first as secondary sort
+    }
+  } else {
+    // No sort stage yet, add default sort
+    pipeline.push({ $sort: { createdAt: -1 } });
   }
 
   // Add pagination
   const skip = (page - 1) * limit;
   pipeline.push({ $skip: skip });
   pipeline.push({ $limit: parseInt(limit) });
+
+  // Debug: log the pipeline
+  // console.log("Aggregation Pipeline:", JSON.stringify(pipeline, null, 2));
 
   // Execute aggregation
   const [purchaseOrders, totalCount] = await Promise.all([
@@ -164,13 +221,15 @@ const getPurchaseOrders = async (queryParams, currentUser) => {
     ...po,
     id: po._id.toString(),
     createdBy: po.createdByDetails,
-    approvedBy: po.appendedByDetails,
+    approvedBy: po.approvedByDetails,
     selectedVendor: po.selectedVendorDetails,
     // Remove the temporary fields
     selectedVendorDetails: undefined,
     createdByDetails: undefined,
     approvedByDetails: undefined,
     vendorBusinessNameSort: undefined,
+    creatorNameSort: undefined,
+    approverNameSort: undefined,
   }));
 
   // Get files for each purchase order
