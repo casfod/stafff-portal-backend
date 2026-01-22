@@ -42,6 +42,8 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
         { createdBy: currentUser._id }, // Requests they created
         { approvedBy: currentUser._id }, // Requests they reviewed
         { copiedTo: currentUser._id },
+        { financeReviewBy: currentUser._id }, // Finance reviewer
+        { procurementReviewBy: currentUser._id }, // Procurement reviewer
       ];
       break;
     case "REVIEWER":
@@ -49,7 +51,8 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
         { createdBy: currentUser._id }, // Requests they created
         { reviewedBy: currentUser._id },
         { copiedTo: currentUser._id },
-        // Requests they reviewed
+        { financeReviewBy: currentUser._id }, // Finance reviewer
+        { procurementReviewBy: currentUser._id }, // Procurement reviewer
       ];
       break;
 
@@ -72,6 +75,14 @@ const getPurchaseRequests = async (queryParams, currentUser) => {
     { path: "createdBy", select: "email first_name last_name role position" },
     { path: "reviewedBy", select: "email first_name last_name role position" },
     { path: "approvedBy", select: "email first_name last_name role position" },
+    {
+      path: "financeReviewBy",
+      select: "email first_name last_name role position",
+    },
+    {
+      path: "procurementReviewBy",
+      select: "email first_name last_name role position",
+    },
     {
       path: "comments.user",
       select: "email first_name last_name role position",
@@ -130,18 +141,31 @@ const savePurchaseRequest = async (data, currentUser) => {
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
   data.comments = undefined;
 
+  // Initialize review statuses
+  data.financeReviewStatus = "pending";
+  data.procurementReviewStatus = "pending";
+
   const purchaseRequest = new PurchaseRequest({ ...data, status: "draft" });
   return await purchaseRequest.save();
 };
 
 // Save and send a purchase request (pending)
+// In the saveAndSendPurchaseRequest function, update the notification:
+
 const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
   data.createdBy = currentUser._id;
   data.requestedBy = `${currentUser.first_name} ${currentUser.last_name}`;
 
-  if (!data.reviewedBy) {
-    throw new Error("ReviewedBy field is required for submission.");
+  // Initialize review statuses
+  data.financeReviewStatus = "pending";
+  data.procurementReviewStatus = "pending";
+
+  if (!data.financeReviewBy || !data.procurementReviewBy) {
+    throw new Error(
+      "Both financeReviewBy and procurementReviewBy are required for submission."
+    );
   }
+
   const purchaseRequest = new PurchaseRequest({ ...data, status: "pending" });
   await purchaseRequest.save();
 
@@ -154,16 +178,14 @@ const saveAndSendPurchaseRequest = async (data, currentUser, files = []) => {
     });
   }
 
-  // Send notification to reviewers/admins if needed
-  if (purchaseRequest.status === "pending") {
-    notify.notifyReviewers({
-      request: purchaseRequest,
-      currentUser: currentUser,
-      requestType: "purchaseRequest",
-      title: "Purchase Request",
-      header: "You have been assigned a request",
-    });
-  }
+  // Send notification to BOTH reviewers
+  await notify.notifyPurchaseRequestReviewers({
+    request: purchaseRequest,
+    currentUser: currentUser,
+    requestType: "purchaseRequest",
+    title: "Purchase Request",
+    header: "You have been assigned as a reviewer for this purchase request",
+  });
 
   return purchaseRequest;
 };
@@ -182,7 +204,7 @@ const getPurchaseRequestStats = async (currentUser) => {
   // Role-based filtering using switch
   switch (currentUser.role) {
     case "SUPER-ADMIN":
-      //  case "ADMIN":
+      // case "ADMIN":
       // No additional filters for admin roles
       break;
 
@@ -220,6 +242,14 @@ const getPurchaseRequestById = async (id) => {
     { path: "reviewedBy", select: "email first_name last_name role position" },
     { path: "approvedBy", select: "email first_name last_name role position" },
     {
+      path: "financeReviewBy",
+      select: "email first_name last_name role position",
+    },
+    {
+      path: "procurementReviewBy",
+      select: "email first_name last_name role position",
+    },
+    {
       path: "comments.user",
       select: "email first_name last_name role position",
     },
@@ -247,7 +277,32 @@ const getPurchaseRequestById = async (id) => {
 };
 
 // Update a purchase request
+// const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
+//   const updatedPurchaseRequest = await PurchaseRequest.findByIdAndUpdate(
+//     id,
+//     data,
+//     {
+//       new: true,
+//     }
+//   );
+
+//   // Handle file uploads if any
+//   if (files.length > 0) {
+//     await handleFileUploads({
+//       files,
+//       requestId: updatedPurchaseRequest._id,
+//       modelTable: "PurchaseRequests",
+//     });
+//   }
+
+//   return updatedPurchaseRequest;
+// };
+
+// Update a purchase request
 const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
+  // First get the previous request to check status changes
+  const previousRequest = await PurchaseRequest.findById(id);
+
   const updatedPurchaseRequest = await PurchaseRequest.findByIdAndUpdate(
     id,
     data,
@@ -265,88 +320,57 @@ const updatePurchaseRequest = async (id, data, files = [], currentUser) => {
     });
   }
 
-  // Send notification to reviewers/admins if needed
-  if (updatedPurchaseRequest.status === "reviewed") {
-    notify.notifyApprovers({
-      request: updatedPurchaseRequest,
-      currentUser: currentUser,
-      requestType: "purchaseRequest",
-      title: "Purchase Request",
-      header: "You have been assigned a request",
-    });
+  // Check for status changes
+  const statusChanged =
+    previousRequest.status !== updatedPurchaseRequest.status;
+  const approverChanged =
+    (!previousRequest.approvedBy && updatedPurchaseRequest.approvedBy) ||
+    (previousRequest.approvedBy &&
+      updatedPurchaseRequest.approvedBy &&
+      previousRequest.approvedBy.toString() !==
+        updatedPurchaseRequest.approvedBy.toString());
+
+  // Handle approver notifications
+  if (updatedPurchaseRequest.approvedBy) {
+    const isCurrentUserApprover =
+      updatedPurchaseRequest.approvedBy.toString() ===
+      currentUser._id.toString();
+
+    // Scenario 1: Approver newly assigned
+    if (approverChanged && !isCurrentUserApprover) {
+      await notify.notifyApprovers({
+        request: updatedPurchaseRequest,
+        currentUser: currentUser,
+        requestType: "purchaseRequest",
+        title: "Purchase Request",
+        header:
+          "You have been assigned as the approver for this purchase request",
+      });
+    }
+
+    // Scenario 2: Status changed to "reviewed" and approver exists
+    if (
+      statusChanged &&
+      updatedPurchaseRequest.status === "reviewed" &&
+      !isCurrentUserApprover
+    ) {
+      // Different message if approver was just assigned vs. already assigned
+      const header = approverChanged
+        ? "You have been assigned as the approver for this purchase request"
+        : "Purchase request is ready for your final approval";
+
+      await notify.notifyApprovers({
+        request: updatedPurchaseRequest,
+        currentUser: currentUser,
+        requestType: "purchaseRequest",
+        title: "Purchase Request",
+        header: header,
+      });
+    }
   }
 
   return updatedPurchaseRequest;
 };
-
-// const updateRequestStatus = async (id, data, currentUser) => {
-//   const existingRequest = await PurchaseRequest.findById(id);
-
-//   if (!existingRequest) {
-//     throw new Error("Request not found");
-//   }
-
-//   // Add a new comment if it exists in the request body
-//   if (data.comment) {
-//     // Initialize comments as an empty array if it doesn't exist
-//     if (!existingRequest.comments) {
-//       existingRequest.comments = [];
-//     }
-
-//     // Add the new comment to the top of the comments array
-//     existingRequest.comments.unshift({
-//       user: currentUser.id,
-//       text: data.comment,
-//       edited: false,
-//       deleted: false,
-//       createdAt: new Date(),
-//       updatedAt: new Date(),
-//     });
-
-//     // Update the data object to include the modified comments
-//     data.comments = existingRequest.comments;
-//   }
-
-//   // Update the status and other fields
-//   if (data.status) {
-//     existingRequest.status = data.status;
-//   }
-
-//   // Save and return the updated  request
-//   const updatedRequest = await existingRequest.save();
-
-//   // Notification
-//   if (data.status === "reviewed") {
-//     // Also notify the creator
-//     notify.notifyCreator({
-//       request: updatedRequest,
-//       currentUser: currentUser,
-//       requestType: "purchaseRequest",
-//       title: "Purchase Request",
-//       header: "Your request has been reviewed",
-//     });
-//   } else if (data.status === "approved" || data.status === "rejected") {
-//     // Notify the creator when approved or rejected
-//     notify.notifyCreator({
-//       request: updatedRequest,
-//       currentUser: currentUser,
-//       requestType: "purchaseRequest",
-//       title: "Purchase Request",
-//       header: `Your request has been ${data.status}`,
-//     });
-
-//     // If approved, also notify the reviewer
-//     notify.notifyReviewers({
-//       request: updatedRequest,
-//       currentUser: currentUser,
-//       requestType: "purchaseRequest",
-//       title: "Purchase Request",
-//       header: `This request has been ${data.status}`,
-//     });
-//   }
-
-//   return updatedRequest;
-// };
 
 const updateRequestStatus = async (id, data, currentUser) => {
   return await statusUpdateService.updateRequestStatusWithComment({
@@ -389,6 +413,10 @@ const addComment = async (id, currentUser, text) => {
       request.reviewedBy.toString() === userId.toString()) ||
     (request.approvedBy &&
       request.approvedBy.toString() === userId.toString()) ||
+    (request.financeReviewBy &&
+      request.financeReviewBy.toString() === userId.toString()) ||
+    (request.procurementReviewBy &&
+      request.procurementReviewBy.toString() === userId.toString()) ||
     currentUser.role === "SUPER-ADMIN";
 
   if (!canComment) {
