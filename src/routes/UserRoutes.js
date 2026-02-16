@@ -19,6 +19,7 @@ router.use(protect);
 router.post("/addUser", restrictTo("SUPER-ADMIN"), authController.addUser);
 router.patch("/updatePassword", authController.updatePassword);
 router.get("/me", userController.getUserByToken);
+router.get("/:id", userController.getUserById);
 
 // Collection routes before parameterized routes
 router.get("/admins", userController.getAllAdmins);

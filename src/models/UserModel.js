@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema(
   {
     first_name: {
       type: String,
-      required: [true, "Please provide the  name"],
+      required: [true, "Please provide the name"],
       trim: true,
       maxlength: [24, "A first name must have less or equal to 24 characters"],
       minlength: [2, "A first name must have more or equal to 2 characters"],
@@ -85,6 +85,7 @@ const userSchema = new mongoose.Schema(
     position: {
       type: String,
       enum: [
+        "",
         "Executive Director",
         "Head of Program and Grant",
         "Supply Chain Coordinator",
@@ -140,7 +141,6 @@ const userSchema = new mongoose.Schema(
         "Finance Assistant",
       ],
     },
-
     isDeleted: {
       type: Boolean,
       default: false,
@@ -164,7 +164,65 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
+
+    // Employment Information Fields
+    employmentInfo: {
+      isProfileComplete: {
+        type: Boolean,
+        default: false,
+      },
+      // Renamed for clarity: false means the user is locked from updating
+      isEmploymentInfoLocked: {
+        type: Boolean,
+        default: false, // Default: not locked (can update)
+      },
+      personalDetails: {
+        fullName: String,
+        stateOfOrigin: String,
+        lga: String,
+        religion: String,
+        address: String,
+        homePhone: String,
+        cellPhone: { type: String, unique: true },
+        emailAddress: String,
+        ninNumber: { type: String, unique: true },
+        birthDate: Date,
+        maritalStatus: {
+          type: String,
+          enum: ["Single", "Married", "Divorced", "Widowed"],
+        },
+        spouseName: String,
+        spouseAddress: String,
+        spousePhone: String,
+        numberOfChildren: Number,
+      },
+      jobDetails: {
+        title: String,
+        idNo: String,
+        workLocation: String,
+        workEmail: String,
+        workPhone: String,
+        workCellPhone: String,
+        startDate: Date,
+        endDate: Date,
+        supervisor: String,
+      },
+      emergencyContact: {
+        fullName: String,
+        address: String,
+        primaryPhone: String,
+        cellPhone: { type: String, unique: true },
+        relationship: String,
+      },
+      bankDetails: {
+        bankName: String,
+        accountName: String,
+        bankSortCode: { type: String, unique: true },
+        accountNumber: { type: String, unique: true },
+      },
+    },
   },
+
   {
     timestamps: true,
     collection: "users",
@@ -173,11 +231,31 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// userSchema.virtual("verifications", {
-//   ref: "Verification",
-//   localField: "_id",
-//   foreignField: "station_id",
-// });
+// Virtual to check if employment info is complete
+userSchema.virtual("employmentInfo.isComplete").get(function () {
+  const info = this.employmentInfo;
+  if (!info) return false;
+
+  const requiredFields = [
+    info.personalDetails?.fullName,
+    info.personalDetails?.stateOfOrigin,
+    info.personalDetails?.lga,
+    info.personalDetails?.address,
+    info.personalDetails?.cellPhone,
+    info.personalDetails?.ninNumber,
+    info.jobDetails?.title,
+    info.jobDetails?.startDate,
+    info.emergencyContact?.fullName,
+    info.emergencyContact?.primaryPhone,
+    info.bankDetails?.bankName,
+    info.bankDetails?.accountName,
+    info.bankDetails?.accountNumber,
+  ];
+
+  return requiredFields.every(
+    (field) => field && field.toString().trim() !== ""
+  );
+});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
@@ -210,7 +288,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
     return JWTTimestamp < changedTimestamp;
   }
 
-  return false; // False means NOT changed
+  return false;
 };
 
 userSchema.set("toJSON", {

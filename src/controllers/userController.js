@@ -4,6 +4,7 @@ const {
   updateUserAdminService,
   getAllAdminService,
   getAllReviewersService,
+  getUserByIdService,
 } = require("../services/userService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -34,6 +35,14 @@ const getUserByToken = catchAsync(async (req, res) => {
   if (!currentUser) return handleResponse(res, 404, "User not found");
   handleResponse(res, 200, "User fetched successfully", currentUser);
 });
+const getUserById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const currentUser = await getUserByIdService(id);
+
+  if (!currentUser) return handleResponse(res, 404, "User not found");
+  handleResponse(res, 200, "User fetched successfully", currentUser);
+});
 
 const deleteUser = catchAsync(async (req, res) => {
   await deleteUserService(req.params.userID);
@@ -46,6 +55,7 @@ const updateUserAdmin = catchAsync(async (req, res) => {
 
 module.exports = {
   getUserByToken,
+  getUserById,
   getAllAdmins,
   getAllReviewers,
   getAllUsers,
