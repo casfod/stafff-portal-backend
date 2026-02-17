@@ -28,13 +28,13 @@ const connectDB = async () => {
     console.log("✓ Super user seeding completed");
 
     // Run user migrations
-    await migrateUsers();
+    // await migrateUsers();
 
     // RUN EMPLOYMENT INFO LOCK MIGRATION
     // Comment this out after it has run successfully once
-    console.log("Running employment info lock migration...");
+    // console.log("Running employment info lock migration...");
     // await migrateEmploymentInfoLock();
-    console.log("✓ Employment info lock migration completed");
+    // console.log("✓ Employment info lock migration completed");
     // END OF MIGRATION BLOCK - REMOVE AFTER FIRST RUN
 
     // Initialize system settings

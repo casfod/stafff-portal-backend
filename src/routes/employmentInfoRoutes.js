@@ -10,6 +10,11 @@ router.use(protect);
 // Staff routes
 router.get("/me", employmentInfoController.getEmploymentInfo);
 router.patch("/me", employmentInfoController.updateEmploymentInfo);
+router.get(
+  "/admin/status",
+  employmentInfoController.getAllEmploymentInfoStatus
+);
+router.get("/admin/settings", employmentInfoController.getGlobalSettings);
 
 // SUPER-ADMIN routes for managing any user's employment info
 router.use(restrictTo("SUPER-ADMIN"));
