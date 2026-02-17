@@ -15,18 +15,18 @@ router.patch("/resetPassword/:token", authController.resetPassword);
 router.use(protect);
 // Protect all routes after this middleware
 
-// Specific routes first
+// SPECIFIC ROUTES FIRST - these have hardcoded paths
 router.post("/addUser", restrictTo("SUPER-ADMIN"), authController.addUser);
 router.patch("/updatePassword", authController.updatePassword);
 router.get("/me", userController.getUserByToken);
-router.get("/:id", userController.getUserById);
 
-// Collection routes before parameterized routes
+// COLLECTION ROUTES - these have specific paths
 router.get("/admins", userController.getAllAdmins);
 router.get("/reviewers", userController.getAllReviewers);
 router.get("/", userController.getAllUsers);
 
-// Parameterized routes LAST
+// PARAMETERIZED ROUTES LAST - these have dynamic parameters
+router.get("/:id", userController.getUserById);
 router.delete("/:userID", restrictTo("SUPER-ADMIN"), userController.deleteUser);
 router.patch(
   "/updateUserAdmin/:userID",
@@ -35,3 +35,4 @@ router.patch(
 );
 
 module.exports = router;
+git;

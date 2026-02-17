@@ -1,4 +1,3 @@
-// employmentInfoRoutes.js
 const express = require("express");
 const employmentInfoController = require("../controllers/employmentInfoController");
 const protect = require("../middleware/protect");
@@ -11,21 +10,34 @@ router.use(protect);
 // Staff routes
 router.get("/me", employmentInfoController.getEmploymentInfo);
 router.patch("/me", employmentInfoController.updateEmploymentInfo);
-
-// Admin status routes - specific before parameterized
 router.get(
   "/admin/status",
-  restrictTo("SUPER-ADMIN", "ADMIN"),
   employmentInfoController.getAllEmploymentInfoStatus
 );
+router.get("/admin/settings", employmentInfoController.getGlobalSettings);
+
+// SUPER-ADMIN routes for managing any user's employment info
+router.use(restrictTo("SUPER-ADMIN"));
 
 router.get(
-  "/admin/settings",
-  restrictTo("SUPER-ADMIN", "ADMIN"),
-  employmentInfoController.getGlobalSettings
+  "/super-admin/user/:userId",
+  employmentInfoController.superAdminGetEmploymentInfo
+);
+router.patch(
+  "/super-admin/user/:userId",
+  employmentInfoController.superAdminUpdateEmploymentInfo
 );
 
-// Toggle routes
+// Admin routes (accessible by SUPER-ADMIN and ADMIN)
+router.use(restrictTo("SUPER-ADMIN", "ADMIN"));
+
+router.get(
+  "/admin/status",
+  employmentInfoController.getAllEmploymentInfoStatus
+);
+router.get("/admin/settings", employmentInfoController.getGlobalSettings);
+
+// SUPER-ADMIN only routes for toggling locks
 router.patch(
   "/admin/toggle-global",
   restrictTo("SUPER-ADMIN"),
@@ -36,19 +48,6 @@ router.patch(
   "/admin/toggle-user/:userId",
   restrictTo("SUPER-ADMIN", "ADMIN"),
   employmentInfoController.toggleUserEmploymentInfoLock
-);
-
-// SUPER-ADMIN routes for specific users - these should be last
-router.use(restrictTo("SUPER-ADMIN"));
-
-router.get(
-  "/super-admin/user/:userId",
-  employmentInfoController.superAdminGetEmploymentInfo
-);
-
-router.patch(
-  "/super-admin/user/:userId",
-  employmentInfoController.superAdminUpdateEmploymentInfo
 );
 
 module.exports = router;
