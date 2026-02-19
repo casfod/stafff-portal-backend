@@ -91,6 +91,8 @@ const searchConfig = {
   ],
 
   rfq: ["RFQTitle", "RFQCode", "status"],
+
+  leave: ["staff_name", "leaveNumber", "leaveType", "status", "reasonForLeave"],
 };
 
 module.exports = searchConfig;

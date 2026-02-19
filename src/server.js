@@ -16,6 +16,8 @@ const purchaseOrderRouter = require("./routes/purchaseOrderRoutes.js");
 const goodsReceivedRoutes = require("./routes/goodsReceivedRoutes.js");
 const paymentVoucherRoutes = require("./routes/paymentVoucherRoutes.js");
 // const fileRoutes = require("./routes/fileRoutes2.js");
+const leaveRouter = require("./routes/leaveRoutes");
+
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const swaggerDocument = require("../swagger.json");
@@ -49,6 +51,8 @@ app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Routes
 app.use("/api/v1/casfod/users", userRouter);
 app.use("/api/v1/casfod/employment-info", employmentInfoRouter);
+app.use("/api/v1/casfod/leave", leaveRouter);
+
 app.use("/api/v1/casfod/projects", projectRoutes);
 app.use("/api/v1/casfod/purchase-requests", purchaseRequestRoutes);
 app.use("/api/v1/casfod/advance-requests", advanceRequestRoutes);
