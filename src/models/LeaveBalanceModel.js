@@ -95,7 +95,8 @@ leaveBalanceSchema.methods.isLeaveTypeAvailable = function (leaveType) {
   const leave = this[leaveType];
   if (!leave) return false;
 
-  // If accrued equals max days, leave type is exhausted for the year
+  // Check if leave type is not exhausted - using accrued < maxDays
+  // accrued represents approved leave used
   return leave.accrued < leave.maxDays;
 };
 
@@ -103,6 +104,7 @@ leaveBalanceSchema.methods.isLeaveTypeAvailable = function (leaveType) {
 leaveBalanceSchema.methods.getAvailableBalance = function (leaveType) {
   const leave = this[leaveType];
   if (!leave) return 0;
+  // Return the balance field which is the available days
   return leave.balance;
 };
 

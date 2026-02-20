@@ -18,38 +18,69 @@ const LEAVE_TYPE_CONFIG = {
     maxDays: 24,
     description: "24 days",
     isCalendarDays: false,
+    balanceKey: "annualLeave",
   },
   "Compassionate leave": {
     maxDays: 10,
     description: "10 days Max",
     isCalendarDays: false,
+    balanceKey: "compassionateLeave",
   },
-  "Sick leave": { maxDays: 12, description: "12 Days", isCalendarDays: false },
+  "Sick leave": {
+    maxDays: 12,
+    description: "12 Days",
+    isCalendarDays: false,
+    balanceKey: "sickLeave",
+  },
   "Maternity leave": {
     maxDays: 90,
     description: "90 Working days",
     isCalendarDays: false,
+    balanceKey: "maternityLeave",
   },
   "Paternity leave": {
     maxDays: 14,
     description: "14 Calendar Days",
     isCalendarDays: true,
+    balanceKey: "paternityLeave",
   },
   "Emergency leave": {
     maxDays: 5,
     description: "5 days",
     isCalendarDays: false,
+    balanceKey: "emergencyLeave",
   },
   "Study Leave": {
     maxDays: 10,
     description: "10 working day",
     isCalendarDays: false,
+    balanceKey: "studyLeave",
   },
   "Leave without pay": {
     maxDays: 365,
     description: "Up to 1 year",
     isCalendarDays: true,
+    balanceKey: "leaveWithoutPay",
   },
+};
+
+// Add this helper function near the top of leaveService.js
+const mapFormFieldsToBackend = (data) => {
+  const mappedData = { ...data };
+
+  // Handle reviewedById -> reviewedBy mapping
+  if (data.reviewedById !== undefined) {
+    mappedData.reviewedBy = data.reviewedById;
+    delete mappedData.reviewedById;
+  }
+
+  // Handle approvedById -> approvedBy mapping
+  if (data.approvedById !== undefined) {
+    mappedData.approvedBy = data.approvedById;
+    delete mappedData.approvedById;
+  }
+
+  return mappedData;
 };
 
 class copyService extends BaseCopyService {
@@ -103,6 +134,12 @@ const getOrCreateLeaveBalance = async (userId) => {
   return leaveBalance;
 };
 
+// Get balance key from leave type
+const getBalanceKeyFromLeaveType = (leaveType) => {
+  const config = LEAVE_TYPE_CONFIG[leaveType];
+  return config ? config.balanceKey : null;
+};
+
 // Validate leave application against balance
 const validateLeaveApplication = async (
   userId,
@@ -116,13 +153,22 @@ const validateLeaveApplication = async (
     throw new Error(`Invalid leave type: ${leaveType}`);
   }
 
+  // Get the correct balance key for this leave type
+  const balanceKey = getBalanceKeyFromLeaveType(leaveType);
+  if (!balanceKey || !leaveBalance[balanceKey]) {
+    throw new Error(`Invalid leave type configuration for: ${leaveType}`);
+  }
+
+  const leaveBalanceField = leaveBalance[balanceKey];
+
   // Check if leave type is available (not exhausted for the year)
-  if (!leaveBalance.isLeaveTypeAvailable(leaveType)) {
+  // Using accrued < maxDays (accrued represents approved leave used)
+  if (leaveBalanceField.accrued >= leaveBalanceField.maxDays) {
     throw new Error(`You have exhausted your ${leaveType} for this year`);
   }
 
-  // Get available balance
-  const availableBalance = leaveBalance.getAvailableBalance(leaveType);
+  // Get available balance (balance field is the available days)
+  const availableBalance = leaveBalanceField.balance;
 
   // Check if requested days exceed available balance
   if (totalDaysApplied > availableBalance) {
@@ -131,7 +177,7 @@ const validateLeaveApplication = async (
     );
   }
 
-  return { leaveBalance, availableBalance };
+  return { leaveBalance, availableBalance, balanceKey };
 };
 
 // Update leave balances based on status change
@@ -142,19 +188,7 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
   const leaveBalance = await LeaveBalance.findOne({ user: leave.user });
   if (!leaveBalance) return;
 
-  const leaveTypeKey = leave.leaveType.toLowerCase().replace(/\s+/g, "");
-  const leaveTypeMapping = {
-    "Annual leave": "annualLeave",
-    "Compassionate leave": "compassionateLeave",
-    "Sick leave": "sickLeave",
-    "Maternity leave": "maternityLeave",
-    "Paternity leave": "paternityLeave",
-    "Emergency leave": "emergencyLeave",
-    "Study Leave": "studyLeave",
-    "Leave without pay": "leaveWithoutPay",
-  };
-
-  const balanceKey = leaveTypeMapping[leave.leaveType];
+  const balanceKey = getBalanceKeyFromLeaveType(leave.leaveType);
   if (!balanceKey || !leaveBalance[balanceKey]) return;
 
   const balance = leaveBalance[balanceKey];
@@ -180,6 +214,13 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
   } else if (oldStatus === "approved" && newStatus === "rejected") {
     // If approved gets rejected, move back from accrued to available
     balance.accrued -= leave.totalDaysApplied;
+    balance.balance =
+      balance.maxDays - (balance.totalApplied + balance.accrued);
+    leave.amountAccruedLeave = 0;
+  } else if (oldStatus === "approved" && newStatus === "pending") {
+    // If approved gets sent back to pending, move from accrued back to totalApplied
+    balance.accrued -= leave.totalDaysApplied;
+    balance.totalApplied += leave.totalDaysApplied;
     balance.balance =
       balance.maxDays - (balance.totalApplied + balance.accrued);
     leave.amountAccruedLeave = 0;
@@ -326,8 +367,26 @@ const getAllLeaves = async (queryParams, currentUser) => {
     return leave;
   });
 
+  // Fetch associated files for each leave
+  const leavesWithFiles = await Promise.all(
+    processedLeaves.map(async (leave) => {
+      if (!leave || !leave._id) {
+        console.warn("Invalid leave encountered:", leave);
+        return null;
+      }
+
+      const files = await fileService.getFilesByDocument("Leaves", leave._id);
+      return {
+        ...leave.toJSON(),
+        files,
+      };
+    })
+  );
+
+  const filteredLeaves = leavesWithFiles.filter(Boolean);
+
   return {
-    leaves: processedLeaves,
+    leaves: filteredLeaves,
     totalLeaves: total,
     totalPages,
     currentPage,
@@ -336,42 +395,50 @@ const getAllLeaves = async (queryParams, currentUser) => {
 
 // Create leave application
 const createLeaveApplication = async (currentUser, leaveData, files = []) => {
+  // Map frontend field names to backend field names
+  const mappedData = mapFormFieldsToBackend(leaveData);
+
   // Validate reviewedBy is provided
-  if (!leaveData.reviewedBy) {
+  if (!mappedData.reviewedBy) {
     throw new Error("ReviewedBy field is required for submission.");
   }
 
   // Validate leave type
-  if (!LEAVE_TYPE_CONFIG[leaveData.leaveType]) {
+  if (!LEAVE_TYPE_CONFIG[mappedData.leaveType]) {
     throw new Error("Invalid leave type");
   }
 
   // Calculate total days
-  const config = LEAVE_TYPE_CONFIG[leaveData.leaveType];
+  const config = LEAVE_TYPE_CONFIG[mappedData.leaveType];
   const totalDays = calculateDaysBetween(
-    leaveData.startDate,
-    leaveData.endDate,
+    mappedData.startDate,
+    mappedData.endDate,
     config.isCalendarDays
   );
 
   // Validate against user's leave balance
   const { availableBalance } = await validateLeaveApplication(
     currentUser._id,
-    leaveData.leaveType,
+    mappedData.leaveType,
     totalDays
   );
 
   // Get leave balance for snapshot
   const leaveBalance = await LeaveBalance.findOne({ user: currentUser._id });
 
+  // Prepare leave data with all required fields
   const leave = new Leave({
-    ...leaveData,
+    ...mappedData,
     user: currentUser._id,
     staff_name: `${currentUser.first_name} ${currentUser.last_name}`,
     staff_role: currentUser.role,
     totalDaysApplied: totalDays,
     leaveBalanceAtApplication: availableBalance,
-    leaveTypeConfig: config,
+    leaveTypeConfig: {
+      maxDays: config.maxDays,
+      description: config.description,
+      isCalendarDays: config.isCalendarDays,
+    },
     status: "pending",
   });
 
@@ -382,7 +449,7 @@ const createLeaveApplication = async (currentUser, leaveData, files = []) => {
 
   // Handle file uploads if any
   if (files.length > 0) {
-    await handleFileUploads({
+    await fileService.handleFileUploads({
       files,
       requestId: leave._id,
       modelTable: "Leaves",
@@ -403,31 +470,54 @@ const createLeaveApplication = async (currentUser, leaveData, files = []) => {
 
 // Save leave as draft
 const saveLeaveDraft = async (currentUser, leaveData) => {
-  // Validate leave type if provided
-  if (leaveData.leaveType && !LEAVE_TYPE_CONFIG[leaveData.leaveType]) {
-    throw new Error("Invalid leave type");
-  }
+  // Map frontend field names to backend field names
+  const mappedData = mapFormFieldsToBackend(leaveData);
 
-  let totalDays = 0;
-  if (leaveData.startDate && leaveData.endDate && leaveData.leaveType) {
-    const config = LEAVE_TYPE_CONFIG[leaveData.leaveType];
-    totalDays = calculateDaysBetween(
-      leaveData.startDate,
-      leaveData.endDate,
-      config.isCalendarDays
-    );
-  }
-
-  const leave = new Leave({
-    ...leaveData,
+  // Prepare draft data - only include fields that are provided
+  const draftData = {
     user: currentUser._id,
     staff_name: `${currentUser.first_name} ${currentUser.last_name}`,
     staff_role: currentUser.role,
-    totalDaysApplied: totalDays,
     status: "draft",
-    comments: undefined, // Remove comments from draft
-  });
+  };
 
+  // Only add fields if they exist in mappedData
+  if (mappedData.leaveType) draftData.leaveType = mappedData.leaveType;
+  if (mappedData.startDate) draftData.startDate = mappedData.startDate;
+  if (mappedData.endDate) draftData.endDate = mappedData.endDate;
+  if (mappedData.reasonForLeave)
+    draftData.reasonForLeave = mappedData.reasonForLeave;
+  if (mappedData.contactDuringLeave)
+    draftData.contactDuringLeave = mappedData.contactDuringLeave;
+  if (mappedData.reviewedBy) draftData.reviewedBy = mappedData.reviewedBy;
+  if (mappedData.leaveCover) draftData.leaveCover = mappedData.leaveCover;
+
+  // Calculate total days if all required fields are present
+  let totalDays = 0;
+  if (draftData.startDate && draftData.endDate && draftData.leaveType) {
+    const config = LEAVE_TYPE_CONFIG[draftData.leaveType];
+    if (config) {
+      totalDays = calculateDaysBetween(
+        draftData.startDate,
+        draftData.endDate,
+        config.isCalendarDays
+      );
+      draftData.totalDaysApplied = totalDays;
+
+      // Add leave type config if leave type is selected
+      draftData.leaveTypeConfig = {
+        maxDays: config.maxDays,
+        description: config.description,
+        isCalendarDays: config.isCalendarDays,
+      };
+    }
+  }
+
+  // For drafts, we don't need leaveBalanceAtApplication yet
+  // Set a default value of 0 to pass validation
+  draftData.leaveBalanceAtApplication = 0;
+
+  const leave = new Leave(draftData);
   await leave.save();
   return leave;
 };
@@ -469,6 +559,9 @@ const updateLeaveApplication = async (
   files = [],
   currentUser
 ) => {
+  // Map frontend field names to backend field names
+  const mappedData = mapFormFieldsToBackend(updateData);
+
   const leave = await Leave.findById(id);
 
   if (!leave) {
@@ -481,10 +574,10 @@ const updateLeaveApplication = async (
   }
 
   // If leave type or dates are being updated, recalculate total days
-  if (updateData.leaveType || updateData.startDate || updateData.endDate) {
-    const leaveType = updateData.leaveType || leave.leaveType;
-    const startDate = updateData.startDate || leave.startDate;
-    const endDate = updateData.endDate || leave.endDate;
+  if (mappedData.leaveType || mappedData.startDate || mappedData.endDate) {
+    const leaveType = mappedData.leaveType || leave.leaveType;
+    const startDate = mappedData.startDate || leave.startDate;
+    const endDate = mappedData.endDate || leave.endDate;
 
     if (leaveType && startDate && endDate) {
       const config = LEAVE_TYPE_CONFIG[leaveType];
@@ -494,7 +587,7 @@ const updateLeaveApplication = async (
         config.isCalendarDays
       );
 
-      updateData.totalDaysApplied = newTotalDays;
+      mappedData.totalDaysApplied = newTotalDays;
 
       // Validate new total against balance if not in draft
       if (leave.status === "pending") {
@@ -503,15 +596,26 @@ const updateLeaveApplication = async (
     }
   }
 
-  Object.assign(leave, updateData);
+  Object.assign(leave, mappedData);
   await leave.save();
 
   // Handle file uploads if any
   if (files.length > 0) {
-    await handleFileUploads({
+    await fileService.handleFileUploads({
       files,
       requestId: leave._id,
       modelTable: "Leaves",
+    });
+  }
+
+  // Send notification if status changes to reviewed
+  if (leave.status === "reviewed") {
+    notify.notifyApprovers({
+      request: leave,
+      currentUser: currentUser,
+      requestType: "leave",
+      title: "Leave Application",
+      header: "A leave application has been reviewed and needs your approval",
     });
   }
 

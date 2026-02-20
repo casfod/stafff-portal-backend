@@ -6,20 +6,8 @@
  * @returns {*} The parsed value, the original value if not a string, or undefined if the field doesn't exist
  */
 function parseJsonField(reqBody, fieldName, logMissing = false) {
-  // Guard against null or undefined reqBody
-  if (!reqBody || typeof reqBody !== "object") {
-    if (logMissing) {
-      console.log(
-        `reqBody is ${
-          reqBody === null ? "null" : typeof reqBody
-        } when trying to access ${fieldName}!`
-      );
-    }
-    return undefined;
-  }
-
-  // Check if field exists - using 'in' operator is safer than hasOwnProperty for some objects
-  if (!(fieldName in reqBody)) {
+  // Check if field exists
+  if (!reqBody.hasOwnProperty(fieldName)) {
     if (logMissing) {
       console.log(`${fieldName} is missing from req.body!`);
     }
@@ -35,11 +23,6 @@ function parseJsonField(reqBody, fieldName, logMissing = false) {
 
   // If it's a string, try to parse it
   if (typeof fieldValue === "string") {
-    // Handle empty strings
-    if (fieldValue.trim() === "") {
-      return undefined;
-    }
-
     try {
       return JSON.parse(fieldValue);
     } catch (error) {
@@ -48,7 +31,7 @@ function parseJsonField(reqBody, fieldName, logMissing = false) {
     }
   }
 
-  // Return the value as-is for other types (numbers, booleans, etc.)
+  // Return the value as-is for other types
   return fieldValue;
 }
 
