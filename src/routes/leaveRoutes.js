@@ -2,8 +2,8 @@
 const express = require("express");
 const leaveController = require("../controllers/leaveController");
 const protect = require("../middleware/protect");
-const restrictTo = require("../middleware/restrictTo");
 const { upload } = require("../controllers/fileController");
+const restrictTo = require("../middleware/restrictTo");
 
 const leaveRouter = express.Router();
 
@@ -38,17 +38,17 @@ leaveRouter.patch("/update-status/:id", leaveController.updateLeaveStatus);
 // Copy leave to other users
 leaveRouter.patch("/copy/:id", leaveController.copyLeave);
 
-// Update leave application (with file uploads)
+// Update leave application (with file uploads) - ORDER MATCHES CONCEPTNOTE
 leaveRouter.put(
   "/:id",
   upload.array("files", 10),
   leaveController.updateLeaveApplication
 );
 
-// Delete leave application (soft delete)
+// Delete leave application
 leaveRouter.delete("/:id", leaveController.deleteLeaveApplication);
 
-// Comment routes
+// Comment routes - ORDER MATCHES CONCEPTNOTE
 leaveRouter.post("/:id/comments", leaveController.addComment);
 leaveRouter.put("/:id/comments/:commentId", leaveController.updateComment);
 leaveRouter.delete("/:id/comments/:commentId", leaveController.deleteComment);

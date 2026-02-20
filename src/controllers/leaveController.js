@@ -179,6 +179,68 @@ const getLeaveById = catchAsync(async (req, res) => {
 });
 
 // Update leave application
+// const updateLeaveApplication = catchAsync(async (req, res) => {
+//   const files = req.files || [];
+//   const currentUser = await userByToken(req, res);
+
+//   // Parse any JSON fields
+//   const parsedBody = { ...req.body };
+
+//   // Handle leaveCover - it might be a string or already an object
+//   if (req.body.leaveCover) {
+//     try {
+//       // If it's a string, try to parse it
+//       if (typeof req.body.leaveCover === "string") {
+//         parsedBody.leaveCover = JSON.parse(req.body.leaveCover);
+//       }
+//       // If it's already an object, leave it as is
+//     } catch (error) {
+//       console.error("Error parsing leaveCover for update:", error);
+//       // If parsing fails, keep the original
+//       parsedBody.leaveCover = req.body.leaveCover;
+//     }
+//   }
+
+//   // Map frontend field names to backend field names
+//   let reviewedBy = null;
+//   if (parsedBody.reviewedById) {
+//     reviewedBy = parsedBody.reviewedById;
+//   } else if (parsedBody.reviewedBy) {
+//     reviewedBy = parsedBody.reviewedBy;
+//   }
+
+//   let approvedBy = null;
+//   if (parsedBody.approvedById) {
+//     approvedBy = parsedBody.approvedById;
+//   } else if (parsedBody.approvedBy) {
+//     approvedBy = parsedBody.approvedBy;
+//   }
+
+//   const updateData = {
+//     leaveType: parsedBody.leaveType,
+//     startDate: parsedBody.startDate,
+//     endDate: parsedBody.endDate,
+//     reasonForLeave: parsedBody.reasonForLeave,
+//     contactDuringLeave: parsedBody.contactDuringLeave,
+//     leaveCover: parsedBody.leaveCover,
+//     reviewedBy: reviewedBy,
+//     approvedBy: approvedBy,
+//   };
+
+//   const leave = await leaveService.updateLeaveApplication(
+//     req.params.id,
+//     updateData,
+//     files,
+//     currentUser
+//   );
+
+//   handleResponse(res, 200, "Leave application updated successfully", leave);
+// });
+
+// controllers/leaveController.js
+// ... (keep all the imports and existing code above)
+
+// Update leave application - MODIFIED TO MATCH CONCEPTNOTE
 const updateLeaveApplication = catchAsync(async (req, res) => {
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
@@ -201,30 +263,11 @@ const updateLeaveApplication = catchAsync(async (req, res) => {
     }
   }
 
-  // Map frontend field names to backend field names
-  let reviewedBy = null;
-  if (parsedBody.reviewedById) {
-    reviewedBy = parsedBody.reviewedById;
-  } else if (parsedBody.reviewedBy) {
-    reviewedBy = parsedBody.reviewedBy;
-  }
-
-  let approvedBy = null;
-  if (parsedBody.approvedById) {
-    approvedBy = parsedBody.approvedById;
-  } else if (parsedBody.approvedBy) {
-    approvedBy = parsedBody.approvedBy;
-  }
-
+  // Map frontend field names to backend field names - SIMPLIFIED LIKE CONCEPTNOTE
+  // ConceptNote just passes req.body directly, so we should too
   const updateData = {
-    leaveType: parsedBody.leaveType,
-    startDate: parsedBody.startDate,
-    endDate: parsedBody.endDate,
-    reasonForLeave: parsedBody.reasonForLeave,
-    contactDuringLeave: parsedBody.contactDuringLeave,
-    leaveCover: parsedBody.leaveCover,
-    reviewedBy: reviewedBy,
-    approvedBy: approvedBy,
+    ...parsedBody,
+    // Only map if needed, but prefer to keep as is
   };
 
   const leave = await leaveService.updateLeaveApplication(
@@ -236,6 +279,8 @@ const updateLeaveApplication = catchAsync(async (req, res) => {
 
   handleResponse(res, 200, "Leave application updated successfully", leave);
 });
+
+// ... (keep all the other functions)
 
 // Update leave status
 const updateLeaveStatus = catchAsync(async (req, res) => {
