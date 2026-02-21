@@ -109,6 +109,36 @@ leaveBalanceSchema.methods.getAvailableBalance = function (leaveType) {
 };
 
 // Method to reset balances for new year (call this at beginning of year)
+// leaveBalanceSchema.methods.resetForNewYear = function () {
+//   const currentYear = new Date().getFullYear();
+
+//   if (this.lastResetYear < currentYear) {
+//     // Reset all leave types for new year
+//     const leaveTypes = [
+//       "annualLeave",
+//       "compassionateLeave",
+//       "sickLeave",
+//       "maternityLeave",
+//       "paternityLeave",
+//       "emergencyLeave",
+//       "studyLeave",
+//       "leaveWithoutPay",
+//     ];
+
+//     leaveTypes.forEach((type) => {
+//       if (this[type]) {
+//         this[type].totalApplied = 0;
+//         this[type].accrued = 0;
+//         this[type].balance = this[type].maxDays;
+//         this[type].year = currentYear;
+//       }
+//     });
+
+//     this.lastResetYear = currentYear;
+//   }
+// };
+
+// Optional improvement to resetForNewYear method
 leaveBalanceSchema.methods.resetForNewYear = function () {
   const currentYear = new Date().getFullYear();
 
@@ -135,7 +165,9 @@ leaveBalanceSchema.methods.resetForNewYear = function () {
     });
 
     this.lastResetYear = currentYear;
+    return true; // Reset occurred
   }
+  return false; // No reset needed
 };
 
 leaveBalanceSchema.set("toJSON", {

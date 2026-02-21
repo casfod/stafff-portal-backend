@@ -239,10 +239,12 @@ class StatusUpdateService {
    * Determine the creator field name
    * @private
    */
+  // In statusUpdateService.js - update _getCreatorField method
   _getCreatorField(document) {
-    if (document.preparedBy) return "preparedBy";
-    if (document.createdBy) return "createdBy";
-    if (document.requestedBy) return "requestedBy";
+    if (document.preparedBy) return "preparedBy"; // Concept Note
+    if (document.createdBy) return "createdBy"; // Generic
+    if (document.requestedBy) return "requestedBy"; // Generic
+    if (document.user) return "user"; // Leave model uses 'user'
     return "createdBy"; // default
   }
 
