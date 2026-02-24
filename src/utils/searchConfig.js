@@ -93,6 +93,15 @@ const searchConfig = {
   rfq: ["RFQTitle", "RFQCode", "status"],
 
   leave: ["staff_name", "leaveNumber", "leaveType", "status", "reasonForLeave"],
+
+  staffStrategy: [
+    "strategyCode",
+    "staffName",
+    "jobTitle",
+    "department",
+    "period",
+    "status",
+  ],
 };
 
 module.exports = searchConfig;

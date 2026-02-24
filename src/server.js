@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db.js");
-const userRouter = require("./routes/UserRoutes.js");
-const employmentInfoRouter = require("./routes/employmentInfoRoutes.js");
+const userRoutes = require("./routes/UserRoutes.js");
+const employmentInfoRoutes = require("./routes/employmentInfoRoutes.js");
 const projectRoutes = require("./routes/projectRoutes.js");
 const purchaseRequestRoutes = require("./routes/purchaseRequestRoutes.js");
 const advanceRequestRoutes = require("./routes/advanceRequestRoutes.js");
@@ -10,13 +10,14 @@ const travelRequestRoutes = require("./routes/travelRequestRoutes.js");
 const expenseClaimRoutes = require("./routes/expenseClaimRoutes.js");
 const paymentRequestRoutes = require("./routes/paymentRequestRoutes.js");
 const conceptNoteRoutes = require("./routes/conceptNoteRoutes.js");
-const vendorRouter = require("./routes/vendorRoutes.js");
-const rfqRouter = require("./routes/rfqRoutes.js");
-const purchaseOrderRouter = require("./routes/purchaseOrderRoutes.js");
+const vendorRoutes = require("./routes/vendorRoutes.js");
+const rfqRoutes = require("./routes/rfqRoutes.js");
+const purchaseOrderRoutes = require("./routes/purchaseOrderRoutes.js");
 const goodsReceivedRoutes = require("./routes/goodsReceivedRoutes.js");
 const paymentVoucherRoutes = require("./routes/paymentVoucherRoutes.js");
 // const fileRoutes = require("./routes/fileRoutes2.js");
-const leaveRouter = require("./routes/leaveRoutes");
+const leaveRoutes = require("./routes/leaveRoutes");
+const staffStrategyRoutes = require("./routes/staffStrategyRoutes.js");
 
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
@@ -49,9 +50,10 @@ const limiter = rateLimit({
 app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
-app.use("/api/v1/casfod/users", userRouter);
-app.use("/api/v1/casfod/employment-info", employmentInfoRouter);
-app.use("/api/v1/casfod/leave", leaveRouter);
+app.use("/api/v1/casfod/users", userRoutes);
+app.use("/api/v1/casfod/employment-info", employmentInfoRoutes);
+app.use("/api/v1/casfod/leave", leaveRoutes);
+app.use("/api/v1/casfod/staff-Strategy", staffStrategyRoutes);
 
 app.use("/api/v1/casfod/projects", projectRoutes);
 app.use("/api/v1/casfod/purchase-requests", purchaseRequestRoutes);
@@ -61,9 +63,9 @@ app.use("/api/v1/casfod/expense-claims", expenseClaimRoutes);
 app.use("/api/v1/casfod/payment-requests", paymentRequestRoutes);
 app.use("/api/v1/casfod/payment-vouchers", paymentVoucherRoutes);
 app.use("/api/v1/casfod/concept-notes", conceptNoteRoutes);
-app.use("/api/v1/casfod/vendors", vendorRouter);
-app.use("/api/v1/casfod/rfqs", rfqRouter);
-app.use("/api/v1/casfod/purchase-orders", purchaseOrderRouter);
+app.use("/api/v1/casfod/vendors", vendorRoutes);
+app.use("/api/v1/casfod/rfqs", rfqRoutes);
+app.use("/api/v1/casfod/purchase-orders", purchaseOrderRoutes);
 app.use("/api/v1/casfod/goods-received", goodsReceivedRoutes);
 
 app.use("/api/v1/casfod/files", fileRoutes);

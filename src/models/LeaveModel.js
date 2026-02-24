@@ -111,9 +111,9 @@ leaveSchema.pre("save", async function (next) {
       const count = await mongoose.model("Leave").countDocuments({
         status: { $ne: "draft" },
       });
-      const year = new Date().getFullYear();
-      const serial = (count + 1).toString().padStart(4, "0");
-      this.leaveNumber = `LV-${year}-${serial}`;
+      // const year = new Date().getFullYear();
+      const serial = (count + 1).toString().padStart(3, "0");
+      this.leaveNumber = `LV-CASFOD-${serial}`;
       next();
     } catch (error) {
       next(error);

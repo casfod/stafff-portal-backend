@@ -1,0 +1,679 @@
+// services/staffStrategyService.js
+const StaffStrategy = require("../models/StaffStrategyModel");
+const User = require("../models/UserModel");
+const fileService = require("./fileService");
+const handleFileUploads = require("../utils/FileUploads");
+const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
+const notify = require("../utils/notify");
+const simpleStatusUpdateService = require("./simpleStatusUpdateService");
+const buildQuery = require("../utils/buildQuery");
+const buildSortQuery = require("../utils/buildSortQuery");
+const paginate = require("../utils/paginate");
+const searchConfig = require("../utils/searchConfig");
+
+// Helper function to clean and validate ObjectId
+const cleanObjectId = (id) => {
+  if (!id) return null;
+  let cleanedId = id.toString().trim();
+  cleanedId = cleanedId.replace(/^"+|"+$/g, "");
+  if (!/^[0-9a-fA-F]{24}$/.test(cleanedId)) {
+    throw new Error(`Invalid ObjectId format: ${id}`);
+  }
+  return cleanedId;
+};
+
+// Get all Staff Strategies
+const getStaffStrategies = async (queryParams, currentUser) => {
+  const { search, sort, page = 1, limit = 10 } = queryParams;
+
+  // Define search fields
+  const searchFields = searchConfig.staffStrategy || [
+    "strategyCode",
+    "staffName",
+    "jobTitle",
+    "department",
+    "period",
+    "status",
+  ];
+
+  // Build search query
+  const searchTerms = search ? search.trim().split(/\s+/) : [];
+  const baseQuery = buildQuery(searchTerms, searchFields);
+
+  // Role-based filtering
+  // switch (currentUser.role) {
+  //   case "STAFF":
+  //     baseQuery.$or = [
+  //       { staffId: currentUser._id },
+  //       { createdBy: currentUser._id },
+  //     ];
+  //     break;
+
+  //   case "ADMIN":
+  //   case "SUPER-ADMIN":
+  //     // Admins can see all non-draft strategies
+  //     baseQuery.status = { $ne: "draft" };
+  //     break;
+
+  //   default:
+  //     baseQuery.createdBy = currentUser._id;
+  //     break;
+  // }
+
+  switch (currentUser.role) {
+    case "STAFF":
+      baseQuery.$or = [
+        { createdBy: currentUser._id },
+        { copiedTo: currentUser._id },
+      ]; // STAFF can only see their own requests
+      break;
+
+    case "ADMIN":
+      baseQuery.$or = [
+        { createdBy: currentUser._id }, // Requests they created
+        { approvedBy: currentUser._id }, // Requests they reviewed
+        { copiedTo: currentUser._id },
+        // { financeReviewBy: currentUser._id }, // Finance reviewer
+        // { procurementReviewBy: currentUser._id }, // Procurement reviewer
+      ];
+      break;
+
+    case "SUPER-ADMIN":
+      baseQuery.$or = [
+        { status: { $ne: "draft" } }, // All requests except drafts
+        { createdBy: currentUser._id, status: "draft" }, // Their own drafts
+        { copiedTo: currentUser._id },
+      ];
+      break;
+
+    default:
+      throw new Error("Invalid user role");
+  }
+
+  // Build sort query
+  const sortQuery = buildSortQuery(sort);
+
+  const populateOptions = [
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ];
+
+  // Fetch strategies with pagination
+  const {
+    results: strategies,
+    total,
+    totalPages,
+    currentPage,
+  } = await paginate(
+    StaffStrategy,
+    baseQuery,
+    { page, limit },
+    sortQuery,
+    populateOptions
+  );
+
+  // Filter out deleted comments and get files
+  const strategiesWithFiles = await Promise.all(
+    strategies.map(async (strategy) => {
+      // Filter out deleted comments
+      if (strategy.comments) {
+        strategy.comments = strategy.comments.filter(
+          (comment) => !comment.deleted
+        );
+      }
+
+      const files = await fileService.getFilesByDocument(
+        "StaffStrategies",
+        strategy._id
+      );
+      return {
+        ...strategy.toJSON(),
+        files: normalizeFiles(files),
+      };
+    })
+  );
+
+  return {
+    strategies: strategiesWithFiles,
+    total,
+    totalPages,
+    currentPage,
+  };
+};
+
+// Create Staff Strategy (as draft)
+const saveStaffStrategy = async (data, currentUser) => {
+  const {
+    staffName,
+    staffId,
+    jobTitle,
+    department,
+    supervisor,
+    supervisorId,
+    period,
+    accountabilityAreas,
+    approvedBy,
+  } = data;
+
+  // Clean and validate IDs
+  const cleanedStaffId = cleanObjectId(staffId);
+  const cleanedSupervisorId = supervisorId ? cleanObjectId(supervisorId) : null;
+  const cleanedApprovedBy = approvedBy ? cleanObjectId(approvedBy) : null;
+
+  // Verify staff exists
+  const staff = await User.findById(cleanedStaffId);
+  if (!staff) {
+    throw new Error("Staff member not found");
+  }
+
+  // Validate accountability areas
+  if (
+    !accountabilityAreas ||
+    !Array.isArray(accountabilityAreas) ||
+    accountabilityAreas.length === 0
+  ) {
+    throw new Error("At least one accountability area is required");
+  }
+
+  // Create strategy as draft
+  const strategy = new StaffStrategy({
+    staffName,
+    staffId: cleanedStaffId,
+    jobTitle,
+    department,
+    supervisor,
+    supervisorId: cleanedSupervisorId,
+    period,
+    accountabilityAreas,
+    createdBy: currentUser._id,
+    status: "draft",
+    approvedBy: cleanedApprovedBy,
+  });
+
+  await strategy.save();
+
+  // Populate for response
+  await strategy.populate([
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+  ]);
+
+  return normalizeId(strategy.toObject());
+};
+
+// Submit Staff Strategy (move from draft to pending)
+const submitStaffStrategy = async (id, currentUser, files = []) => {
+  const cleanedId = cleanObjectId(id);
+
+  const strategy = await StaffStrategy.findById(cleanedId);
+  if (!strategy) {
+    throw new Error("Staff Strategy not found");
+  }
+
+  // Check if user has permission to submit
+  if (
+    strategy.createdBy.toString() !== currentUser._id.toString() &&
+    currentUser.role !== "SUPER-ADMIN" &&
+    currentUser.role !== "ADMIN"
+  ) {
+    throw new Error("You don't have permission to submit this strategy");
+  }
+
+  // Check if approvedBy is assigned
+  if (!strategy.approvedBy) {
+    throw new Error("Approver (approvedBy) is required before submission");
+  }
+
+  // Update status to pending
+  strategy.status = "pending";
+  await strategy.save();
+
+  // Handle file uploads if any
+  if (files.length > 0) {
+    await handleFileUploads({
+      files,
+      requestId: strategy._id,
+      modelTable: "StaffStrategies",
+    });
+  }
+
+  // Notify approver
+  if (strategy.approvedBy) {
+    notify.notifyApprovers({
+      request: strategy,
+      currentUser,
+      requestType: "staffStrategy",
+      title: "Staff Strategy",
+      header: "You have been assigned a staff strategy for approval",
+    });
+  }
+
+  // Populate for response
+  await strategy.populate([
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
+
+  const filesData = await fileService.getFilesByDocument(
+    "StaffStrategies",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...strategy.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// Create and Submit Staff Strategy in one step
+const createStaffStrategy = async (data, currentUser, files = []) => {
+  const {
+    staffName,
+    staffId,
+    jobTitle,
+    department,
+    supervisor,
+    supervisorId,
+    period,
+    accountabilityAreas,
+    approvedBy,
+  } = data;
+
+  // Clean and validate IDs
+  const cleanedStaffId = cleanObjectId(staffId);
+  const cleanedSupervisorId = supervisorId ? cleanObjectId(supervisorId) : null;
+  const cleanedApprovedBy = approvedBy ? cleanObjectId(approvedBy) : null;
+
+  // Verify staff exists
+  const staff = await User.findById(cleanedStaffId);
+  if (!staff) {
+    throw new Error("Staff member not found");
+  }
+
+  // Validate accountability areas
+  if (
+    !accountabilityAreas ||
+    !Array.isArray(accountabilityAreas) ||
+    accountabilityAreas.length === 0
+  ) {
+    throw new Error("At least one accountability area is required");
+  }
+
+  // Check if approvedBy is provided for submission
+  if (!cleanedApprovedBy) {
+    throw new Error("Approver (approvedBy) is required");
+  }
+
+  // Create strategy with pending status
+  const strategy = new StaffStrategy({
+    staffName,
+    staffId: cleanedStaffId,
+    jobTitle,
+    department,
+    supervisor,
+    supervisorId: cleanedSupervisorId,
+    period,
+    accountabilityAreas,
+    createdBy: currentUser._id,
+    status: "pending",
+    approvedBy: cleanedApprovedBy,
+  });
+
+  await strategy.save();
+
+  // Handle file uploads
+  if (files.length > 0) {
+    await handleFileUploads({
+      files,
+      requestId: strategy._id,
+      modelTable: "StaffStrategies",
+    });
+  }
+
+  // Notify approver
+  notify.notifyApprovers({
+    request: strategy,
+    currentUser,
+    requestType: "staffStrategy",
+    title: "Staff Strategy",
+    header: "You have been assigned a staff strategy for approval",
+  });
+
+  // Populate for response
+  await strategy.populate([
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+  ]);
+
+  const filesData = await fileService.getFilesByDocument(
+    "StaffStrategies",
+    strategy._id
+  );
+
+  return normalizeId({
+    ...strategy.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// Get Staff Strategy by ID
+const getStaffStrategyById = async (id) => {
+  const cleanedId = cleanObjectId(id);
+
+  const populateOptions = [
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ];
+
+  const strategy = await StaffStrategy.findById(cleanedId)
+    .populate(populateOptions)
+    .lean();
+
+  if (!strategy) {
+    throw new Error("Staff Strategy not found");
+  }
+
+  // Filter out deleted comments
+  if (strategy.comments) {
+    strategy.comments = strategy.comments.filter((comment) => !comment.deleted);
+  }
+
+  const files = await fileService.getFilesByDocument(
+    "StaffStrategies",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...strategy,
+    files: normalizeFiles(files),
+  });
+};
+
+// Update Staff Strategy (only allowed for draft or pending)
+const updateStaffStrategy = async (id, data, files = [], currentUser) => {
+  const cleanedId = cleanObjectId(id);
+  const existingStrategy = await StaffStrategy.findById(cleanedId);
+
+  if (!existingStrategy) {
+    throw new Error("Staff Strategy not found");
+  }
+
+  // Prevent updating approved/rejected strategies
+  if (["approved", "rejected"].includes(existingStrategy.status)) {
+    throw new Error("Cannot update an approved or rejected Staff Strategy");
+  }
+
+  // Check permission - only creator or admin can update
+  if (
+    existingStrategy.createdBy.toString() !== currentUser._id.toString() &&
+    currentUser.role !== "SUPER-ADMIN" &&
+    currentUser.role !== "ADMIN"
+  ) {
+    throw new Error("You don't have permission to update this strategy");
+  }
+
+  // Handle comments if provided
+  if (data.comment && currentUser) {
+    if (!existingStrategy.comments) {
+      existingStrategy.comments = [];
+    }
+    existingStrategy.comments.unshift({
+      user: currentUser._id,
+      text: data.comment,
+      edited: false,
+      deleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    data.comments = existingStrategy.comments;
+  }
+
+  // Clean IDs if provided
+  if (data.staffId) data.staffId = cleanObjectId(data.staffId);
+  if (data.supervisorId) data.supervisorId = cleanObjectId(data.supervisorId);
+  if (data.approvedBy) data.approvedBy = cleanObjectId(data.approvedBy);
+
+  const updatedStrategy = await StaffStrategy.findByIdAndUpdate(
+    cleanedId,
+    { ...data, updatedAt: new Date() },
+    { new: true, runValidators: true }
+  ).populate([
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
+
+  // Handle file uploads - append new files (don't delete existing)
+  if (files.length > 0) {
+    await handleFileUploads({
+      files,
+      requestId: updatedStrategy._id,
+      modelTable: "StaffStrategies",
+    });
+  }
+
+  const filesData = await fileService.getFilesByDocument(
+    "StaffStrategies",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...updatedStrategy.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// Update Status (Approve/Reject) - using simple service
+const updateStaffStrategyStatus = async (
+  id,
+  data,
+  currentUser,
+  pdfFile = null
+) => {
+  const cleanedId = cleanObjectId(id);
+
+  // Use the simple status update service
+  const updatedStrategy = await simpleStatusUpdateService.updateStatus({
+    Model: StaffStrategy,
+    id: cleanedId,
+    data,
+    currentUser,
+    requestType: "staffStrategy",
+    title: "Staff Strategy",
+  });
+
+  // Handle PDF upload if provided
+  if (pdfFile) {
+    await handleFileUploads({
+      files: [pdfFile],
+      requestId: updatedStrategy._id,
+      modelTable: "StaffStrategies",
+    });
+  }
+
+  // Populate and return
+  await updatedStrategy.populate([
+    { path: "staffId", select: "email first_name last_name role" },
+    { path: "supervisorId", select: "email first_name last_name role" },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+  ]);
+
+  const filesData = await fileService.getFilesByDocument(
+    "StaffStrategies",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...updatedStrategy.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// Add a comment to Request
+const addComment = async (id, currentUser, text) => {
+  const request = await StaffStrategy.findById(id);
+  const userId = currentUser._id;
+
+  if (!request) {
+    throw new Error("Request not found");
+  }
+
+  // Check if user has permission to comment
+  const canComment =
+    request.createdBy.toString() === userId.toString() ||
+    (request.approvedBy &&
+      request.approvedBy.toString() === userId.toString()) ||
+    currentUser.role === "SUPER-ADMIN" ||
+    currentUser.role === "ADMIN";
+
+  if (!canComment) {
+    throw new Error("You don't have permission to comment on this request");
+  }
+
+  const newComment = {
+    user: userId,
+    text: text.trim(),
+    edited: false,
+    deleted: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  request.comments.unshift(newComment);
+  await request.save();
+
+  // Populate the user field in the new comment
+  const populatedRequest = await StaffStrategy.findById(id)
+    .populate("comments.user", "email first_name last_name role")
+    .lean();
+
+  // Filter out deleted comments and return the new comment
+  const populatedComments = populatedRequest.comments.filter(
+    (comment) => !comment.deleted
+  );
+  const addedComment = populatedComments.find(
+    (comment) =>
+      comment.user._id.toString() === userId.toString() &&
+      comment.text === text.trim() &&
+      comment.createdAt.toString() === newComment.createdAt.toString()
+  );
+
+  return addedComment;
+};
+
+// Update a comment
+const updateComment = async (id, commentId, userId, text) => {
+  const request = await StaffStrategy.findById(id);
+
+  if (!request) {
+    throw new Error("Request not found");
+  }
+
+  const comment = request.comments.id(commentId);
+
+  if (!comment) {
+    throw new Error("Comment not found");
+  }
+
+  // Check if user is the owner of the comment
+  if (comment.user.toString() !== userId.toString()) {
+    throw new Error("You can only edit your own comments");
+  }
+
+  comment.text = text.trim();
+  comment.edited = true;
+  comment.updatedAt = new Date();
+
+  await request.save();
+
+  // Populate the user field
+  const populatedRequest = await StaffStrategy.findById(id)
+    .populate("comments.user", "email first_name last_name role")
+    .lean();
+
+  // Find and return the updated comment
+  const updatedComment = populatedRequest.comments.find(
+    (c) => c._id.toString() === commentId.toString()
+  );
+  return updatedComment;
+};
+
+// Delete a comment (soft delete)
+const deleteComment = async (id, commentId, userId) => {
+  const request = await StaffStrategy.findById(id);
+
+  if (!request) {
+    throw new Error("Request not found");
+  }
+
+  const comment = request.comments.id(commentId);
+
+  if (!comment) {
+    throw new Error("Comment not found");
+  }
+
+  // Check if user is the owner of the comment or has admin privileges
+  const isOwner = comment.user.toString() === userId.toString();
+  const isAdmin = userId.role === "SUPER-ADMIN" || userId.role === "ADMIN";
+
+  if (!isOwner && !isAdmin) {
+    throw new Error("You don't have permission to delete this comment");
+  }
+
+  // Soft delete the comment
+  comment.deleted = true;
+  comment.updatedAt = new Date();
+
+  await request.save();
+
+  return { success: true, message: "Comment deleted successfully" };
+};
+
+// Delete Staff Strategy
+const deleteStaffStrategy = async (id) => {
+  const cleanedId = cleanObjectId(id);
+
+  const strategy = await StaffStrategy.findById(cleanedId);
+  if (!strategy) {
+    throw new Error("Staff Strategy not found");
+  }
+
+  // Only allow deletion of drafts
+  if (strategy.status !== "draft") {
+    throw new Error("Only draft strategies can be deleted");
+  }
+
+  await fileService.deleteFilesByDocument("StaffStrategies", cleanedId);
+  return await StaffStrategy.findByIdAndDelete(cleanedId);
+};
+
+module.exports = {
+  getStaffStrategies,
+  saveStaffStrategy,
+  submitStaffStrategy,
+  createStaffStrategy,
+  getStaffStrategyById,
+  updateStaffStrategy,
+  updateStaffStrategyStatus,
+  addComment,
+  updateComment,
+  deleteComment,
+  deleteStaffStrategy,
+};
