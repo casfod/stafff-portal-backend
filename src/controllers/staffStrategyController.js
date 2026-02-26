@@ -33,10 +33,10 @@ const create = catchAsync(async (req, res) => {
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
-  // Check if approvedBy is provided
-  if (!cleanedData.approvedBy) {
-    throw new appError("Approver (approvedBy) is required", 400);
-  }
+  // // Check if approvedBy is provided
+  // if (!cleanedData.approvedBy) {
+  //   throw new appError("Approver (approvedBy) is required", 400);
+  // }
 
   const strategy = await staffStrategyService.createStaffStrategy(
     cleanedData,

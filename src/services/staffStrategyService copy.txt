@@ -40,6 +40,26 @@ const getStaffStrategies = async (queryParams, currentUser) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   const baseQuery = buildQuery(searchTerms, searchFields);
 
+  // Role-based filtering
+  // switch (currentUser.role) {
+  //   case "STAFF":
+  //     baseQuery.$or = [
+  //       { staffId: currentUser._id },
+  //       { createdBy: currentUser._id },
+  //     ];
+  //     break;
+
+  //   case "ADMIN":
+  //   case "SUPER-ADMIN":
+  //     // Admins can see all non-draft strategies
+  //     baseQuery.status = { $ne: "draft" };
+  //     break;
+
+  //   default:
+  //     baseQuery.createdBy = currentUser._id;
+  //     break;
+  // }
+
   switch (currentUser.role) {
     case "STAFF":
       baseQuery.$or = [
@@ -76,10 +96,7 @@ const getStaffStrategies = async (queryParams, currentUser) => {
   const populateOptions = [
     { path: "staffId", select: "email first_name last_name role" },
     { path: "supervisorId", select: "email first_name last_name role" },
-    {
-      path: "createdBy",
-      select: "email first_name last_name role employmentInfo",
-    },
+    { path: "createdBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
   ];
@@ -129,8 +146,28 @@ const getStaffStrategies = async (queryParams, currentUser) => {
 
 // Create Staff Strategy (as draft)
 const saveStaffStrategy = async (data, currentUser) => {
-  const { jobTitle, department, supervisor, period, accountabilityAreas } =
-    data;
+  const {
+    staffName,
+    staffId,
+    jobTitle,
+    department,
+    supervisor,
+    supervisorId,
+    period,
+    accountabilityAreas,
+    approvedBy,
+  } = data;
+
+  // Clean and validate IDs
+  const cleanedStaffId = cleanObjectId(staffId);
+  const cleanedSupervisorId = supervisorId ? cleanObjectId(supervisorId) : null;
+  const cleanedApprovedBy = approvedBy ? cleanObjectId(approvedBy) : null;
+
+  // Verify staff exists
+  const staff = await User.findById(cleanedStaffId);
+  if (!staff) {
+    throw new Error("Staff member not found");
+  }
 
   // Validate accountability areas
   if (
@@ -143,13 +180,17 @@ const saveStaffStrategy = async (data, currentUser) => {
 
   // Create strategy as draft
   const strategy = new StaffStrategy({
+    staffName,
+    staffId: cleanedStaffId,
     jobTitle,
     department,
     supervisor,
+    supervisorId: cleanedSupervisorId,
     period,
     accountabilityAreas,
     createdBy: currentUser._id,
     status: "draft",
+    approvedBy: cleanedApprovedBy,
   });
 
   await strategy.save();
@@ -158,10 +199,7 @@ const saveStaffStrategy = async (data, currentUser) => {
   await strategy.populate([
     { path: "staffId", select: "email first_name last_name role" },
     { path: "supervisorId", select: "email first_name last_name role" },
-    {
-      path: "createdBy",
-      select: "email first_name last_name role employmentInfo",
-    },
+    { path: "createdBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
   ]);
 
@@ -219,11 +257,7 @@ const submitStaffStrategy = async (id, currentUser, files = []) => {
   await strategy.populate([
     { path: "staffId", select: "email first_name last_name role" },
     { path: "supervisorId", select: "email first_name last_name role" },
-    // { path: "createdBy", select: "email first_name last_name role" },
-    {
-      path: "createdBy",
-      select: "email first_name last_name role employmentInfo",
-    },
+    { path: "createdBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
   ]);
@@ -231,13 +265,6 @@ const submitStaffStrategy = async (id, currentUser, files = []) => {
   const filesData = await fileService.getFilesByDocument(
     "StaffStrategies",
     cleanedId
-  );
-
-  console.log(
-    normalizeId({
-      ...strategy.toObject(),
-      files: normalizeFiles(filesData),
-    })
   );
 
   return normalizeId({
@@ -248,12 +275,28 @@ const submitStaffStrategy = async (id, currentUser, files = []) => {
 
 // Create and Submit Staff Strategy in one step
 const createStaffStrategy = async (data, currentUser, files = []) => {
-  const { jobTitle, department, supervisor, period, accountabilityAreas } =
-    data;
+  const {
+    staffName,
+    staffId,
+    jobTitle,
+    department,
+    supervisor,
+    supervisorId,
+    period,
+    accountabilityAreas,
+    approvedBy,
+  } = data;
 
-  const cleanedApprovedBy = currentUser
-    ? currentUser.employmentInfo.jobDetails.supervisorId
-    : null;
+  // Clean and validate IDs
+  const cleanedStaffId = cleanObjectId(staffId);
+  const cleanedSupervisorId = supervisorId ? cleanObjectId(supervisorId) : null;
+  const cleanedApprovedBy = approvedBy ? cleanObjectId(approvedBy) : null;
+
+  // Verify staff exists
+  const staff = await User.findById(cleanedStaffId);
+  if (!staff) {
+    throw new Error("Staff member not found");
+  }
 
   // Validate accountability areas
   if (
@@ -271,9 +314,12 @@ const createStaffStrategy = async (data, currentUser, files = []) => {
 
   // Create strategy with pending status
   const strategy = new StaffStrategy({
+    staffName,
+    staffId: cleanedStaffId,
     jobTitle,
     department,
     supervisor,
+    supervisorId: cleanedSupervisorId,
     period,
     accountabilityAreas,
     createdBy: currentUser._id,
@@ -305,10 +351,7 @@ const createStaffStrategy = async (data, currentUser, files = []) => {
   await strategy.populate([
     { path: "staffId", select: "email first_name last_name role" },
     { path: "supervisorId", select: "email first_name last_name role" },
-    {
-      path: "createdBy",
-      select: "email first_name last_name role employmentInfo",
-    },
+    { path: "createdBy", select: "email first_name last_name role" },
     { path: "approvedBy", select: "email first_name last_name role" },
   ]);
 

@@ -3,11 +3,16 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 
+const SUPERVISOR_POPULATE = {
+  path: "employmentInfo.jobDetails.supervisorId",
+  select: "first_name last_name email position",
+};
+
 const getAllAdminService = async (currentUser) => {
   const admins = await User.find({
     role: { $nin: ["STAFF", "REVIEWER"] },
     _id: { $ne: currentUser._id }, // Exclude current user
-  });
+  }).populate(SUPERVISOR_POPULATE);
   return admins;
 };
 
@@ -15,7 +20,7 @@ const getAllReviewersService = async (currentUser) => {
   const reviewers = await User.find({
     role: "REVIEWER",
     _id: { $ne: currentUser._id }, // Exclude current user
-  });
+  }).populate(SUPERVISOR_POPULATE);
   return reviewers;
 };
 
@@ -38,7 +43,9 @@ const getAllUsersService = async (queryParams) => {
     total,
     totalPages,
     currentPage,
-  } = await paginate(User, query, { page, limit }, sortQuery); // No populateOptions
+  } = await paginate(User, query, { page, limit }, sortQuery, [
+    SUPERVISOR_POPULATE,
+  ]);
 
   return {
     users,
@@ -49,7 +56,7 @@ const getAllUsersService = async (queryParams) => {
 };
 
 const getUserByIdService = async (id) => {
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate(SUPERVISOR_POPULATE);
 
   if (!user) {
     throw new Error(`User with ID ${id} not found`);

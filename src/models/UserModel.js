@@ -206,6 +206,7 @@ const userSchema = new mongoose.Schema(
         startDate: Date,
         endDate: Date,
         supervisor: String,
+        supervisorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       },
       emergencyContact: {
         fullName: String,

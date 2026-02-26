@@ -7,7 +7,10 @@ const sendMail = require("../utils/sendMail");
 const catchAsync = require("../utils/catchAsync");
 const generateResetToken = require("../utils/generateResetToken");
 
-// const createSendToken = require("../utils/createSendToken");
+const SUPERVISOR_POPULATE = {
+  path: "employmentInfo.jobDetails.supervisorId",
+  select: "first_name last_name email position",
+};
 
 const seedSuperUserService = catchAsync(async (req, res, next) => {
   // Check if a SUPER-ADMIN user already exists
@@ -59,7 +62,7 @@ const protectRoute = async (token) => {
   }
 
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
-  const user = await User.findById(decoded.id);
+  const user = await User.findById(decoded.id).populate(SUPERVISOR_POPULATE);
 
   if (!user) {
     throw new AppError(
@@ -153,6 +156,7 @@ const updatePasswordService = async (
   user.password = newPassword;
   user.passwordConfirm = confirmPassword;
   await user.save();
+  await user.populate(SUPERVISOR_POPULATE);
 
   return user;
 };

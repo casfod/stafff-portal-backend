@@ -18,15 +18,15 @@ const accountabilityAreaSchema = new mongoose.Schema({
 const staffStrategySchema = new mongoose.Schema(
   {
     strategyCode: { type: String, default: "", unique: true, sparse: true },
-    staffName: { type: String, required: true, trim: true },
+    staffName: { type: String, trim: true },
     staffId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      // required: true,
     },
-    jobTitle: { type: String, required: true, trim: true },
+    jobTitle: { type: String, trim: true },
     department: { type: String, required: true, trim: true },
-    supervisor: { type: String, required: true, trim: true },
+    supervisor: { type: String, trim: true },
     supervisorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     date: { type: Date, default: Date.now },
     period: { type: String, required: true, trim: true },
