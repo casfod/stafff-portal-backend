@@ -26,6 +26,8 @@ const saveDraft = catchAsync(async (req, res) => {
   const cleanedData = cleanFormData(req.body);
   const currentUser = await userByToken(req, res);
 
+  console.log("SS-cleanedData::DRAFT::", cleanedData);
+
   const appraisal = await appraisalService.saveAppraisal(
     cleanedData,
     currentUser
@@ -39,6 +41,8 @@ const submit = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { submitterRole } = req.body; // "employee" or "supervisor"
   const currentUser = await userByToken(req, res);
+
+  console.log("SS-cleanedData::::", req.body);
 
   const appraisal = await appraisalService.submitAppraisal(
     id,
@@ -91,6 +95,8 @@ const update = catchAsync(async (req, res) => {
   const cleanedData = cleanFormData(req.body);
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
+
+  console.log("SS-cleanedData::UPDATE::", cleanedData);
 
   const appraisal = await appraisalService.updateAppraisal(
     id,

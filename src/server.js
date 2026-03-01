@@ -55,7 +55,7 @@ app.use("/api/v1/casfod/users", userRoutes);
 app.use("/api/v1/casfod/employment-info", employmentInfoRoutes);
 app.use("/api/v1/casfod/leave", leaveRoutes);
 app.use("/api/v1/casfod/staff-Strategy", staffStrategyRoutes);
-app.use("/api/v1/casfod/appraisal", appraisalRoutes);
+app.use("/api/v1/casfod/appraisals", appraisalRoutes);
 
 app.use("/api/v1/casfod/projects", projectRoutes);
 app.use("/api/v1/casfod/purchase-requests", purchaseRequestRoutes);
