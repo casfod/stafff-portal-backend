@@ -18,6 +18,7 @@ const paymentVoucherRoutes = require("./routes/paymentVoucherRoutes.js");
 // const fileRoutes = require("./routes/fileRoutes2.js");
 const leaveRoutes = require("./routes/leaveRoutes");
 const staffStrategyRoutes = require("./routes/staffStrategyRoutes.js");
+const appraisalRoutes = require("./routes/appraisalRoutes.js");
 
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
@@ -54,6 +55,7 @@ app.use("/api/v1/casfod/users", userRoutes);
 app.use("/api/v1/casfod/employment-info", employmentInfoRoutes);
 app.use("/api/v1/casfod/leave", leaveRoutes);
 app.use("/api/v1/casfod/staff-Strategy", staffStrategyRoutes);
+app.use("/api/v1/casfod/appraisal", appraisalRoutes);
 
 app.use("/api/v1/casfod/projects", projectRoutes);
 app.use("/api/v1/casfod/purchase-requests", purchaseRequestRoutes);
