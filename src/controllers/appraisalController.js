@@ -36,13 +36,13 @@ const saveDraft = catchAsync(async (req, res) => {
   handleResponse(res, 201, "Appraisal draft saved successfully", appraisal);
 });
 
-// Submit for review
+// Submit for review (with ID in params)
 const submit = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { submitterRole } = req.body; // "employee" or "supervisor"
   const currentUser = await userByToken(req, res);
 
-  console.log("SS-cleanedData::::", req.body);
+  console.log("SS-cleanedData::SUBMIT::", { id, submitterRole });
 
   const appraisal = await appraisalService.submitAppraisal(
     id,
@@ -51,6 +51,38 @@ const submit = catchAsync(async (req, res) => {
   );
 
   handleResponse(res, 200, "Appraisal submitted successfully", appraisal);
+});
+
+// FIXED: Add new endpoint for submitting with full data (without ID in params)
+const submitFull = catchAsync(async (req, res) => {
+  const { submitterRole } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  // First save as draft
+  req.body.objectives = parseJsonField(req.body, "objectives", true);
+  req.body.safeguarding = parseJsonField(req.body, "safeguarding");
+
+  const cleanedData = cleanFormData(req.body);
+
+  // Save the appraisal first
+  const savedAppraisal = await appraisalService.saveAppraisal(
+    cleanedData,
+    currentUser
+  );
+
+  // Then submit it
+  const appraisal = await appraisalService.submitAppraisal(
+    savedAppraisal.id,
+    currentUser,
+    submitterRole || "employee" // Default to employee if not specified
+  );
+
+  handleResponse(
+    res,
+    200,
+    "Appraisal created and submitted successfully",
+    appraisal
+  );
 });
 
 // Get all
@@ -163,7 +195,7 @@ const remove = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Appraisal deleted successfully", appraisal);
 });
 
-// Comments (similar to staffStrategy)
+// Comments
 const addComment = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { text } = req.body;
@@ -213,6 +245,7 @@ const deleteComment = catchAsync(async (req, res) => {
 module.exports = {
   saveDraft,
   submit,
+  submitFull, // FIXED: Added new export
   getAll,
   getById,
   update,

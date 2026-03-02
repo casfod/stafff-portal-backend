@@ -1,6 +1,6 @@
 // services/appraisalService.js
 const Appraisal = require("../models/AppraisalModel");
-const User = require("../models/UserModel");
+// const User = require("../models/UserModel");
 const fileService = require("./fileService");
 const handleFileUploads = require("../utils/FileUploads");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
@@ -9,7 +9,6 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const searchConfig = require("../utils/searchConfig");
-const mongoose = require("mongoose");
 
 const cleanObjectId = (id) => {
   if (!id) return null;
@@ -72,6 +71,7 @@ const getAppraisals = async (queryParams, currentUser) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
   ];
 
   const {
@@ -114,7 +114,7 @@ const getAppraisals = async (queryParams, currentUser) => {
   };
 };
 
-// Create Appraisal (as draft)
+// Create Appraisal (as draft) - FIXED: Handle staffStrategy properly
 const saveAppraisal = async (data, currentUser) => {
   const {
     staffId,
@@ -128,6 +128,7 @@ const saveAppraisal = async (data, currentUser) => {
     lengthOfTimeSupervised,
     objectives,
     safeguarding,
+    staffStrategy, // FIXED: Added staffStrategy
   } = data;
 
   // Validate required fields
@@ -145,7 +146,8 @@ const saveAppraisal = async (data, currentUser) => {
     { objective: "Safeguarding" },
   ];
 
-  const appraisal = new Appraisal({
+  // FIXED: Only include staffStrategy if provided (for drafts it's optional)
+  const appraisalData = {
     staffId: cleanObjectId(staffId),
     staffName,
     position,
@@ -176,7 +178,14 @@ const saveAppraisal = async (data, currentUser) => {
     overallRating: "Meets Requirements",
     createdBy: currentUser._id,
     status: "draft",
-  });
+  };
+
+  // FIXED: Add staffStrategy only if provided
+  if (staffStrategy) {
+    appraisalData.staffStrategy = cleanObjectId(staffStrategy);
+  }
+
+  const appraisal = new Appraisal(appraisalData);
 
   await appraisal.save();
 
@@ -187,6 +196,7 @@ const saveAppraisal = async (data, currentUser) => {
       select: "email first_name last_name role position",
     },
     { path: "createdBy", select: "email first_name last_name role" },
+    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
   ]);
 
   return normalizeId(appraisal.toObject());
@@ -269,6 +279,7 @@ const submitAppraisal = async (id, currentUser, submitterRole) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
   ]);
 
   const filesData = await fileService.getFilesByDocument(
@@ -297,6 +308,10 @@ const getAppraisalById = async (id) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    {
+      path: "staffStrategy",
+      select: "strategyCode department period accountabilityAreas",
+    }, // FIXED: Added populate
   ];
 
   const appraisal = await Appraisal.findById(cleanedId)
@@ -365,6 +380,8 @@ const updateAppraisal = async (id, data, files = [], currentUser) => {
   // Clean IDs
   if (data.staffId) data.staffId = cleanObjectId(data.staffId);
   if (data.supervisorId) data.supervisorId = cleanObjectId(data.supervisorId);
+  if (data.staffStrategy)
+    data.staffStrategy = cleanObjectId(data.staffStrategy); // FIXED: Added staffStrategy
 
   const updatedAppraisal = await Appraisal.findByIdAndUpdate(
     cleanedId,
@@ -378,6 +395,7 @@ const updateAppraisal = async (id, data, files = [], currentUser) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
+    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
   ]);
 
   if (files.length > 0) {
@@ -551,7 +569,7 @@ const deleteAppraisal = async (id) => {
   return await Appraisal.findByIdAndDelete(cleanedId);
 };
 
-// Comment functions (similar to staffStrategy)
+// Comment functions
 const addComment = async (id, currentUser, text) => {
   const appraisal = await Appraisal.findById(id);
 

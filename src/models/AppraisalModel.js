@@ -136,10 +136,11 @@ const appraisalSchema = new mongoose.Schema(
       required: true,
     },
 
+    // FIXED: Make staffStrategy NOT required (only required for submitted appraisals)
     staffStrategy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "StaffStrategy",
-      required: true,
+      // removed required: true
     },
 
     status: {

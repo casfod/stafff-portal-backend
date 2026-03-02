@@ -3,6 +3,7 @@ const express = require("express");
 const {
   saveDraft,
   submit,
+  submitFull, // FIXED: Added import
   getAll,
   getById,
   update,
@@ -26,7 +27,8 @@ appraisalRouter.get("/stats", getStats);
 
 // ========== CREATE / SAVE ==========
 appraisalRouter.post("/save", saveDraft);
-appraisalRouter.post("/:id/submit", submit);
+appraisalRouter.post("/submit", submitFull); // FIXED: Added new route for submitting without ID
+appraisalRouter.post("/:id/submit", submit); // Keep existing route for updating submission
 
 // ========== READ ==========
 appraisalRouter.get("/", getAll);
