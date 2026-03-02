@@ -199,6 +199,7 @@ const userSchema = new mongoose.Schema(
       jobDetails: {
         title: String,
         idNo: String,
+        staffTaxIdNo: String,
         workLocation: String,
         workEmail: String,
         workPhone: String,
