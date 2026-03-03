@@ -102,6 +102,15 @@ const searchConfig = {
     "period",
     "status",
   ],
+
+  appraisal: [
+    "appraisalCode",
+    "staffName",
+    "position",
+    "department",
+    "appraisalPeriod",
+    "status",
+  ],
 };
 
 module.exports = searchConfig;

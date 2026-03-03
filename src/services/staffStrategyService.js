@@ -330,8 +330,14 @@ const getStaffStrategyById = async (id) => {
   const populateOptions = [
     { path: "staffId", select: "email first_name last_name role" },
     { path: "supervisorId", select: "email first_name last_name role" },
-    { path: "createdBy", select: "email first_name last_name role" },
-    { path: "approvedBy", select: "email first_name last_name role" },
+    {
+      path: "createdBy",
+      select: "email first_name last_name role employmentInfo",
+    },
+    {
+      path: "approvedBy",
+      select: "email first_name last_name role employmentInfo",
+    },
     { path: "comments.user", select: "email first_name last_name role" },
   ];
 
