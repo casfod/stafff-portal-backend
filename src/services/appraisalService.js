@@ -1,6 +1,5 @@
 // services/appraisalService.js
 const Appraisal = require("../models/AppraisalModel");
-// const User = require("../models/UserModel");
 const fileService = require("./fileService");
 const handleFileUploads = require("../utils/FileUploads");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
@@ -51,7 +50,6 @@ const getAppraisals = async (queryParams, currentUser) => {
 
     case "ADMIN":
     case "SUPER-ADMIN":
-      // Can see all except maybe filter by department
       if (currentUser.department) {
         baseQuery.department = currentUser.department;
       }
@@ -71,7 +69,8 @@ const getAppraisals = async (queryParams, currentUser) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
-    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
+    { path: "staffStrategy", select: "strategyCode department period" },
+    { path: "approvedBy", select: "email first_name last_name role" },
   ];
 
   const {
@@ -114,7 +113,7 @@ const getAppraisals = async (queryParams, currentUser) => {
   };
 };
 
-// Create Appraisal (as draft) - FIXED: Handle staffStrategy properly
+// Create Appraisal (as draft)
 const saveAppraisal = async (data, currentUser) => {
   const {
     staffId,
@@ -128,7 +127,7 @@ const saveAppraisal = async (data, currentUser) => {
     lengthOfTimeSupervised,
     objectives,
     safeguarding,
-    staffStrategy, // FIXED: Added staffStrategy
+    staffStrategy,
   } = data;
 
   // Validate required fields
@@ -146,7 +145,6 @@ const saveAppraisal = async (data, currentUser) => {
     { objective: "Safeguarding" },
   ];
 
-  // FIXED: Only include staffStrategy if provided (for drafts it's optional)
   const appraisalData = {
     staffId: cleanObjectId(staffId),
     staffName,
@@ -163,24 +161,30 @@ const saveAppraisal = async (data, currentUser) => {
       actionsTaken: "",
       trainingCompleted: "No",
       areasNotUnderstood: [],
+      supervisorStatus: "pending",
     },
     performanceAreas: [
-      { area: "Job Knowledge", rating: "Meets Expectations" },
-      { area: "Judgement", rating: "Meets Expectations" },
-      { area: "Reliability", rating: "Meets Expectations" },
-      { area: "Quality & Quantity of Work", rating: "Meets Expectations" },
+      { area: "Job Knowledge", rating: "Pending", supervisorStatus: "pending" },
+      { area: "Judgement", rating: "Pending", supervisorStatus: "pending" },
+      { area: "Reliability", rating: "Pending", supervisorStatus: "pending" },
+      {
+        area: "Quality & Quantity of Work",
+        rating: "Pending",
+        supervisorStatus: "pending",
+      },
       {
         area: "Interpersonal and Communication Skills",
-        rating: "Meets Expectations",
+        rating: "Pending",
+        supervisorStatus: "pending",
       },
-      { area: "Teamwork", rating: "Meets Expectations" },
+      { area: "Teamwork", rating: "Pending", supervisorStatus: "pending" },
     ],
-    overallRating: "Meets Requirements",
+    overallRating: "Pending",
     createdBy: currentUser._id,
     status: "draft",
+    supervisorStatus: "pending",
   };
 
-  // FIXED: Add staffStrategy only if provided
   if (staffStrategy) {
     appraisalData.staffStrategy = cleanObjectId(staffStrategy);
   }
@@ -196,14 +200,15 @@ const saveAppraisal = async (data, currentUser) => {
       select: "email first_name last_name role position",
     },
     { path: "createdBy", select: "email first_name last_name role" },
-    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
+    { path: "staffStrategy", select: "strategyCode department period" },
+    { path: "approvedBy", select: "email first_name last_name role" },
   ]);
 
   return normalizeId(appraisal.toObject());
 };
 
-// Submit Appraisal (move from draft to pending-employee or pending-supervisor)
-const submitAppraisal = async (id, currentUser, submitterRole) => {
+// Submit Appraisal (move from draft to pending) - notify supervisor - FIXED
+const submitAppraisal = async (id, currentUser) => {
   const cleanedId = cleanObjectId(id);
 
   const appraisal = await Appraisal.findById(cleanedId);
@@ -211,64 +216,45 @@ const submitAppraisal = async (id, currentUser, submitterRole) => {
     throw new Error("Appraisal not found");
   }
 
-  // Check permissions
+  // Check permissions - only staff can submit
   const isStaff = appraisal.staffId.toString() === currentUser._id.toString();
-  const isSupervisor =
-    appraisal.supervisorId.toString() === currentUser._id.toString();
   const isAdmin = ["SUPER-ADMIN", "ADMIN"].includes(currentUser.role);
 
-  if (!isStaff && !isSupervisor && !isAdmin) {
+  if (!isStaff && !isAdmin) {
     throw new Error("You don't have permission to submit this appraisal");
   }
 
-  // Handle submission based on role
-  if (submitterRole === "employee" && isStaff) {
-    appraisal.submittedByEmployee = true;
-    appraisal.status = "pending-supervisor";
-  } else if (submitterRole === "supervisor" && isSupervisor) {
-    appraisal.submittedBySupervisor = true;
-
-    // If employee already submitted, mark as completed
-    if (appraisal.submittedByEmployee) {
-      appraisal.status = "completed";
-      appraisal.completedAt = new Date();
-    } else {
-      appraisal.status = "pending-employee";
-    }
-  } else if (isAdmin) {
-    // Admin can force complete
-    appraisal.status = "completed";
-    appraisal.completedAt = new Date();
-    appraisal.submittedByEmployee = true;
-    appraisal.submittedBySupervisor = true;
-  } else {
-    throw new Error("You don't have permission to submit this appraisal");
+  // Only allow submission from draft
+  if (appraisal.status !== "draft") {
+    throw new Error("Only draft appraisals can be submitted");
   }
+
+  // Check if supervisor is assigned
+  if (!appraisal.supervisorId) {
+    throw new Error("Supervisor is required before submission");
+  }
+
+  // Update status to pending
+  appraisal.status = "pending";
+  appraisal.submittedByEmployee = true;
 
   await appraisal.save();
 
-  // Notify the other party
-  if (submitterRole === "employee") {
-    notify.notifyApprovers({
-      request: appraisal,
-      currentUser,
-      requestType: "appraisal",
-      title: "Appraisal Submission",
-      header: "Staff appraisal has been submitted for your review",
-      recipientId: appraisal.supervisorId,
-    });
-  } else if (
-    submitterRole === "supervisor" &&
-    appraisal.status === "pending-employee"
-  ) {
-    notify.notifyApprovers({
-      request: appraisal,
-      currentUser,
-      requestType: "appraisal",
-      title: "Appraisal Feedback",
-      header: "Supervisor has provided feedback on your appraisal",
-      recipientId: appraisal.staffId,
-    });
+  // FIXED: Properly notify supervisor when submitted (like StaffStrategy)
+  if (appraisal.supervisorId) {
+    try {
+      await notify.notifyApprovers({
+        request: appraisal,
+        currentUser,
+        requestType: "appraisal",
+        title: "Staff Appraisal",
+        header: "You have been assigned an appraisal for review",
+      });
+      console.log(`Notification sent to supervisor: ${appraisal.supervisorId}`);
+    } catch (error) {
+      console.error("Failed to send notification to supervisor:", error);
+      // Don't throw - notification failure shouldn't block submission
+    }
   }
 
   await appraisal.populate([
@@ -279,7 +265,106 @@ const submitAppraisal = async (id, currentUser, submitterRole) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
-    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
+    { path: "staffStrategy", select: "strategyCode department period" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+  ]);
+
+  const filesData = await fileService.getFilesByDocument(
+    "Appraisals",
+    cleanedId
+  );
+
+  return normalizeId({
+    ...appraisal.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// Update Status (Approve/Reject) - with notification to staff - FIXED
+const updateAppraisalStatus = async (id, data, currentUser) => {
+  const cleanedId = cleanObjectId(id);
+  const { status, comment } = data;
+
+  const appraisal = await Appraisal.findById(cleanedId);
+  if (!appraisal) {
+    throw new Error("Appraisal not found");
+  }
+
+  // Check permissions - only supervisor or admin can approve/reject
+  const isSupervisor =
+    appraisal.supervisorId.toString() === currentUser._id.toString();
+  const isAdmin = ["SUPER-ADMIN", "ADMIN"].includes(currentUser.role);
+
+  if (!isSupervisor && !isAdmin) {
+    throw new Error(
+      "You don't have permission to update this appraisal status"
+    );
+  }
+
+  // Only allow status update from pending
+  if (appraisal.status !== "pending") {
+    throw new Error("Only pending appraisals can be approved or rejected");
+  }
+
+  // Validate status
+  if (!["approved", "rejected"].includes(status)) {
+    throw new Error("Status must be either 'approved' or 'rejected'");
+  }
+
+  // Update status
+  appraisal.status = status;
+  appraisal.submittedBySupervisor = true;
+  appraisal.completedAt = new Date();
+
+  // Set approvedBy when approved
+  if (status === "approved") {
+    appraisal.approvedBy = currentUser._id;
+  }
+
+  // Add comment if provided
+  if (comment) {
+    if (!appraisal.comments) {
+      appraisal.comments = [];
+    }
+    appraisal.comments.push({
+      user: currentUser._id,
+      text: comment,
+      edited: false,
+      deleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  await appraisal.save();
+
+  // FIXED: Properly notify staff when approved/rejected (like StaffStrategy)
+  if (appraisal.staffId) {
+    try {
+      await notify.notifyCreator({
+        request: appraisal,
+        currentUser,
+        requestType: "appraisal",
+        title: "Appraisal Status Update",
+        header: `Your appraisal has been ${status}`,
+      });
+      console.log(`Notification sent to staff: ${appraisal.staffId}`);
+    } catch (error) {
+      console.error("Failed to send notification to staff:", error);
+      // Don't throw - notification failure shouldn't block status update
+    }
+  }
+
+  await appraisal.populate([
+    { path: "staffId", select: "email first_name last_name role position" },
+    {
+      path: "supervisorId",
+      select: "email first_name last_name role position",
+    },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "staffStrategy", select: "strategyCode department period" },
+    { path: "approvedBy", select: "email first_name last_name role" },
   ]);
 
   const filesData = await fileService.getFilesByDocument(
@@ -311,7 +396,8 @@ const getAppraisalById = async (id) => {
     {
       path: "staffStrategy",
       select: "strategyCode department period accountabilityAreas",
-    }, // FIXED: Added populate
+    },
+    { path: "approvedBy", select: "email first_name last_name role" },
   ];
 
   const appraisal = await Appraisal.findById(cleanedId)
@@ -356,9 +442,30 @@ const updateAppraisal = async (id, data, files = [], currentUser) => {
     throw new Error("You don't have permission to update this appraisal");
   }
 
-  // Prevent updates to completed appraisals
-  if (existingAppraisal.status === "completed" && !isAdmin) {
-    throw new Error("Cannot update a completed appraisal");
+  // Prevent updates to approved/rejected appraisals
+  if (["approved", "rejected"].includes(existingAppraisal.status) && !isAdmin) {
+    throw new Error("Cannot update an approved or rejected appraisal");
+  }
+
+  // Staff can only update their sections
+  if (isStaff && !isAdmin) {
+    // Staff can only update their own ratings and safeguarding
+    if (data.performanceAreas) delete data.performanceAreas;
+    if (data.supervisorComments) delete data.supervisorComments;
+    if (data.overallRating) delete data.overallRating;
+  }
+
+  // Supervisor can only update their sections
+  if (isSupervisor && !isAdmin) {
+    // Supervisor can update supervisor ratings and assessment
+    // They cannot change staff ratings
+    if (data.objectives) {
+      data.objectives = data.objectives.map((obj) => ({
+        ...obj,
+        employeeRating: undefined, // Don't change staff ratings
+        employeePoints: undefined,
+      }));
+    }
   }
 
   // Handle comments
@@ -381,7 +488,8 @@ const updateAppraisal = async (id, data, files = [], currentUser) => {
   if (data.staffId) data.staffId = cleanObjectId(data.staffId);
   if (data.supervisorId) data.supervisorId = cleanObjectId(data.supervisorId);
   if (data.staffStrategy)
-    data.staffStrategy = cleanObjectId(data.staffStrategy); // FIXED: Added staffStrategy
+    data.staffStrategy = cleanObjectId(data.staffStrategy);
+  if (data.approvedBy) data.approvedBy = cleanObjectId(data.approvedBy);
 
   const updatedAppraisal = await Appraisal.findByIdAndUpdate(
     cleanedId,
@@ -395,7 +503,8 @@ const updateAppraisal = async (id, data, files = [], currentUser) => {
     },
     { path: "createdBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
-    { path: "staffStrategy", select: "strategyCode department period" }, // FIXED: Added populate
+    { path: "staffStrategy", select: "strategyCode department period" },
+    { path: "approvedBy", select: "email first_name last_name role" },
   ]);
 
   if (files.length > 0) {
@@ -490,7 +599,7 @@ const signAppraisal = async (id, currentUser, signatureType, comments) => {
     appraisal.signatures.staffSignature &&
     appraisal.signatures.supervisorSignature
   ) {
-    appraisal.status = "completed";
+    appraisal.status = "approved";
     appraisal.completedAt = new Date();
   }
 
@@ -527,20 +636,17 @@ const getAppraisalStats = async (currentUser) => {
       $group: {
         _id: null,
         total: { $sum: 1 },
-        completed: {
-          $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+        approved: {
+          $sum: { $cond: [{ $eq: ["$status", "approved"] }, 1, 0] },
         },
         pending: {
-          $sum: {
-            $cond: [
-              { $in: ["$status", ["pending-employee", "pending-supervisor"]] },
-              1,
-              0,
-            ],
-          },
+          $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
         },
         draft: {
           $sum: { $cond: [{ $eq: ["$status", "draft"] }, 1, 0] },
+        },
+        rejected: {
+          $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] },
         },
       },
     },
@@ -548,7 +654,13 @@ const getAppraisalStats = async (currentUser) => {
 
   return {
     byStatus: stats,
-    overall: overall[0] || { total: 0, completed: 0, pending: 0, draft: 0 },
+    overall: overall[0] || {
+      total: 0,
+      approved: 0,
+      pending: 0,
+      draft: 0,
+      rejected: 0,
+    },
   };
 };
 
@@ -673,6 +785,7 @@ module.exports = {
   getAppraisals,
   saveAppraisal,
   submitAppraisal,
+  updateAppraisalStatus,
   getAppraisalById,
   updateAppraisal,
   updateObjectives,

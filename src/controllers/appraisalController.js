@@ -9,7 +9,7 @@ const appError = require("../utils/appError");
 const cleanFormData = (data) => {
   const cleaned = { ...data };
 
-  ["staffId", "supervisorId"].forEach((field) => {
+  ["staffId", "supervisorId", "approvedBy"].forEach((field) => {
     if (cleaned[field] && typeof cleaned[field] === "string") {
       cleaned[field] = cleaned[field].replace(/^"+|"+$/g, "");
     }
@@ -26,8 +26,6 @@ const saveDraft = catchAsync(async (req, res) => {
   const cleanedData = cleanFormData(req.body);
   const currentUser = await userByToken(req, res);
 
-  console.log("SS-cleanedData::DRAFT::", cleanedData);
-
   const appraisal = await appraisalService.saveAppraisal(
     cleanedData,
     currentUser
@@ -36,26 +34,23 @@ const saveDraft = catchAsync(async (req, res) => {
   handleResponse(res, 201, "Appraisal draft saved successfully", appraisal);
 });
 
-// Submit for review (with ID in params)
+// FIXED: Submit for approval (from draft to pending)
 const submit = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { submitterRole } = req.body; // "employee" or "supervisor"
   const currentUser = await userByToken(req, res);
 
-  console.log("SS-cleanedData::SUBMIT::", { id, submitterRole });
+  const appraisal = await appraisalService.submitAppraisal(id, currentUser);
 
-  const appraisal = await appraisalService.submitAppraisal(
-    id,
-    currentUser,
-    submitterRole
+  handleResponse(
+    res,
+    200,
+    "Appraisal submitted for approval successfully",
+    appraisal
   );
-
-  handleResponse(res, 200, "Appraisal submitted successfully", appraisal);
 });
 
-// FIXED: Add new endpoint for submitting with full data (without ID in params)
-const submitFull = catchAsync(async (req, res) => {
-  const { submitterRole } = req.body;
+// Create and Submit in one step
+const createAndSubmit = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
 
   // First save as draft
@@ -73,8 +68,7 @@ const submitFull = catchAsync(async (req, res) => {
   // Then submit it
   const appraisal = await appraisalService.submitAppraisal(
     savedAppraisal.id,
-    currentUser,
-    submitterRole || "employee" // Default to employee if not specified
+    currentUser
   );
 
   handleResponse(
@@ -83,6 +77,25 @@ const submitFull = catchAsync(async (req, res) => {
     "Appraisal created and submitted successfully",
     appraisal
   );
+});
+
+// FIXED: Update status (Approve/Reject)
+const updateStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { status, comment } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!["approved", "rejected"].includes(status)) {
+    throw new appError("Status must be either 'approved' or 'rejected'", 400);
+  }
+
+  const appraisal = await appraisalService.updateAppraisalStatus(
+    id,
+    { status, comment },
+    currentUser
+  );
+
+  handleResponse(res, 200, `Appraisal ${status} successfully`, appraisal);
 });
 
 // Get all
@@ -127,8 +140,6 @@ const update = catchAsync(async (req, res) => {
   const cleanedData = cleanFormData(req.body);
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
-
-  console.log("SS-cleanedData::UPDATE::", cleanedData);
 
   const appraisal = await appraisalService.updateAppraisal(
     id,
@@ -245,7 +256,8 @@ const deleteComment = catchAsync(async (req, res) => {
 module.exports = {
   saveDraft,
   submit,
-  submitFull, // FIXED: Added new export
+  createAndSubmit, // FIXED: Renamed from submitFull
+  updateStatus, // FIXED: Added new function
   getAll,
   getById,
   update,

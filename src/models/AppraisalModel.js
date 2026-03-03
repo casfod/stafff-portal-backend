@@ -16,6 +16,12 @@ const objectiveRatingSchema = new mongoose.Schema({
   },
   employeePoints: { type: Number, default: 0 },
   supervisorPoints: { type: Number, default: 0 },
+  // Add pending state for supervisor
+  supervisorRatingStatus: {
+    type: String,
+    enum: ["pending", "completed"],
+    default: "pending",
+  },
 });
 
 const performanceAreaSchema = new mongoose.Schema({
@@ -33,8 +39,19 @@ const performanceAreaSchema = new mongoose.Schema({
   },
   rating: {
     type: String,
-    enum: ["Needs Improvement", "Meets Expectations", "Exceeds Expectations"],
+    enum: [
+      "Pending",
+      "Needs Improvement",
+      "Meets Expectations",
+      "Exceeds Expectations",
+    ],
     required: true,
+  },
+  // Add pending state for supervisor
+  supervisorStatus: {
+    type: String,
+    enum: ["pending", "completed"],
+    default: "pending",
   },
 });
 
@@ -63,6 +80,12 @@ const appraisalSchema = new mongoose.Schema(
     },
     supervisorName: { type: String, trim: true },
     lengthOfTimeSupervised: { type: String, trim: true },
+    // Add supervisor status
+    supervisorStatus: {
+      type: String,
+      enum: ["pending", "completed"],
+      default: "pending",
+    },
 
     // Section 2: Performance Objectives (max 5 + safeguarding)
     objectives: [objectiveRatingSchema],
@@ -76,6 +99,12 @@ const appraisalSchema = new mongoose.Schema(
         default: "No",
       },
       areasNotUnderstood: [{ type: String, trim: true }],
+      // Add supervisor status
+      supervisorStatus: {
+        type: String,
+        enum: ["pending", "completed"],
+        default: "pending",
+      },
     },
 
     // Section 3: Supervisor's Assessment
@@ -84,6 +113,7 @@ const appraisalSchema = new mongoose.Schema(
     overallRating: {
       type: String,
       enum: [
+        "Pending",
         "Meets Requirements",
         "Partly Meets Requirements",
         "Does Not Meet Requirements",
@@ -136,23 +166,21 @@ const appraisalSchema = new mongoose.Schema(
       required: true,
     },
 
-    // FIXED: Make staffStrategy NOT required (only required for submitted appraisals)
     staffStrategy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "StaffStrategy",
-      // removed required: true
     },
 
     status: {
       type: String,
-      enum: [
-        "draft",
-        "pending-employee",
-        "pending-supervisor",
-        "completed",
-        "rejected",
-      ],
+      enum: ["draft", "pending", "approved", "rejected"],
       default: "draft",
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
 
     submittedByEmployee: { type: Boolean, default: false },
@@ -176,35 +204,48 @@ const appraisalSchema = new mongoose.Schema(
   }
 );
 
-// Pre-save middleware for appraisal code generation
+// Pre-save middleware for appraisal code generation - FIXED
 appraisalSchema.pre("save", async function (next) {
+  // Generate appraisal code only when moving from draft to pending
   if (
     this.isModified("status") &&
-    (this.status === "pending-employee" ||
-      this.status === "pending-supervisor") &&
+    this.status === "pending" &&
     !this.appraisalCode
   ) {
     try {
+      // Count only non-draft appraisals with proper prefix for serial number
       const count = await mongoose.model("Appraisal").countDocuments({
         status: { $nin: ["draft"] },
+        appraisalCode: { $regex: "^APP-CASFOD-" },
       });
+
+      // Generate serial number (start from 1, pad to 3 digits)
       const serial = (count + 1).toString().padStart(3, "0");
       this.appraisalCode = `APP-CASFOD-${serial}`;
+
+      console.log(
+        `Generated appraisal code: ${this.appraisalCode} for pending status`
+      );
       next();
     } catch (error) {
+      console.error("Error generating appraisal code:", error);
       next(error);
     }
-  } else if (this.status === "draft" && !this.appraisalCode) {
+  }
+  // For draft documents, generate a temporary code if none exists
+  else if (this.status === "draft" && !this.appraisalCode) {
     this.appraisalCode = `APP-DRAFT-${Date.now()}-${Math.random()
       .toString(36)
       .substr(2, 9)}`;
     next();
-  } else {
+  }
+  // If already has a code, just proceed
+  else {
     next();
   }
 });
 
-// Pre-save middleware to calculate scores
+// Pre-save middleware to calculate scores and update supervisor status
 appraisalSchema.pre("save", function (next) {
   // Calculate points based on ratings
   const ratingPoints = {
@@ -215,13 +256,24 @@ appraisalSchema.pre("save", function (next) {
 
   let employeeTotal = 0;
   let supervisorTotal = 0;
+  let allSupervisorRatingsCompleted = true;
 
-  this.objectives.forEach((obj) => {
-    obj.employeePoints = ratingPoints[obj.employeeRating] || 0;
-    obj.supervisorPoints = ratingPoints[obj.supervisorRating] || 0;
-    employeeTotal += obj.employeePoints;
-    supervisorTotal += obj.supervisorPoints;
-  });
+  // Process objectives
+  if (this.objectives && this.objectives.length > 0) {
+    this.objectives.forEach((obj) => {
+      obj.employeePoints = ratingPoints[obj.employeeRating] || 0;
+      obj.supervisorPoints = ratingPoints[obj.supervisorRating] || 0;
+      employeeTotal += obj.employeePoints;
+      supervisorTotal += obj.supervisorPoints;
+
+      // Update supervisor rating status
+      if (obj.supervisorRating && obj.supervisorRating !== "") {
+        obj.supervisorRatingStatus = "completed";
+      } else {
+        allSupervisorRatingsCompleted = false;
+      }
+    });
+  }
 
   // Count performance areas ratings
   const counts = {
@@ -230,11 +282,34 @@ appraisalSchema.pre("save", function (next) {
     exceedsExpectations: 0,
   };
 
-  this.performanceAreas.forEach((area) => {
-    if (area.rating === "Needs Improvement") counts.needsImprovement++;
-    if (area.rating === "Meets Expectations") counts.meetsExpectations++;
-    if (area.rating === "Exceeds Expectations") counts.exceedsExpectations++;
-  });
+  if (this.performanceAreas && this.performanceAreas.length > 0) {
+    this.performanceAreas.forEach((area) => {
+      if (area.rating === "Needs Improvement") counts.needsImprovement++;
+      if (area.rating === "Meets Expectations") counts.meetsExpectations++;
+      if (area.rating === "Exceeds Expectations") counts.exceedsExpectations++;
+
+      // Update supervisor status for performance areas
+      if (area.rating && area.rating !== "Pending") {
+        area.supervisorStatus = "completed";
+      } else {
+        allSupervisorRatingsCompleted = false;
+      }
+    });
+  }
+
+  // Update safeguarding supervisor status
+  if (this.safeguarding) {
+    if (this.safeguarding.trainingCompleted !== "No") {
+      this.safeguarding.supervisorStatus = "completed";
+    } else {
+      allSupervisorRatingsCompleted = false;
+    }
+  }
+
+  // Update overall supervisor status
+  this.supervisorStatus = allSupervisorRatingsCompleted
+    ? "completed"
+    : "pending";
 
   this.scores = {
     employeeTotal,

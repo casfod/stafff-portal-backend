@@ -12,6 +12,8 @@ const requestTypePaths = {
   expenseClaim: "expense-claims/request",
   purchaseOrder: "procurement/purchase-order",
   leave: "human-resources/leave",
+  staffStrategy: "human-resources/staff-strategy",
+  appraisal: "human-resources/appraisal", // FIXED: Added appraisal
 };
 
 class NotificationService {
