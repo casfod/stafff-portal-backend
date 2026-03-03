@@ -34,7 +34,7 @@ const saveDraft = catchAsync(async (req, res) => {
   handleResponse(res, 201, "Appraisal draft saved successfully", appraisal);
 });
 
-// FIXED: Submit for approval (from draft to pending)
+// Submit for approval (from draft to pending)
 const submit = catchAsync(async (req, res) => {
   const { id } = req.params;
   const currentUser = await userByToken(req, res);
@@ -49,37 +49,33 @@ const submit = catchAsync(async (req, res) => {
   );
 });
 
-// Create and Submit in one step
+// Create and Submit in one step (like Staff Strategy create)
 const createAndSubmit = catchAsync(async (req, res) => {
-  const currentUser = await userByToken(req, res);
-
-  // First save as draft
   req.body.objectives = parseJsonField(req.body, "objectives", true);
   req.body.safeguarding = parseJsonField(req.body, "safeguarding");
 
   const cleanedData = cleanFormData(req.body);
+  const currentUser = await userByToken(req, res);
 
-  // Save the appraisal first
-  const savedAppraisal = await appraisalService.saveAppraisal(
+  // Check if supervisorId is provided (will be used as approvedBy)
+  if (!cleanedData.supervisorId) {
+    throw new appError("Supervisor (approvedBy) is required", 400);
+  }
+
+  const appraisal = await appraisalService.createAndSubmitAppraisal(
     cleanedData,
-    currentUser
-  );
-
-  // Then submit it
-  const appraisal = await appraisalService.submitAppraisal(
-    savedAppraisal.id,
     currentUser
   );
 
   handleResponse(
     res,
-    200,
+    201,
     "Appraisal created and submitted successfully",
     appraisal
   );
 });
 
-// FIXED: Update status (Approve/Reject)
+// Update status (Approve/Reject)
 const updateStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status, comment } = req.body;
@@ -256,8 +252,8 @@ const deleteComment = catchAsync(async (req, res) => {
 module.exports = {
   saveDraft,
   submit,
-  createAndSubmit, // FIXED: Renamed from submitFull
-  updateStatus, // FIXED: Added new function
+  createAndSubmit,
+  updateStatus,
   getAll,
   getById,
   update,

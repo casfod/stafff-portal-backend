@@ -183,6 +183,8 @@ const saveAppraisal = async (data, currentUser) => {
     createdBy: currentUser._id,
     status: "draft",
     supervisorStatus: "pending",
+    // Set approvedBy to supervisorId for the approval flow
+    approvedBy: cleanObjectId(supervisorId),
   };
 
   if (staffStrategy) {
@@ -207,7 +209,7 @@ const saveAppraisal = async (data, currentUser) => {
   return normalizeId(appraisal.toObject());
 };
 
-// Submit Appraisal (move from draft to pending) - notify supervisor - FIXED
+// Submit Appraisal (move from draft to pending) - FIXED with approvedBy check
 const submitAppraisal = async (id, currentUser) => {
   const cleanedId = cleanObjectId(id);
 
@@ -234,6 +236,12 @@ const submitAppraisal = async (id, currentUser) => {
     throw new Error("Supervisor is required before submission");
   }
 
+  // Check if approvedBy is assigned (should be set during save, but double-check)
+  if (!appraisal.approvedBy) {
+    // If not set, default to supervisorId
+    appraisal.approvedBy = appraisal.supervisorId;
+  }
+
   // Update status to pending
   appraisal.status = "pending";
   appraisal.submittedByEmployee = true;
@@ -241,7 +249,7 @@ const submitAppraisal = async (id, currentUser) => {
   await appraisal.save();
 
   // FIXED: Properly notify supervisor when submitted (like StaffStrategy)
-  if (appraisal.supervisorId) {
+  if (appraisal.approvedBy) {
     try {
       await notify.notifyApprovers({
         request: appraisal,
@@ -250,9 +258,9 @@ const submitAppraisal = async (id, currentUser) => {
         title: "Staff Appraisal",
         header: "You have been assigned an appraisal for review",
       });
-      console.log(`Notification sent to supervisor: ${appraisal.supervisorId}`);
+      console.log(`Notification sent to approver: ${appraisal.approvedBy}`);
     } catch (error) {
-      console.error("Failed to send notification to supervisor:", error);
+      console.error("Failed to send notification to approver:", error);
       // Don't throw - notification failure shouldn't block submission
     }
   }
@@ -272,6 +280,131 @@ const submitAppraisal = async (id, currentUser) => {
   const filesData = await fileService.getFilesByDocument(
     "Appraisals",
     cleanedId
+  );
+
+  return normalizeId({
+    ...appraisal.toObject(),
+    files: normalizeFiles(filesData),
+  });
+};
+
+// Create and Submit in one step - FIXED with approvedBy set
+const createAndSubmitAppraisal = async (data, currentUser) => {
+  const {
+    staffId,
+    staffName,
+    position,
+    department,
+    lengthOfTimeInPosition,
+    appraisalPeriod,
+    supervisorId,
+    supervisorName,
+    lengthOfTimeSupervised,
+    objectives,
+    safeguarding,
+    staffStrategy,
+  } = data;
+
+  // Validate required fields
+  if (!staffId || !supervisorId) {
+    throw new Error("Staff and Supervisor are required");
+  }
+
+  // Check if approvedBy is assigned (should be the supervisor)
+  if (!supervisorId) {
+    throw new Error("Supervisor (approvedBy) is required");
+  }
+
+  // Initialize with default objectives if not provided
+  const defaultObjectives = objectives || [
+    { objective: "" },
+    { objective: "" },
+    { objective: "" },
+    { objective: "" },
+    { objective: "" },
+    { objective: "Safeguarding" },
+  ];
+
+  const appraisalData = {
+    staffId: cleanObjectId(staffId),
+    staffName,
+    position,
+    department,
+    lengthOfTimeInPosition,
+    appraisalPeriod,
+    dateOfAppraisal: new Date(),
+    supervisorId: cleanObjectId(supervisorId),
+    supervisorName,
+    lengthOfTimeSupervised,
+    objectives: defaultObjectives,
+    safeguarding: safeguarding || {
+      actionsTaken: "",
+      trainingCompleted: "No",
+      areasNotUnderstood: [],
+      supervisorStatus: "pending",
+    },
+    performanceAreas: [
+      { area: "Job Knowledge", rating: "Pending", supervisorStatus: "pending" },
+      { area: "Judgement", rating: "Pending", supervisorStatus: "pending" },
+      { area: "Reliability", rating: "Pending", supervisorStatus: "pending" },
+      {
+        area: "Quality & Quantity of Work",
+        rating: "Pending",
+        supervisorStatus: "pending",
+      },
+      {
+        area: "Interpersonal and Communication Skills",
+        rating: "Pending",
+        supervisorStatus: "pending",
+      },
+      { area: "Teamwork", rating: "Pending", supervisorStatus: "pending" },
+    ],
+    overallRating: "Pending",
+    createdBy: currentUser._id,
+    status: "pending", // Directly set to pending
+    submittedByEmployee: true,
+    supervisorStatus: "pending",
+    approvedBy: cleanObjectId(supervisorId), // Set approvedBy to supervisorId
+  };
+
+  if (staffStrategy) {
+    appraisalData.staffStrategy = cleanObjectId(staffStrategy);
+  }
+
+  const appraisal = new Appraisal(appraisalData);
+
+  await appraisal.save();
+
+  // Notify approver
+  if (appraisal.approvedBy) {
+    try {
+      await notify.notifyApprovers({
+        request: appraisal,
+        currentUser,
+        requestType: "appraisal",
+        title: "Staff Appraisal",
+        header: "You have been assigned an appraisal for review",
+      });
+      console.log(`Notification sent to approver: ${appraisal.approvedBy}`);
+    } catch (error) {
+      console.error("Failed to send notification to approver:", error);
+    }
+  }
+
+  await appraisal.populate([
+    { path: "staffId", select: "email first_name last_name role position" },
+    {
+      path: "supervisorId",
+      select: "email first_name last_name role position",
+    },
+    { path: "createdBy", select: "email first_name last_name role" },
+    { path: "staffStrategy", select: "strategyCode department period" },
+    { path: "approvedBy", select: "email first_name last_name role" },
+  ]);
+
+  const filesData = await fileService.getFilesByDocument(
+    "Appraisals",
+    appraisal._id
   );
 
   return normalizeId({
@@ -785,6 +918,7 @@ module.exports = {
   getAppraisals,
   saveAppraisal,
   submitAppraisal,
+  createAndSubmitAppraisal, // New function for one-step create and submit
   updateAppraisalStatus,
   getAppraisalById,
   updateAppraisal,

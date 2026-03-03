@@ -13,7 +13,7 @@ const requestTypePaths = {
   purchaseOrder: "procurement/purchase-order",
   leave: "human-resources/leave",
   staffStrategy: "human-resources/staff-strategy",
-  appraisal: "human-resources/appraisal", // FIXED: Added appraisal
+  appraisal: "human-resources/appraisals", // FIXED: Added appraisal
 };
 
 class NotificationService {

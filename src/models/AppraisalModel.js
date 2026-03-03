@@ -207,29 +207,31 @@ const appraisalSchema = new mongoose.Schema(
 // Pre-save middleware for appraisal code generation - FIXED
 appraisalSchema.pre("save", async function (next) {
   // Generate appraisal code only when moving from draft to pending
-  if (
-    this.isModified("status") &&
-    this.status === "pending" &&
-    !this.appraisalCode
-  ) {
-    try {
-      // Count only non-draft appraisals with proper prefix for serial number
-      const count = await mongoose.model("Appraisal").countDocuments({
-        status: { $nin: ["draft"] },
-        appraisalCode: { $regex: "^APP-CASFOD-" },
-      });
+  if (this.isModified("status") && this.status === "pending") {
+    // Only generate a new code if the current code is a draft code or doesn't exist
+    if (!this.appraisalCode || this.appraisalCode.startsWith("APP-DRAFT-")) {
+      try {
+        // Count only non-draft appraisals with proper prefix for serial number
+        const count = await mongoose.model("Appraisal").countDocuments({
+          status: { $nin: ["draft"] },
+          appraisalCode: { $regex: "^APP-CASFOD-" },
+        });
 
-      // Generate serial number (start from 1, pad to 3 digits)
-      const serial = (count + 1).toString().padStart(3, "0");
-      this.appraisalCode = `APP-CASFOD-${serial}`;
+        // Generate serial number (start from 1, pad to 3 digits)
+        const serial = (count + 1).toString().padStart(3, "0");
+        this.appraisalCode = `APP-CASFOD-${serial}`;
 
-      console.log(
-        `Generated appraisal code: ${this.appraisalCode} for pending status`
-      );
+        console.log(
+          `Generated appraisal code: ${this.appraisalCode} for pending status`
+        );
+        next();
+      } catch (error) {
+        console.error("Error generating appraisal code:", error);
+        next(error);
+      }
+    } else {
+      // Already has a proper code, just proceed
       next();
-    } catch (error) {
-      console.error("Error generating appraisal code:", error);
-      next(error);
     }
   }
   // For draft documents, generate a temporary code if none exists
