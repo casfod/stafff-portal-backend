@@ -10,6 +10,7 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const searchConfig = require("../utils/searchConfig");
+const BaseCopyService = require("./BaseCopyService");
 
 // Helper function to clean and validate ObjectId
 const cleanObjectId = (id) => {
@@ -21,6 +22,14 @@ const cleanObjectId = (id) => {
   }
   return cleanedId;
 };
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(StaffStrategy, "StaffStrategy");
+  }
+}
+
+const StaffStrategyCopyService = new copyService();
 
 // Get all Staff Strategies
 const getStaffStrategies = async (queryParams, currentUser) => {
@@ -628,6 +637,7 @@ const deleteStaffStrategy = async (id) => {
 };
 
 module.exports = {
+  StaffStrategyCopyService,
   getStaffStrategies,
   saveStaffStrategy,
   submitStaffStrategy,

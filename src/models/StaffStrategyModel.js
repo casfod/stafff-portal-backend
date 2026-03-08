@@ -66,6 +66,7 @@ const staffStrategySchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     pdfUrl: { type: String, default: "" },
     cloudinaryId: { type: String, default: "" },

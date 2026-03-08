@@ -18,12 +18,41 @@ const cleanFormData = (data) => {
   return cleaned;
 };
 
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  // Get the advance request first to get its title
+  const appraisal = await appraisalService.getAppraisalById(id);
+  if (!appraisal) {
+    throw new appError("Request not found", 404);
+  }
+
+  const updatedRequest =
+    await appraisalService.AppraisalCopyService.copyDocument({
+      currentUser: currentUser,
+      requestId: id,
+      requestType: "appraisal",
+      requestTitle: "Appraisal", // Use actual purpose if available
+      recipients: userIds,
+    });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
+
 // Create draft
 const saveDraft = catchAsync(async (req, res) => {
   req.body.objectives = parseJsonField(req.body, "objectives", true);
   req.body.safeguarding = parseJsonField(req.body, "safeguarding");
 
   const cleanedData = cleanFormData(req.body);
+
+  console.log({ cleanedData });
   const currentUser = await userByToken(req, res);
 
   const appraisal = await appraisalService.saveAppraisal(
@@ -250,6 +279,7 @@ const deleteComment = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   saveDraft,
   submit,
   createAndSubmit,

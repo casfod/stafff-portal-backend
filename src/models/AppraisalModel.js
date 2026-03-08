@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 
 const objectiveRatingSchema = new mongoose.Schema({
   objective: { type: String, required: true, trim: true },
+
   employeeRating: {
     type: String,
     enum: ["", "Achieved", "Partly Achieved", "Not Achieved"],
@@ -65,6 +66,7 @@ const appraisalSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    achievements: { type: String, trim: true },
     staffName: { type: String, trim: true },
     position: { type: String, trim: true },
     department: { type: String, required: true, trim: true },
@@ -182,6 +184,7 @@ const appraisalSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     submittedByEmployee: { type: Boolean, default: false },
     submittedBySupervisor: { type: Boolean, default: false },

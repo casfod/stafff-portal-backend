@@ -20,6 +20,33 @@ const cleanFormData = (data) => {
   return cleaned;
 };
 
+const copyRequest = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  if (!userIds || !Array.isArray(userIds)) {
+    throw new appError("Please provide valid recipient user IDs", 400);
+  }
+
+  // Get the advance request first to get its title
+  const appraisal = await staffStrategyService.getStaffStrategyById(id);
+  if (!appraisal) {
+    throw new appError("Request not found", 404);
+  }
+
+  const updatedRequest =
+    await staffStrategyService.StaffStrategyCopyService.copyDocument({
+      currentUser: currentUser,
+      requestId: id,
+      requestType: "staffStrategy",
+      requestTitle: "Staff Strategy", // Use actual purpose if available
+      recipients: userIds,
+    });
+
+  handleResponse(res, 200, "Request copied successfully", updatedRequest);
+});
+
 // Create and Submit Staff Strategy (direct submission)
 const create = catchAsync(async (req, res) => {
   // Parse JSON fields
@@ -238,6 +265,7 @@ const remove = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  copyRequest,
   create,
   saveDraft,
   submitDraft,

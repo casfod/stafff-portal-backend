@@ -12,6 +12,7 @@ const {
   updateCommentInRequest,
   deleteCommentFromRequest,
   remove,
+  copyRequest,
   // getStats, // You'll need to add this to controller
 } = require("../controllers/staffStrategyController");
 const protect = require("../middleware/protect");
@@ -42,6 +43,9 @@ staffStrategyRouter.get("/", getAll);
 
 // Get single by ID
 staffStrategyRouter.get("/:id", getById);
+
+// Copy request
+staffStrategyRouter.patch("/copy/:id", copyRequest);
 
 // ========== UPDATE ==========
 // Update strategy (draft/pending only)

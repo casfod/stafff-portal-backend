@@ -8,6 +8,15 @@ const buildQuery = require("../utils/buildQuery");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
 const searchConfig = require("../utils/searchConfig");
+const BaseCopyService = require("./BaseCopyService");
+
+class copyService extends BaseCopyService {
+  constructor() {
+    super(Appraisal, "Appraisal");
+  }
+}
+
+const AppraisalCopyService = new copyService();
 
 const cleanObjectId = (id) => {
   if (!id) return null;
@@ -126,6 +135,7 @@ const saveAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives,
+    achievements,
     safeguarding,
     staffStrategy,
   } = data;
@@ -157,6 +167,7 @@ const saveAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives: defaultObjectives,
+    achievements,
     safeguarding: safeguarding || {
       actionsTaken: "",
       trainingCompleted: "No",
@@ -301,6 +312,7 @@ const createAndSubmitAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives,
+    achievements,
     safeguarding,
     staffStrategy,
   } = data;
@@ -337,6 +349,7 @@ const createAndSubmitAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives: defaultObjectives,
+    achievements,
     safeguarding: safeguarding || {
       actionsTaken: "",
       trainingCompleted: "No",
@@ -915,6 +928,7 @@ const deleteComment = async (id, commentId, userId) => {
 };
 
 module.exports = {
+  AppraisalCopyService,
   getAppraisals,
   saveAppraisal,
   submitAppraisal,

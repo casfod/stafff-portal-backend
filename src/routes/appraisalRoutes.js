@@ -15,6 +15,7 @@ const {
   addComment,
   updateComment,
   deleteComment,
+  copyRequest,
 } = require("../controllers/appraisalController");
 const protect = require("../middleware/protect");
 const { upload } = require("../controllers/fileController");
@@ -42,6 +43,9 @@ appraisalRouter.get("/:id", getById);
 appraisalRouter.put("/:id", upload.array("files", 10), update);
 appraisalRouter.patch("/:id/objectives", updateObjectives);
 appraisalRouter.patch("/:id/sign", sign);
+
+// Copy request
+appraisalRouter.patch("/copy/:id", copyRequest);
 
 // ========== COMMENTS ==========
 appraisalRouter.post("/:id/comments", addComment);
