@@ -25,6 +25,13 @@ router.get("/admins", userController.getAllAdmins);
 router.get("/reviewers", userController.getAllReviewers);
 router.get("/", userController.getAllUsers);
 
+// EXPORT ROUTE - add this before parameterized routes
+router.get(
+  "/export/excel",
+  restrictTo("SUPER-ADMIN", "ADMIN"),
+  userController.exportUsersToExcel
+);
+
 // PARAMETERIZED ROUTES LAST - these have dynamic parameters
 router.get("/:id", userController.getUserById);
 router.delete("/:userID", restrictTo("SUPER-ADMIN"), userController.deleteUser);

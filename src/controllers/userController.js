@@ -1,3 +1,4 @@
+const { generateUsersExcelReport } = require("../services/userExcelService");
 const {
   getAllUsersService,
   deleteUserService,
@@ -9,6 +10,11 @@ const {
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
 const userByToken = require("../utils/userByToken");
+
+// Add this new function
+const exportUsersToExcel = catchAsync(async (req, res) => {
+  await generateUsersExcelReport(res);
+});
 
 const getAllAdmins = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
@@ -61,4 +67,5 @@ module.exports = {
   getAllUsers,
   deleteUser,
   updateUserAdmin,
+  exportUsersToExcel,
 };
