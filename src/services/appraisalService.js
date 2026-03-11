@@ -135,7 +135,6 @@ const saveAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives,
-    achievements,
     safeguarding,
     staffStrategy,
   } = data;
@@ -167,7 +166,6 @@ const saveAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives: defaultObjectives,
-    achievements,
     safeguarding: safeguarding || {
       actionsTaken: "",
       trainingCompleted: "No",
@@ -312,7 +310,6 @@ const createAndSubmitAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives,
-    achievements,
     safeguarding,
     staffStrategy,
   } = data;
@@ -349,7 +346,6 @@ const createAndSubmitAppraisal = async (data, currentUser) => {
     supervisorName,
     lengthOfTimeSupervised,
     objectives: defaultObjectives,
-    achievements,
     safeguarding: safeguarding || {
       actionsTaken: "",
       trainingCompleted: "No",
@@ -604,11 +600,11 @@ const updateAppraisal = async (id, data, files = [], currentUser) => {
   // Supervisor can only update their sections
   if (isSupervisor && !isAdmin) {
     // Supervisor can update supervisor ratings and assessment
-    // They cannot change staff ratings
+    // They cannot change staff ratings or per-objective achievements
     if (data.objectives) {
       data.objectives = data.objectives.map((obj) => ({
         ...obj,
-        employeeRating: undefined, // Don't change staff ratings
+        employeeRating: undefined, // Don't change staff ratings or achievements
         employeePoints: undefined,
       }));
     }
@@ -694,10 +690,20 @@ const updateObjectives = async (id, objectives, currentUser) => {
     const existingObj = appraisal.objectives.id(newObj._id);
     if (existingObj) {
       if (isStaff) {
-        existingObj.employeeRating = newObj.employeeRating;
+        // employeeRating is a nested object { rating, achievements }
+        if (newObj.employeeRating !== undefined) {
+          existingObj.employeeRating = {
+            rating: newObj.employeeRating?.rating ?? newObj.employeeRating,
+            achievements:
+              newObj.employeeRating?.achievements ??
+              existingObj.employeeRating?.achievements ??
+              "",
+          };
+        }
       }
       if (isSupervisor) {
         existingObj.supervisorRating = newObj.supervisorRating;
+        // Supervisor does NOT touch employeeRating.achievements
       }
     }
   });

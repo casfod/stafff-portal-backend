@@ -6,9 +6,12 @@ const objectiveRatingSchema = new mongoose.Schema({
   objective: { type: String, required: true, trim: true },
 
   employeeRating: {
-    type: String,
-    enum: ["", "Achieved", "Partly Achieved", "Not Achieved"],
-    default: "",
+    rating: {
+      type: String,
+      enum: ["", "Achieved", "Partly Achieved", "Not Achieved"],
+      default: "",
+    },
+    achievements: { type: String, trim: true, default: "" },
   },
   supervisorRating: {
     type: String,
@@ -66,7 +69,6 @@ const appraisalSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    achievements: { type: String, trim: true },
     staffName: { type: String, trim: true },
     position: { type: String, trim: true },
     department: { type: String, required: true, trim: true },
@@ -266,7 +268,7 @@ appraisalSchema.pre("save", function (next) {
   // Process objectives
   if (this.objectives && this.objectives.length > 0) {
     this.objectives.forEach((obj) => {
-      obj.employeePoints = ratingPoints[obj.employeeRating] || 0;
+      obj.employeePoints = ratingPoints[obj.employeeRating?.rating] || 0;
       obj.supervisorPoints = ratingPoints[obj.supervisorRating] || 0;
       employeeTotal += obj.employeePoints;
       supervisorTotal += obj.supervisorPoints;
