@@ -113,7 +113,7 @@ const createVendorService = async (vendorData, files = []) => {
   // Generate unique vendor code
   vendorData.vendorCode = await generateVendorCode(vendorData.businessName);
 
-  const vendor = await Vendor.create(vendorData);
+  const vendor = await Vendor.create({ ...vendorData, status: "pending" });
 
   if (files.length > 0) {
     await handleFileUploads({

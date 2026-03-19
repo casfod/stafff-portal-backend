@@ -108,6 +108,25 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+
+    comments: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+        text: { type: String, required: true, trim: true },
+        _id: false,
+      },
+    ],
+
     createdAt: {
       type: Date,
       default: Date.now,
