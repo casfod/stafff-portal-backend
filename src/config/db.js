@@ -31,10 +31,10 @@ const connectDB = async () => {
     await seedSuperUserService();
     console.log("✓ Super user seeding completed");
 
-    await migratePendingVendorsToDraft();
-    console.log("✓ Pending vendors migration completed");
+    // await migratePendingVendorsToDraft();
+    // console.log("✓ Pending vendors migration completed");
 
-    await migrateVendorCreatedBy();
+    // await migrateVendorCreatedBy();
 
     // Run user migrations
     // await migrateUsers();
