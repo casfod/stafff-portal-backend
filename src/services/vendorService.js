@@ -42,7 +42,7 @@ const getAllVendorsService = async (queryParams, currentUser) => {
 
     case "SUPER-ADMIN":
       roleSpecificConditions.push(
-        { status: { $ne: "draft" } }, // All non-draft requests
+        // { status: { $ne: "draft" } }, // All non-draft requests
         {
           $and: [
             { createdBy: currentUser._id },
