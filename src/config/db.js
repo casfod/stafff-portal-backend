@@ -10,6 +10,9 @@ const {
 const {
   migrateEmploymentInfoLock,
 } = require("../../scripts/migrateEmploymentInfoLockTemp");
+const {
+  migratePendingVendorsToDraft,
+} = require("./migratependingvendorstodraft");
 
 dotenv.config({ path: "./config.env" });
 
@@ -26,6 +29,9 @@ const connectDB = async () => {
     // Seed super user if not exists
     await seedSuperUserService();
     console.log("✓ Super user seeding completed");
+
+    await migratePendingVendorsToDraft();
+    console.log("✓ Pending vendors migration completed");
 
     // Run user migrations
     // await migrateUsers();
