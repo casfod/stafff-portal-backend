@@ -3,10 +3,9 @@ const Vendor = require("../models/VendorModel"); // adjust path as needed
 const migratePendingVendorsToDraft = async () => {
   try {
     const result = await Vendor.updateMany(
-      { status: "pending" },
+      { $or: [{ status: "pending" }, { status: { $exists: false } }] },
       { $set: { status: "draft" } }
     );
-
     console.log(
       `✓ Vendor migration completed: ${result.modifiedCount} vendor(s) updated from "pending" to "draft"`
     );
