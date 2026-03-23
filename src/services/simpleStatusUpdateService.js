@@ -93,15 +93,20 @@ class SimpleStatusUpdateService {
     // Don't notify if status hasn't changed
     if (previousStatus === newStatus) return;
 
-    // Determine creator field
-    const creatorField = document.preparedBy ? "preparedBy" : "createdBy";
-    const creatorId = document[creatorField];
+    // Determine creator field (try different possible field names)
+    let creatorId =
+      document.createdBy || document.preparedBy || document.requestedBy;
+
+    // If creatorId is an object with _id, extract it
+    if (creatorId && creatorId._id) {
+      creatorId = creatorId._id;
+    }
 
     switch (newStatus) {
       case "approved":
         // Notify creator
         if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
-          notify.notifyCreator({
+          await notify.notifyCreator({
             request: document,
             currentUser,
             requestType,
@@ -110,11 +115,11 @@ class SimpleStatusUpdateService {
           });
         }
 
-        // Notify anyone who commented (optional)
+        // Notify anyone who commented
         if (document.comments && document.comments.length > 0) {
           const uniqueCommenters = [
-            ...new Set(document.comments.map((c) => c.user.toString())),
-          ];
+            ...new Set(document.comments.map((c) => c.user?.toString())),
+          ].filter(Boolean);
           const recipientsToNotify = uniqueCommenters.filter(
             (id) =>
               id !== currentUser._id.toString() &&
@@ -122,14 +127,29 @@ class SimpleStatusUpdateService {
           );
 
           if (recipientsToNotify.length > 0) {
-            notify.notifyMultipleUsers({
-              request: document,
-              currentUser,
-              requestType,
-              title,
-              header: `A ${title} you commented on has been APPROVED`,
-              recipientIds: recipientsToNotify,
-            });
+            // Check if notify has notifyMultipleUsers method
+            if (typeof notify.notifyMultipleUsers === "function") {
+              await notify.notifyMultipleUsers({
+                request: document,
+                currentUser,
+                requestType,
+                title,
+                header: `A ${title} you commented on has been APPROVED`,
+                recipientIds: recipientsToNotify,
+              });
+            } else {
+              // Fallback to notifying each user individually
+              for (const recipientId of recipientsToNotify) {
+                await notify.notifyCreator({
+                  request: document,
+                  currentUser,
+                  requestType,
+                  title,
+                  header: `A ${title} you commented on has been APPROVED`,
+                  recipientId,
+                });
+              }
+            }
           }
         }
         break;
@@ -137,7 +157,7 @@ class SimpleStatusUpdateService {
       case "rejected":
         // Notify creator
         if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
-          notify.notifyCreator({
+          await notify.notifyCreator({
             request: document,
             currentUser,
             requestType,
@@ -146,11 +166,11 @@ class SimpleStatusUpdateService {
           });
         }
 
-        // Notify anyone who commented (optional)
+        // Notify anyone who commented
         if (document.comments && document.comments.length > 0) {
           const uniqueCommenters = [
-            ...new Set(document.comments.map((c) => c.user.toString())),
-          ];
+            ...new Set(document.comments.map((c) => c.user?.toString())),
+          ].filter(Boolean);
           const recipientsToNotify = uniqueCommenters.filter(
             (id) =>
               id !== currentUser._id.toString() &&
@@ -158,14 +178,27 @@ class SimpleStatusUpdateService {
           );
 
           if (recipientsToNotify.length > 0) {
-            notify.notifyMultipleUsers({
-              request: document,
-              currentUser,
-              requestType,
-              title,
-              header: `A ${title} you commented on has been REJECTED`,
-              recipientIds: recipientsToNotify,
-            });
+            if (typeof notify.notifyMultipleUsers === "function") {
+              await notify.notifyMultipleUsers({
+                request: document,
+                currentUser,
+                requestType,
+                title,
+                header: `A ${title} you commented on has been REJECTED`,
+                recipientIds: recipientsToNotify,
+              });
+            } else {
+              for (const recipientId of recipientsToNotify) {
+                await notify.notifyCreator({
+                  request: document,
+                  currentUser,
+                  requestType,
+                  title,
+                  header: `A ${title} you commented on has been REJECTED`,
+                  recipientId,
+                });
+              }
+            }
           }
         }
         break;
@@ -176,12 +209,12 @@ class SimpleStatusUpdateService {
           document.approvedBy &&
           document.approvedBy.toString() !== currentUser._id.toString()
         ) {
-          notify.notifyApprovers({
+          await notify.notifyApprovers({
             request: document,
             currentUser,
             requestType,
             title,
-            header: `You have been assigned a ${title} for approval`,
+            header: `New ${title} requires your approval`,
           });
         }
         break;

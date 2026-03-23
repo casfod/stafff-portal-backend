@@ -30,11 +30,18 @@ const purchaseOrderSchema = new mongoose.Schema(
     VAT: { type: Number, default: 0 },
     pdfUrl: { type: String, default: "" },
     cloudinaryId: { type: String, default: "" },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
@@ -52,11 +59,6 @@ const purchaseOrderSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
   },
   {
     timestamps: true,

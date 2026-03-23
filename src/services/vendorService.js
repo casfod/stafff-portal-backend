@@ -1,9 +1,4 @@
 const Vendor = require("../models/VendorModel");
-// const {
-//   buildQuery,
-//   buildSortQuery,
-//   paginate,
-// } = require("../utils/queryBuilder");
 const {
   generateVendorCode,
   formatPhoneNumber,
@@ -14,43 +9,94 @@ const paginate = require("../utils/paginate");
 const buildQuery = require("../utils/buildQuery");
 const handleFileUploads = require("../utils/FileUploads");
 const fileService = require("./fileService");
+const notify = require("../utils/notify");
+const searchConfig = require("../utils/searchConfig");
 
-const getAllVendorsService = async (queryParams) => {
-  const { search, sort, page = 1, limit = 10 } = queryParams;
+const getAllVendorsService = async (queryParams, currentUser) => {
+  const { search, sort, page = 1, limit = 8 } = queryParams;
 
   // Define the fields you want to search in
-  const searchFields = [
-    "businessName",
-    "businessType",
-    "email",
-    "contactPerson",
-    "category",
-    "vendorCode",
+  const searchFields = searchConfig.vendor;
+
+  // Build the search query
+  const searchTerms = search ? search.trim().split(/\s+/) : [];
+  let query = buildQuery(searchTerms, searchFields);
+
+  // Common conditions for all users
+  const commonConditions = [
+    { createdBy: currentUser._id }, // Always see own requests
+    { copiedTo: currentUser._id }, // Always see requests copied to you
   ];
 
-  // Build the query
-  const searchTerms = search ? search.trim().split(/\s+/) : [];
-  const query = buildQuery(searchTerms, searchFields);
+  // Role-specific conditions
+  let roleSpecificConditions = [];
+
+  switch (currentUser.role) {
+    case "STAFF":
+      // Staff only get common conditions (no additional access)
+      break;
+
+    case "ADMIN":
+      roleSpecificConditions.push({ approvedBy: currentUser._id });
+      break;
+
+    case "SUPER-ADMIN":
+      roleSpecificConditions.push(
+        { status: { $ne: "draft" } }, // All non-draft requests
+        {
+          $and: [
+            { createdBy: currentUser._id },
+            { status: "draft" }, // Only their own drafts
+          ],
+        }
+      );
+      break;
+
+    default:
+      throw new Error("Invalid user role");
+  }
+
+  // Combine all conditions
+  query.$or = [...commonConditions, ...roleSpecificConditions];
 
   // Build the sort object
   const sortQuery = buildSortQuery(sort);
 
-  // Fetch vendors with filters, sorting, and pagination
+  const populateOptions = [
+    { path: "createdBy", select: "email first_name last_name role id _id" },
+    { path: "approvedBy", select: "email first_name last_name role id _id" },
+    { path: "comments.user", select: "email first_name last_name role" },
+    { path: "copiedTo", select: "email first_name last_name role" },
+  ];
+
+  // Filters, sorting, pagination, and populate
   const {
     results: vendors,
+
     total,
     totalPages,
     currentPage,
-  } = await paginate(Vendor, query, { page, limit }, sortQuery);
+  } = await paginate(
+    Vendor,
+    query,
+    { page, limit },
+    sortQuery,
+    populateOptions
+  );
+
+  // Fetch vendors with filters, sorting, and pagination
+  // const {
+  //   results: vendors,
+  //   total,
+  //   totalPages,
+  //   currentPage,
+  // } = await paginate(Vendor, query, { page, limit }, sortQuery);
 
   const vendorsWithFiles = await Promise.all(
-    vendors.map(async (project) => {
-      const files = await fileService.getFilesByDocument(
-        "Vendors",
-        project._id
-      );
+    vendors.map(async (vendor) => {
+      const files = await fileService.getFilesByDocument("Vendors", vendor._id);
       return {
-        ...project.toJSON(),
+        ...vendor.toJSON(),
         files,
       };
     })
@@ -65,27 +111,41 @@ const getAllVendorsService = async (queryParams) => {
 };
 
 const getVendorByIdService = async (vendorId) => {
-  const vendor = await Vendor.findById(vendorId);
+  const vendor = await Vendor.findById(vendorId)
+    .populate("createdBy", "first_name last_name email role")
+    .populate("approvedBy", "first_name last_name email role")
+    .populate("comments.user", "first_name last_name email role");
+
   if (!vendor) {
     throw new AppError("Vendor not found", 404);
   }
+
   const files = await fileService.getFilesByDocument("Vendors", vendorId);
 
   return {
-    ...vendor,
+    ...vendor.toJSON(),
     files,
   };
 };
 
 const getVendorByCodeService = async (vendorCode) => {
-  const vendor = await Vendor.findOne({ vendorCode: vendorCode.toUpperCase() });
+  const vendor = await Vendor.findOne({ vendorCode: vendorCode.toUpperCase() })
+    .populate("createdBy", "first_name last_name email role")
+    .populate("approvedBy", "first_name last_name email role")
+    .populate("comments.user", "first_name last_name email role");
+
   if (!vendor) {
     throw new AppError("Vendor not found", 404);
   }
   return vendor;
 };
 
-const createVendorService = async (vendorData, files = []) => {
+const createVendorService = async (
+  vendorData,
+  currentUser,
+  files = [],
+  isDraft = false
+) => {
   // Check if vendor with same email already exists
   const existingVendorByEmail = await Vendor.findOne({
     email: vendorData.email,
@@ -113,9 +173,38 @@ const createVendorService = async (vendorData, files = []) => {
   // Generate unique vendor code
   vendorData.vendorCode = await generateVendorCode(vendorData.businessName);
 
-  const vendor = await Vendor.create({ ...vendorData, status: "pending" });
+  let vendor;
 
-  if (files.length > 0) {
+  if (isDraft) {
+    // Save as draft
+    vendor = await Vendor.create({
+      ...vendorData,
+      status: "draft",
+      createdBy: currentUser._id,
+      approvedBy: null,
+    });
+  } else {
+    // Save and submit for approval
+    vendor = await Vendor.create({
+      ...vendorData,
+      status: "pending",
+      createdBy: currentUser._id,
+    });
+
+    // Notify approver
+    if (vendorData.approvedBy) {
+      await notify.notifyApprovers({
+        request: vendor,
+        currentUser,
+        requestType: "vendorManagement",
+        title: "Vendor Management",
+        header: "New vendor registration needs your approval",
+      });
+    }
+  }
+
+  // Handle file uploads
+  if (files && files.length > 0) {
     await handleFileUploads({
       files,
       requestId: vendor._id,
@@ -127,8 +216,18 @@ const createVendorService = async (vendorData, files = []) => {
 };
 
 const updateVendorService = async (vendorId, updateData, files = []) => {
-  console.log("/////😀😀😀😀//////", vendorId, updateData, files);
-  if (files.length > 0) {
+  // Check if vendor exists
+  const vendor = await Vendor.findById(vendorId);
+  if (!vendor) {
+    throw new AppError("Vendor not found", 404);
+  }
+
+  // Don't allow updating approved vendors
+  if (vendor.status === "approved") {
+    throw new AppError("Cannot update approved vendors", 400);
+  }
+
+  if (files && files.length > 0) {
     await fileService.deleteFilesByDocument("Vendors", vendorId);
 
     await handleFileUploads({
@@ -136,12 +235,6 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
       requestId: vendorId,
       modelTable: "Vendors",
     });
-  }
-
-  // Check if vendor exists
-  const vendor = await Vendor.findById(vendorId);
-  if (!vendor) {
-    throw new AppError("Vendor not found", 404);
   }
 
   // If email is being updated, check for duplicates
@@ -188,6 +281,145 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
   return updatedVendor;
 };
 
+const updateVendorStatusService = async (vendorId, data, currentUser) => {
+  const { status, comment } = data;
+
+  // Find the vendor
+  const vendor = await Vendor.findById(vendorId);
+  if (!vendor) {
+    throw new AppError("Vendor not found", 404);
+  }
+
+  // Add comment if provided
+  if (comment && comment.trim()) {
+    if (!vendor.comments) {
+      vendor.comments = [];
+    }
+
+    vendor.comments.unshift({
+      user: currentUser._id,
+      text: comment.trim(),
+    });
+  }
+
+  // Update status
+  const previousStatus = vendor.status;
+  vendor.status = status;
+
+  // Set approvedBy when status changes to "approved"
+  if (status === "approved") {
+    vendor.approvedBy = currentUser._id;
+  }
+
+  vendor.updatedAt = new Date();
+
+  // Save the updated vendor
+  const updatedVendor = await vendor.save();
+
+  // Send notifications
+  await sendVendorStatusNotifications({
+    vendor: updatedVendor,
+    previousStatus,
+    newStatus: status,
+    currentUser,
+  });
+
+  return updatedVendor;
+};
+
+const sendVendorStatusNotifications = async ({
+  vendor,
+  previousStatus,
+  newStatus,
+  currentUser,
+}) => {
+  // Don't notify if status hasn't changed
+  if (previousStatus === newStatus) return;
+
+  const creatorId = vendor.createdBy;
+
+  switch (newStatus) {
+    case "approved":
+      // Notify creator
+      if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
+        await notify.notifyCreator({
+          request: vendor,
+          currentUser,
+          requestType: "vendorManagement",
+          title: "Vendor Management",
+          header: "Your vendor registration has been APPROVED",
+        });
+      }
+
+      // Notify anyone who commented
+      if (vendor.comments && vendor.comments.length > 0) {
+        const uniqueCommenters = [
+          ...new Set(vendor.comments.map((c) => c.user?.toString())),
+        ].filter(Boolean);
+        const recipientsToNotify = uniqueCommenters.filter(
+          (id) =>
+            id !== currentUser._id.toString() &&
+            (!creatorId || id !== creatorId.toString())
+        );
+
+        if (recipientsToNotify.length > 0) {
+          for (const recipientId of recipientsToNotify) {
+            await notify.notifyCreator({
+              request: vendor,
+              currentUser,
+              requestType: "vendorManagement",
+              title: "Vendor Management",
+              header: "A vendor you commented on has been APPROVED",
+              recipientId,
+            });
+          }
+        }
+      }
+      break;
+
+    case "rejected":
+      // Notify creator
+      if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
+        await notify.notifyCreator({
+          request: vendor,
+          currentUser,
+          requestType: "vendorManagement",
+          title: "Vendor Management",
+          header: "Your vendor registration has been REJECTED",
+        });
+      }
+
+      // Notify anyone who commented
+      if (vendor.comments && vendor.comments.length > 0) {
+        const uniqueCommenters = [
+          ...new Set(vendor.comments.map((c) => c.user?.toString())),
+        ].filter(Boolean);
+        const recipientsToNotify = uniqueCommenters.filter(
+          (id) =>
+            id !== currentUser._id.toString() &&
+            (!creatorId || id !== creatorId.toString())
+        );
+
+        if (recipientsToNotify.length > 0) {
+          for (const recipientId of recipientsToNotify) {
+            await notify.notifyCreator({
+              request: vendor,
+              currentUser,
+              requestType: "vendorManagement",
+              title: "Vendor Management",
+              header: "A vendor you commented on has been REJECTED",
+              recipientId,
+            });
+          }
+        }
+      }
+      break;
+
+    default:
+      break;
+  }
+};
+
 const deleteVendorService = async (vendorId) => {
   await fileService.deleteFilesByDocument("Vendors", vendorId);
 
@@ -200,11 +432,86 @@ const deleteVendorService = async (vendorId) => {
   return { message: "Vendor deleted successfully" };
 };
 
+const getVendorsByStatusService = async (status, queryParams = {}) => {
+  const { search, sort, page = 1, limit = 10 } = queryParams;
+
+  const filter = status ? { status } : {};
+
+  // Add search functionality if needed
+  if (search) {
+    filter.$or = [
+      { businessName: { $regex: search, $options: "i" } },
+      { vendorCode: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+      { contactPerson: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  // Build sort query
+  let sortQuery = { createdAt: -1 };
+  if (sort) {
+    const [field, order] = sort.split(":");
+    sortQuery = { [field]: order === "desc" ? -1 : 1 };
+  }
+
+  const skip = (page - 1) * limit;
+  const limitNum = parseInt(limit);
+
+  const [vendors, total] = await Promise.all([
+    Vendor.find(filter)
+      .sort(sortQuery)
+      .skip(skip)
+      .limit(limitNum)
+      .populate("createdBy", "first_name last_name email role")
+      .populate("approvedBy", "first_name last_name email role")
+      .populate("comments.user", "first_name last_name email role"),
+    Vendor.countDocuments(filter),
+  ]);
+
+  const vendorsWithFiles = await Promise.all(
+    vendors.map(async (vendor) => {
+      const files = await fileService.getFilesByDocument("Vendors", vendor._id);
+      return {
+        ...vendor.toJSON(),
+        files,
+      };
+    })
+  );
+
+  return {
+    vendors: vendorsWithFiles,
+    total,
+    totalPages: Math.ceil(total / limitNum),
+    currentPage: parseInt(page),
+  };
+};
+
+const getVendorApprovalSummaryService = async () => {
+  const [draftCount, pendingCount, approvedCount, rejectedCount] =
+    await Promise.all([
+      Vendor.countDocuments({ status: "draft" }),
+      Vendor.countDocuments({ status: "pending" }),
+      Vendor.countDocuments({ status: "approved" }),
+      Vendor.countDocuments({ status: "rejected" }),
+    ]);
+
+  return {
+    draft: draftCount,
+    pending: pendingCount,
+    approved: approvedCount,
+    rejected: rejectedCount,
+    total: draftCount + pendingCount + approvedCount + rejectedCount,
+  };
+};
+
 module.exports = {
   getAllVendorsService,
   getVendorByIdService,
   getVendorByCodeService,
   createVendorService,
   updateVendorService,
+  updateVendorStatusService,
   deleteVendorService,
+  getVendorsByStatusService,
+  getVendorApprovalSummaryService,
 };

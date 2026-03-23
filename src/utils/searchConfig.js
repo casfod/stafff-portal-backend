@@ -111,6 +111,16 @@ const searchConfig = {
     "appraisalPeriod",
     "status",
   ],
+
+  vendor: [
+    "businessName",
+    "businessType",
+    "email",
+    "contactPerson",
+    "category",
+    "vendorCode",
+    "status",
+  ],
 };
 
 module.exports = searchConfig;

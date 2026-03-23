@@ -4,7 +4,10 @@ const {
   getVendorByCodeService,
   createVendorService,
   updateVendorService,
+  updateVendorStatusService,
   deleteVendorService,
+  getVendorsByStatusService,
+  getVendorApprovalSummaryService,
 } = require("../services/vendorService");
 const catchAsync = require("../utils/catchAsync");
 const handleResponse = require("../utils/handleResponse");
@@ -16,17 +19,19 @@ const {
 
 const getAllVendors = catchAsync(async (req, res) => {
   const { search, sort, page, limit } = req.query;
-  const result = await getAllVendorsService({ search, sort, page, limit });
+  const currentUser = await userByToken(req, res);
+
+  const result = await getAllVendorsService(
+    { search, sort, page, limit },
+    currentUser
+  );
   handleResponse(res, 200, "Vendors fetched successfully", result);
 });
 
 const getVendorById = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const vendor = await getVendorByIdService(vendorId);
-  handleResponse(res, 200, "Vendor fetched successfully", {
-    ...vendor,
-    id: vendor._id,
-  });
+  handleResponse(res, 200, "Vendor fetched successfully", vendor);
 });
 
 const getVendorByCode = catchAsync(async (req, res) => {
@@ -42,23 +47,52 @@ const createVendor = catchAsync(async (req, res) => {
 
   const vendor = await createVendorService(
     { ...vendorData, createdBy: currentUser._id },
-    files
+    currentUser,
+    files,
+    false // isDraft = false - submit for approval immediately
   );
-  handleResponse(res, 201, "Vendor created successfully", { vendor });
+  handleResponse(
+    res,
+    201,
+    "Vendor created successfully and submitted for approval",
+    { vendor }
+  );
+});
+
+const createVendorDraft = catchAsync(async (req, res) => {
+  const vendorData = req.body;
+  const files = req.files || [];
+  const currentUser = await userByToken(req, res);
+
+  const vendor = await createVendorService(
+    { ...vendorData, createdBy: currentUser._id },
+    currentUser,
+    files,
+    true // isDraft = true - save as draft
+  );
+  handleResponse(res, 201, "Vendor draft saved successfully", { vendor });
 });
 
 const updateVendor = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const updateData = req.body;
-
-  console.log("vendorId::", vendorId);
-
   const files = req.files || [];
-
-  console.log("files:", files);
 
   const vendor = await updateVendorService(vendorId, updateData, files);
   handleResponse(res, 200, "Vendor updated successfully", { vendor });
+});
+
+const updateVendorStatus = catchAsync(async (req, res) => {
+  const { vendorId } = req.params;
+  const { status, comment } = req.body;
+  const currentUser = await userByToken(req, res);
+
+  const vendor = await updateVendorStatusService(
+    vendorId,
+    { status, comment },
+    currentUser
+  );
+  handleResponse(res, 200, `Vendor ${status} successfully`, { vendor });
 });
 
 const deleteVendor = catchAsync(async (req, res) => {
@@ -71,12 +105,39 @@ const exportVendorsToExcel = catchAsync(async (req, res) => {
   await generateVendorsExcelReport(res);
 });
 
+const getVendorsByStatus = catchAsync(async (req, res) => {
+  const { status } = req.params;
+  const { search, sort, page, limit } = req.query;
+
+  const result = await getVendorsByStatusService(status, {
+    search,
+    sort,
+    page,
+    limit,
+  });
+  handleResponse(res, 200, "Vendors fetched successfully", result);
+});
+
+const getVendorApprovalSummary = catchAsync(async (req, res) => {
+  const summary = await getVendorApprovalSummaryService();
+  handleResponse(
+    res,
+    200,
+    "Vendor approval summary fetched successfully",
+    summary
+  );
+});
+
 module.exports = {
   getAllVendors,
   getVendorById,
   exportVendorsToExcel,
   getVendorByCode,
   createVendor,
+  createVendorDraft,
   updateVendor,
+  updateVendorStatus,
   deleteVendor,
+  getVendorsByStatus,
+  getVendorApprovalSummary,
 };

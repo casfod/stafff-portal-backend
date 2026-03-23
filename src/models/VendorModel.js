@@ -111,8 +111,19 @@ const vendorSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["draft", "pending", "approved", "rejected"],
       default: "pending",
+    },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
 
     comments: [
@@ -126,6 +137,8 @@ const vendorSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+
+    copiedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     createdAt: {
       type: Date,
