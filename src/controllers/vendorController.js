@@ -1,5 +1,6 @@
 const {
   getAllVendorsService,
+  getAllApprovedVendorsService,
   getVendorByIdService,
   getVendorByCodeService,
   createVendorService,
@@ -28,6 +29,20 @@ const getAllVendors = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Vendors fetched successfully", result);
 });
 
+// Returns only approved vendors — safe to use anywhere vendors are selected
+// (purchase orders, contracts, etc.) without leaking draft/pending/rejected records
+const getAllApprovedVendors = catchAsync(async (req, res) => {
+  const { search, sort, page, limit } = req.query;
+
+  const result = await getAllApprovedVendorsService({
+    search,
+    sort,
+    page,
+    limit,
+  });
+  handleResponse(res, 200, "Approved vendors fetched successfully", result);
+});
+
 const getVendorById = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const vendor = await getVendorByIdService(vendorId);
@@ -49,7 +64,7 @@ const createVendor = catchAsync(async (req, res) => {
     { ...vendorData, createdBy: currentUser._id },
     currentUser,
     files,
-    false // isDraft = false - submit for approval immediately
+    false
   );
   handleResponse(
     res,
@@ -68,7 +83,7 @@ const createVendorDraft = catchAsync(async (req, res) => {
     { ...vendorData, createdBy: currentUser._id },
     currentUser,
     files,
-    true // isDraft = true - save as draft
+    true
   );
   handleResponse(res, 201, "Vendor draft saved successfully", { vendor });
 });
@@ -130,6 +145,7 @@ const getVendorApprovalSummary = catchAsync(async (req, res) => {
 
 module.exports = {
   getAllVendors,
+  getAllApprovedVendors,
   getVendorById,
   exportVendorsToExcel,
   getVendorByCode,

@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   getAllVendors,
+  getAllApprovedVendors,
   getVendorById,
   getVendorByCode,
   createVendor,
@@ -23,7 +24,6 @@ const {
 
 const vendorRouter = express.Router();
 
-// Protect all routes after this middleware - THIS MUST COME FIRST
 vendorRouter.use(protect);
 
 // Approval workflow routes
@@ -39,11 +39,15 @@ vendorRouter.patch(
   updateVendorStatus
 );
 
-// Existing routes
+// Approved vendors only — use this everywhere vendors are selected outside of vendor management
+// (e.g. purchase orders, contracts, finance) so draft/pending/rejected are never exposed
+vendorRouter.get("/approved", checkViewPermission, getAllApprovedVendors);
+
+// Vendor management routes
 vendorRouter.get("/", checkViewPermission, getAllVendors);
+vendorRouter.get("/export/excel", checkViewPermission, exportVendorsToExcel);
 vendorRouter.get("/code/:vendorCode", checkViewPermission, getVendorByCode);
 vendorRouter.get("/:vendorId", checkViewPermission, getVendorById);
-vendorRouter.get("/export/excel", checkViewPermission, exportVendorsToExcel);
 
 // CRUD operations
 vendorRouter.post(
@@ -52,21 +56,18 @@ vendorRouter.post(
   checkCreatePermission,
   createVendor
 );
-
 vendorRouter.post(
   "/draft",
   upload.array("files", 10),
   checkCreatePermission,
   createVendorDraft
 );
-
 vendorRouter.patch(
   "/:vendorId",
   upload.array("files", 10),
   checkUpdatePermission,
   updateVendor
 );
-
 vendorRouter.delete("/:vendorId", checkDeletePermission, deleteVendor);
 
 module.exports = vendorRouter;

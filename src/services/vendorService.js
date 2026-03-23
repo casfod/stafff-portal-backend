@@ -15,10 +15,7 @@ const searchConfig = require("../utils/searchConfig");
 const getAllVendorsService = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
-  // Define the fields you want to search in
   const searchFields = searchConfig.vendor;
-
-  // Build the search query
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
@@ -28,12 +25,11 @@ const getAllVendorsService = async (queryParams, currentUser) => {
     { copiedTo: currentUser._id }, // Always see requests copied to you
   ];
 
-  // Role-specific conditions
   let roleSpecificConditions = [];
 
   switch (currentUser.role) {
     case "STAFF":
-      // Staff only get common conditions (no additional access)
+      // Staff only get common conditions
       break;
 
     case "ADMIN":
@@ -41,25 +37,19 @@ const getAllVendorsService = async (queryParams, currentUser) => {
       break;
 
     case "SUPER-ADMIN":
-      roleSpecificConditions.push(
-        // { status: { $ne: "draft" } }, // All non-draft requests
-        {
-          $and: [
-            // { createdBy: currentUser._id },
-            // { status: "draft" }, // Only their own drafts
-          ],
-        }
-      );
+      // TEMPORARY: See all vendors including all drafts during vendor verification phase.
+      // TODO: Once all vendors are verified and approved, revert to:
+      //   { status: { $ne: "draft" } }  — all non-drafts
+      //   { createdBy: currentUser._id, status: "draft" }  — only own drafts
+      roleSpecificConditions.push({ status: { $exists: true } }); // matches everything
       break;
 
     default:
       throw new Error("Invalid user role");
   }
 
-  // Combine all conditions
   query.$or = [...commonConditions, ...roleSpecificConditions];
 
-  // Build the sort object
   const sortQuery = buildSortQuery(sort);
 
   const populateOptions = [
@@ -69,10 +59,8 @@ const getAllVendorsService = async (queryParams, currentUser) => {
     { path: "copiedTo", select: "email first_name last_name role" },
   ];
 
-  // Filters, sorting, pagination, and populate
   const {
     results: vendors,
-
     total,
     totalPages,
     currentPage,
@@ -83,14 +71,6 @@ const getAllVendorsService = async (queryParams, currentUser) => {
     sortQuery,
     populateOptions
   );
-
-  // Fetch vendors with filters, sorting, and pagination
-  // const {
-  //   results: vendors,
-  //   total,
-  //   totalPages,
-  //   currentPage,
-  // } = await paginate(Vendor, query, { page, limit }, sortQuery);
 
   const vendorsWithFiles = await Promise.all(
     vendors.map(async (vendor) => {
@@ -107,6 +87,59 @@ const getAllVendorsService = async (queryParams, currentUser) => {
     totalVendors: total,
     totalPages,
     currentPage,
+  };
+};
+
+// Separate service for approved vendors only — used by other modules
+// (procurement, finance, etc.) that should only ever see approved vendors
+const getAllApprovedVendorsService = async (queryParams) => {
+  const { search, sort, page = 1, limit = 10 } = queryParams;
+
+  const filter = { status: "approved" };
+
+  if (search) {
+    filter.$or = [
+      { businessName: { $regex: search, $options: "i" } },
+      { vendorCode: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+      { contactPerson: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  let sortQuery = { createdAt: -1 };
+  if (sort) {
+    const [field, order] = sort.split(":");
+    sortQuery = { [field]: order === "desc" ? -1 : 1 };
+  }
+
+  const skip = (page - 1) * limit;
+  const limitNum = parseInt(limit);
+
+  const [vendors, total] = await Promise.all([
+    Vendor.find(filter)
+      .sort(sortQuery)
+      .skip(skip)
+      .limit(limitNum)
+      .populate("createdBy", "first_name last_name email role")
+      .populate("approvedBy", "first_name last_name email role"),
+    Vendor.countDocuments(filter),
+  ]);
+
+  const vendorsWithFiles = await Promise.all(
+    vendors.map(async (vendor) => {
+      const files = await fileService.getFilesByDocument("Vendors", vendor._id);
+      return {
+        ...vendor.toJSON(),
+        files,
+      };
+    })
+  );
+
+  return {
+    vendors: vendorsWithFiles,
+    totalVendors: total,
+    totalPages: Math.ceil(total / limitNum),
+    currentPage: parseInt(page),
   };
 };
 
@@ -146,7 +179,6 @@ const createVendorService = async (
   files = [],
   isDraft = false
 ) => {
-  // Check if vendor with same email already exists
   const existingVendorByEmail = await Vendor.findOne({
     email: vendorData.email,
   });
@@ -154,7 +186,6 @@ const createVendorService = async (
     throw new AppError("Vendor with this email already exists", 400);
   }
 
-  // Check if vendor with same business name already exists
   const existingVendorByBusiness = await Vendor.findOne({
     businessName: vendorData.businessName,
   });
@@ -162,7 +193,6 @@ const createVendorService = async (
     throw new AppError("Vendor with this business name already exists", 400);
   }
 
-  // Format phone numbers
   vendorData.businessPhoneNumber = formatPhoneNumber(
     vendorData.businessPhoneNumber
   );
@@ -170,13 +200,11 @@ const createVendorService = async (
     vendorData.contactPhoneNumber
   );
 
-  // Generate unique vendor code
   vendorData.vendorCode = await generateVendorCode(vendorData.businessName);
 
   let vendor;
 
   if (isDraft) {
-    // Save as draft
     vendor = await Vendor.create({
       ...vendorData,
       status: "draft",
@@ -184,14 +212,12 @@ const createVendorService = async (
       approvedBy: null,
     });
   } else {
-    // Save and submit for approval
     vendor = await Vendor.create({
       ...vendorData,
       status: "pending",
       createdBy: currentUser._id,
     });
 
-    // Notify approver
     if (vendorData.approvedBy) {
       await notify.notifyApprovers({
         request: vendor,
@@ -203,7 +229,6 @@ const createVendorService = async (
     }
   }
 
-  // Handle file uploads
   if (files && files.length > 0) {
     await handleFileUploads({
       files,
@@ -216,13 +241,11 @@ const createVendorService = async (
 };
 
 const updateVendorService = async (vendorId, updateData, files = []) => {
-  // Check if vendor exists
   const vendor = await Vendor.findById(vendorId);
   if (!vendor) {
     throw new AppError("Vendor not found", 404);
   }
 
-  // Don't allow updating approved vendors
   if (vendor.status === "approved") {
     throw new AppError("Cannot update approved vendors", 400);
   }
@@ -237,7 +260,6 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
     });
   }
 
-  // If email is being updated, check for duplicates
   if (updateData.email && updateData.email !== vendor.email) {
     const existingVendor = await Vendor.findOne({ email: updateData.email });
     if (existingVendor) {
@@ -245,7 +267,6 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
     }
   }
 
-  // If business name is being updated, check for duplicates and regenerate vendor code
   if (
     updateData.businessName &&
     updateData.businessName !== vendor.businessName
@@ -256,11 +277,9 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
     if (existingBusiness) {
       throw new AppError("Vendor with this business name already exists", 400);
     }
-    // Regenerate vendor code if business name changes
     updateData.vendorCode = await generateVendorCode(updateData.businessName);
   }
 
-  // Format phone numbers if provided
   if (updateData.businessPhoneNumber) {
     updateData.businessPhoneNumber = formatPhoneNumber(
       updateData.businessPhoneNumber
@@ -284,13 +303,11 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
 const updateVendorStatusService = async (vendorId, data, currentUser) => {
   const { status, comment } = data;
 
-  // Find the vendor
   const vendor = await Vendor.findById(vendorId);
   if (!vendor) {
     throw new AppError("Vendor not found", 404);
   }
 
-  // Add comment if provided
   if (comment && comment.trim()) {
     if (!vendor.comments) {
       vendor.comments = [];
@@ -302,21 +319,17 @@ const updateVendorStatusService = async (vendorId, data, currentUser) => {
     });
   }
 
-  // Update status
   const previousStatus = vendor.status;
   vendor.status = status;
 
-  // Set approvedBy when status changes to "approved"
   if (status === "approved") {
     vendor.approvedBy = currentUser._id;
   }
 
   vendor.updatedAt = new Date();
 
-  // Save the updated vendor
   const updatedVendor = await vendor.save();
 
-  // Send notifications
   await sendVendorStatusNotifications({
     vendor: updatedVendor,
     previousStatus,
@@ -333,14 +346,12 @@ const sendVendorStatusNotifications = async ({
   newStatus,
   currentUser,
 }) => {
-  // Don't notify if status hasn't changed
   if (previousStatus === newStatus) return;
 
   const creatorId = vendor.createdBy;
 
   switch (newStatus) {
     case "approved":
-      // Notify creator
       if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
         await notify.notifyCreator({
           request: vendor,
@@ -351,7 +362,6 @@ const sendVendorStatusNotifications = async ({
         });
       }
 
-      // Notify anyone who commented
       if (vendor.comments && vendor.comments.length > 0) {
         const uniqueCommenters = [
           ...new Set(vendor.comments.map((c) => c.user?.toString())),
@@ -362,23 +372,20 @@ const sendVendorStatusNotifications = async ({
             (!creatorId || id !== creatorId.toString())
         );
 
-        if (recipientsToNotify.length > 0) {
-          for (const recipientId of recipientsToNotify) {
-            await notify.notifyCreator({
-              request: vendor,
-              currentUser,
-              requestType: "vendorManagement",
-              title: "Vendor Management",
-              header: "A vendor you commented on has been APPROVED",
-              recipientId,
-            });
-          }
+        for (const recipientId of recipientsToNotify) {
+          await notify.notifyCreator({
+            request: vendor,
+            currentUser,
+            requestType: "vendorManagement",
+            title: "Vendor Management",
+            header: "A vendor you commented on has been APPROVED",
+            recipientId,
+          });
         }
       }
       break;
 
     case "rejected":
-      // Notify creator
       if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
         await notify.notifyCreator({
           request: vendor,
@@ -389,7 +396,6 @@ const sendVendorStatusNotifications = async ({
         });
       }
 
-      // Notify anyone who commented
       if (vendor.comments && vendor.comments.length > 0) {
         const uniqueCommenters = [
           ...new Set(vendor.comments.map((c) => c.user?.toString())),
@@ -400,17 +406,15 @@ const sendVendorStatusNotifications = async ({
             (!creatorId || id !== creatorId.toString())
         );
 
-        if (recipientsToNotify.length > 0) {
-          for (const recipientId of recipientsToNotify) {
-            await notify.notifyCreator({
-              request: vendor,
-              currentUser,
-              requestType: "vendorManagement",
-              title: "Vendor Management",
-              header: "A vendor you commented on has been REJECTED",
-              recipientId,
-            });
-          }
+        for (const recipientId of recipientsToNotify) {
+          await notify.notifyCreator({
+            request: vendor,
+            currentUser,
+            requestType: "vendorManagement",
+            title: "Vendor Management",
+            header: "A vendor you commented on has been REJECTED",
+            recipientId,
+          });
         }
       }
       break;
@@ -437,7 +441,6 @@ const getVendorsByStatusService = async (status, queryParams = {}) => {
 
   const filter = status ? { status } : {};
 
-  // Add search functionality if needed
   if (search) {
     filter.$or = [
       { businessName: { $regex: search, $options: "i" } },
@@ -447,7 +450,6 @@ const getVendorsByStatusService = async (status, queryParams = {}) => {
     ];
   }
 
-  // Build sort query
   let sortQuery = { createdAt: -1 };
   if (sort) {
     const [field, order] = sort.split(":");
@@ -506,6 +508,7 @@ const getVendorApprovalSummaryService = async () => {
 
 module.exports = {
   getAllVendorsService,
+  getAllApprovedVendorsService,
   getVendorByIdService,
   getVendorByCodeService,
   createVendorService,

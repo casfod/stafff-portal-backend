@@ -13,6 +13,7 @@ const {
 const {
   migratePendingVendorsToDraft,
 } = require("./migratependingvendorstodraft");
+const { migrateVendorCreatedBy } = require("./migrateVendorCreatedBy");
 
 dotenv.config({ path: "./config.env" });
 
@@ -32,6 +33,8 @@ const connectDB = async () => {
 
     await migratePendingVendorsToDraft();
     console.log("✓ Pending vendors migration completed");
+
+    await migrateVendorCreatedBy();
 
     // Run user migrations
     // await migrateUsers();
