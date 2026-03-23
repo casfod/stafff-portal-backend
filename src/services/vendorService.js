@@ -45,8 +45,8 @@ const getAllVendorsService = async (queryParams, currentUser) => {
         // { status: { $ne: "draft" } }, // All non-draft requests
         {
           $and: [
-            { createdBy: currentUser._id },
-            { status: "draft" }, // Only their own drafts
+            // { createdBy: currentUser._id },
+            // { status: "draft" }, // Only their own drafts
           ],
         }
       );
