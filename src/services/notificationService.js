@@ -11,7 +11,7 @@ const requestTypePaths = {
   travelRequest: "travel-requests/request",
   expenseClaim: "expense-claims/request",
   purchaseOrder: "procurement/purchase-order",
-  vendorManagement: "procurement/vendor-management",
+  vendorManagement: "procurement/vendor-management/vendor",
   leave: "human-resources/leave",
   staffStrategy: "human-resources/staff-strategy",
   appraisal: "human-resources/appraisals", // FIXED: Added appraisal

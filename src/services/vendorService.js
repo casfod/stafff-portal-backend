@@ -1,8 +1,5 @@
 const Vendor = require("../models/VendorModel");
-const {
-  generateVendorCode,
-  formatPhoneNumber,
-} = require("../utils/vendorCodeGenerator");
+const { formatPhoneNumber } = require("../utils/vendorCodeGenerator");
 const AppError = require("../utils/appError");
 const buildSortQuery = require("../utils/buildSortQuery");
 const paginate = require("../utils/paginate");
@@ -19,31 +16,22 @@ const getAllVendorsService = async (queryParams, currentUser) => {
   const searchTerms = search ? search.trim().split(/\s+/) : [];
   let query = buildQuery(searchTerms, searchFields);
 
-  // Common conditions for all users
   const commonConditions = [
-    { createdBy: currentUser._id }, // Always see own requests
-    { copiedTo: currentUser._id }, // Always see requests copied to you
+    { createdBy: currentUser._id },
+    { copiedTo: currentUser._id },
   ];
 
   let roleSpecificConditions = [];
 
   switch (currentUser.role) {
     case "STAFF":
-      // Staff only get common conditions
       break;
-
     case "ADMIN":
       roleSpecificConditions.push({ approvedBy: currentUser._id });
       break;
-
     case "SUPER-ADMIN":
-      // TEMPORARY: See all vendors including all drafts during vendor verification phase.
-      // TODO: Once all vendors are verified and approved, revert to:
-      //   { status: { $ne: "draft" } }  — all non-drafts
-      //   { createdBy: currentUser._id, status: "draft" }  — only own drafts
-      roleSpecificConditions.push({ status: { $exists: true } }); // matches everything
+      roleSpecificConditions.push({ status: { $exists: true } });
       break;
-
     default:
       throw new Error("Invalid user role");
   }
@@ -90,8 +78,6 @@ const getAllVendorsService = async (queryParams, currentUser) => {
   };
 };
 
-// Separate service for approved vendors only — used by other modules
-// (procurement, finance, etc.) that should only ever see approved vendors
 const getAllApprovedVendorsService = async (queryParams) => {
   const { search, sort, page = 1, limit = 10 } = queryParams;
 
@@ -173,24 +159,76 @@ const getVendorByCodeService = async (vendorCode) => {
   return vendor;
 };
 
+const checkUniqueFieldsForSubmission = async (
+  vendorData,
+  excludeVendorId = null
+) => {
+  const errors = [];
+
+  // Only check against APPROVED vendors for duplicates
+  // This allows multiple drafts with the same info, but only one can be approved
+
+  if (vendorData.businessName) {
+    const businessNameQuery = {
+      businessName: vendorData.businessName,
+      status: "approved",
+    };
+    if (excludeVendorId) {
+      businessNameQuery._id = { $ne: excludeVendorId };
+    }
+    const existingBusinessName = await Vendor.findOne(businessNameQuery);
+    if (existingBusinessName) {
+      errors.push(
+        `An approved vendor with business name "${vendorData.businessName}" already exists. Please use a different business name or archive the existing vendor.`
+      );
+    }
+  }
+
+  if (vendorData.businessRegNumber) {
+    const regNumberQuery = {
+      businessRegNumber: vendorData.businessRegNumber,
+      status: "approved",
+    };
+    if (excludeVendorId) {
+      regNumberQuery._id = { $ne: excludeVendorId };
+    }
+    const existingRegNumber = await Vendor.findOne(regNumberQuery);
+    if (existingRegNumber) {
+      errors.push(
+        `An approved vendor with business registration number "${vendorData.businessRegNumber}" already exists.`
+      );
+    }
+  }
+
+  if (vendorData.email) {
+    const emailQuery = {
+      email: vendorData.email,
+      status: "approved",
+    };
+    if (excludeVendorId) {
+      emailQuery._id = { $ne: excludeVendorId };
+    }
+    const existingEmail = await Vendor.findOne(emailQuery);
+    if (existingEmail) {
+      errors.push(
+        `An approved vendor with email "${vendorData.email}" already exists.`
+      );
+    }
+  }
+
+  return errors;
+};
+
 const createVendorService = async (
   vendorData,
   currentUser,
   files = [],
   isDraft = false
 ) => {
-  const existingVendorByEmail = await Vendor.findOne({
-    email: vendorData.email,
-  });
-  if (existingVendorByEmail) {
-    throw new AppError("Vendor with this email already exists", 400);
-  }
-
-  const existingVendorByBusiness = await Vendor.findOne({
-    businessName: vendorData.businessName,
-  });
-  if (existingVendorByBusiness) {
-    throw new AppError("Vendor with this business name already exists", 400);
+  // Only check against approved vendors for new submissions
+  const duplicateErrors = await checkUniqueFieldsForSubmission(vendorData);
+  if (duplicateErrors.length > 0) {
+    throw new AppError(duplicateErrors.join(", "), 400);
   }
 
   vendorData.businessPhoneNumber = formatPhoneNumber(
@@ -200,8 +238,6 @@ const createVendorService = async (
     vendorData.contactPhoneNumber
   );
 
-  vendorData.vendorCode = await generateVendorCode(vendorData.businessName);
-
   let vendor;
 
   if (isDraft) {
@@ -210,12 +246,14 @@ const createVendorService = async (
       status: "draft",
       createdBy: currentUser._id,
       approvedBy: null,
+      isMigrated: false,
     });
   } else {
     vendor = await Vendor.create({
       ...vendorData,
       status: "pending",
       createdBy: currentUser._id,
+      isMigrated: false,
     });
 
     if (vendorData.approvedBy) {
@@ -252,7 +290,6 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
 
   if (files && files.length > 0) {
     await fileService.deleteFilesByDocument("Vendors", vendorId);
-
     await handleFileUploads({
       files,
       requestId: vendorId,
@@ -260,24 +297,20 @@ const updateVendorService = async (vendorId, updateData, files = []) => {
     });
   }
 
-  if (updateData.email && updateData.email !== vendor.email) {
-    const existingVendor = await Vendor.findOne({ email: updateData.email });
-    if (existingVendor) {
-      throw new AppError("Vendor with this email already exists", 400);
-    }
-  }
+  // Prepare data for uniqueness check
+  const checkData = {
+    businessName: updateData.businessName || vendor.businessName,
+    businessRegNumber: updateData.businessRegNumber || vendor.businessRegNumber,
+    email: updateData.email || vendor.email,
+  };
 
-  if (
-    updateData.businessName &&
-    updateData.businessName !== vendor.businessName
-  ) {
-    const existingBusiness = await Vendor.findOne({
-      businessName: updateData.businessName,
-    });
-    if (existingBusiness) {
-      throw new AppError("Vendor with this business name already exists", 400);
-    }
-    updateData.vendorCode = await generateVendorCode(updateData.businessName);
+  // Only check against approved vendors
+  const duplicateErrors = await checkUniqueFieldsForSubmission(
+    checkData,
+    vendorId
+  );
+  if (duplicateErrors.length > 0) {
+    throw new AppError(duplicateErrors.join(", "), 400);
   }
 
   if (updateData.businessPhoneNumber) {
@@ -308,6 +341,31 @@ const updateVendorStatusService = async (vendorId, data, currentUser) => {
     throw new AppError("Vendor not found", 404);
   }
 
+  // When moving to pending or approved, check for conflicts with approved vendors
+  if (
+    (vendor.status === "draft" && status === "pending") ||
+    status === "approved"
+  ) {
+    const checkData = {
+      businessName: vendor.businessName,
+      businessRegNumber: vendor.businessRegNumber,
+      email: vendor.email,
+    };
+
+    const duplicateErrors = await checkUniqueFieldsForSubmission(
+      checkData,
+      vendorId
+    );
+    if (duplicateErrors.length > 0) {
+      throw new AppError(
+        `Cannot ${
+          status === "approved" ? "approve" : "submit"
+        } vendor: ${duplicateErrors.join(", ")}`,
+        400
+      );
+    }
+  }
+
   if (comment && comment.trim()) {
     if (!vendor.comments) {
       vendor.comments = [];
@@ -316,6 +374,7 @@ const updateVendorStatusService = async (vendorId, data, currentUser) => {
     vendor.comments.unshift({
       user: currentUser._id,
       text: comment.trim(),
+      createdAt: new Date(),
     });
   }
 
@@ -324,6 +383,34 @@ const updateVendorStatusService = async (vendorId, data, currentUser) => {
 
   if (status === "approved") {
     vendor.approvedBy = currentUser._id;
+
+    // Delete any other draft/pending vendors with the same business info
+    await Vendor.deleteMany({
+      _id: { $ne: vendor._id },
+      $or: [
+        { businessName: vendor.businessName },
+        { businessRegNumber: vendor.businessRegNumber },
+        { email: vendor.email },
+      ],
+      status: { $in: ["draft", "pending", "rejected"] },
+    });
+
+    if (vendor.vendorCode && vendor.vendorCode.startsWith("DRAFT-")) {
+      if (!vendor.originalVendorCode) {
+        vendor.originalVendorCode = vendor.vendorCode;
+      }
+
+      const newVendorCode = await Vendor.generateVendorCode(
+        vendor.businessName
+      );
+      vendor.vendorCode = newVendorCode;
+
+      vendor.comments.unshift({
+        user: currentUser._id,
+        text: `[SYSTEM] Generated permanent vendor code: ${newVendorCode} (replaced temporary code: ${vendor.originalVendorCode})`,
+        createdAt: new Date(),
+      });
+    }
   }
 
   vendor.updatedAt = new Date();

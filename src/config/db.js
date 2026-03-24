@@ -1,19 +1,23 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const { seedSuperUserService } = require("../services/authService");
-const { migrateUsers } = require("../../scripts/migrateUsers");
+// const { migrateUsers } = require("../../scripts/migrateUsers");
 const {
   initializeSystemSettings,
 } = require("../services/systemSettingsService");
 
 // Import the migration function
-const {
-  migrateEmploymentInfoLock,
-} = require("../../scripts/migrateEmploymentInfoLockTemp");
-const {
-  migratePendingVendorsToDraft,
-} = require("./migratependingvendorstodraft");
-const { migrateVendorCreatedBy } = require("./migrateVendorCreatedBy");
+// const {
+//   migrateEmploymentInfoLock,
+// } = require("../../scripts/migrateEmploymentInfoLockTemp");
+
+// const { migrateVendorCreatedBy } = require("./migrateVendorCreatedBy");
+
+const { migrateAllVendorsToDraft } = require("./migrateAllVendorsToDraft");
+// const {
+//   fixVendorIndexes,
+//   cleanupDuplicateData,
+// } = require("./fixVendorIndexes");
 
 dotenv.config({ path: "./config.env" });
 
@@ -31,8 +35,10 @@ const connectDB = async () => {
     await seedSuperUserService();
     console.log("✓ Super user seeding completed");
 
-    // await migratePendingVendorsToDraft();
-    // console.log("✓ Pending vendors migration completed");
+    await migrateAllVendorsToDraft();
+    console.log("✓ Pending vendors migration completed");
+    // cleanupDuplicateData();
+    // fixVendorIndexes();
 
     // await migrateVendorCreatedBy();
 
