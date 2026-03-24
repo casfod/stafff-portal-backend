@@ -35,8 +35,8 @@ const connectDB = async () => {
     await seedSuperUserService();
     console.log("✓ Super user seeding completed");
 
-    await migrateAllVendorsToDraft();
-    console.log("✓ Pending vendors migration completed");
+    // await migrateAllVendorsToDraft();
+    // console.log("✓ Pending vendors migration completed");
     // cleanupDuplicateData();
     // fixVendorIndexes();
 
