@@ -5,6 +5,7 @@ const { seedSuperUserService } = require("../services/authService");
 const {
   initializeSystemSettings,
 } = require("../services/systemSettingsService");
+const { runVendorIndexMigration } = require("./fixVendorIndexes");
 
 // Import the migration function
 // const {
@@ -38,7 +39,10 @@ const connectDB = async () => {
     // await migrateAllVendorsToDraft();
     // console.log("✓ Pending vendors migration completed");
     // cleanupDuplicateData();
-    // fixVendorIndexes();
+    // Run vendor index migration (only once)
+    console.log("\n🔄 Running vendor index migration...");
+    await runVendorIndexMigration();
+    console.log("✅ Vendor index migration completed\n");
 
     // await migrateVendorCreatedBy();
 

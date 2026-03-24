@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Vendor = require("../models/VendorModel");
+const Migration = require("../models/MigrationModel");
 
 /**
  * Fix vendor indexes to allow duplicate drafts
@@ -20,29 +20,18 @@ const fixVendorIndexes = async () => {
       console.log(`   - ${idx.name}: ${JSON.stringify(idx.key)}`);
     });
 
-    // Drop the old unique indexes if they exist
-    console.log("\n🗑️  Dropping old unique indexes...");
+    // Drop all existing indexes (except _id)
+    console.log("\n🗑️  Dropping all existing indexes...");
 
-    const indexesToDrop = [
-      "businessRegNumber_1",
-      "businessName_1",
-      "email_1",
-      "vendorCode_1",
-      "businessName_approved_unique",
-      "businessRegNumber_approved_unique",
-      "email_approved_unique",
-      "vendorCode_unique_sparse",
-    ];
-
-    for (const indexName of indexesToDrop) {
-      try {
-        await collection.dropIndex(indexName);
-        console.log(`   ✓ Dropped index: ${indexName}`);
-      } catch (err) {
-        // Index doesn't exist, that's fine
-        if (err.code !== 27) {
-          // 27 = IndexNotFound
-          console.log(`   ℹ️  Index ${indexName} does not exist`);
+    for (const idx of indexes) {
+      if (idx.name !== "_id_") {
+        try {
+          await collection.dropIndex(idx.name);
+          console.log(`   ✓ Dropped index: ${idx.name}`);
+        } catch (err) {
+          console.log(
+            `   ⚠️  Could not drop index ${idx.name}: ${err.message}`
+          );
         }
       }
     }
@@ -76,30 +65,29 @@ const fixVendorIndexes = async () => {
       "   ✓ Created: businessRegNumber_approved_unique (only for approved vendors)"
     );
 
-    // Email - only unique for approved vendors (using partial filter only, no sparse)
+    // Email - only unique for approved vendors where email exists
+    // Simple existence check - no $ne operators
     await collection.createIndex(
       { email: 1 },
       {
         unique: true,
         partialFilterExpression: {
           status: "approved",
-          email: { $exists: true, $ne: null, $ne: "" },
+          email: { $exists: true },
         },
         name: "email_approved_unique",
       }
     );
     console.log(
-      "   ✓ Created: email_approved_unique (only for approved vendors with non-empty email)"
+      "   ✓ Created: email_approved_unique (only for approved vendors with email)"
     );
 
-    // Vendor code - always unique when present (using partial filter only)
+    // Vendor code - always unique when present
     await collection.createIndex(
       { vendorCode: 1 },
       {
         unique: true,
-        partialFilterExpression: {
-          vendorCode: { $exists: true, $ne: null, $ne: "" },
-        },
+        partialFilterExpression: { vendorCode: { $exists: true } },
         name: "vendorCode_unique_partial",
       }
     );
@@ -113,7 +101,7 @@ const fixVendorIndexes = async () => {
     const newIndexes = await collection.indexes();
     console.log("\n📊 New indexes:");
     newIndexes.forEach((idx) => {
-      if (idx.name.includes("approved") || idx.name.includes("partial")) {
+      if (idx.name !== "_id_") {
         console.log(`   ✓ ${idx.name}: ${JSON.stringify(idx.key)}`);
         if (idx.partialFilterExpression) {
           console.log(
@@ -138,6 +126,8 @@ const fixVendorIndexes = async () => {
 const cleanupDuplicateData = async () => {
   try {
     console.log("\n🧹 Cleaning up duplicate data...\n");
+
+    const Vendor = mongoose.model("Vendor");
 
     // Find duplicate business names among approved vendors
     const duplicateBusinessNames = await Vendor.aggregate([
@@ -177,6 +167,10 @@ const cleanupDuplicateData = async () => {
           `     → Kept: ${keep}, marked ${duplicates.length} as rejected`
         );
       }
+    } else {
+      console.log(
+        "✅ No duplicate business names found among approved vendors"
+      );
     }
 
     // Find duplicate registration numbers among approved vendors
@@ -218,16 +212,15 @@ const cleanupDuplicateData = async () => {
           `     → Kept: ${keep}, marked ${duplicates.length} as rejected`
         );
       }
+    } else {
+      console.log(
+        "✅ No duplicate registration numbers found among approved vendors"
+      );
     }
 
     // Find duplicate emails among approved vendors
     const duplicateEmails = await Vendor.aggregate([
-      {
-        $match: {
-          status: "approved",
-          email: { $exists: true, $ne: null, $ne: "" },
-        },
-      },
+      { $match: { status: "approved", email: { $exists: true } } },
       {
         $group: {
           _id: "$email",
@@ -262,6 +255,8 @@ const cleanupDuplicateData = async () => {
           `     → Kept: ${keep}, marked ${duplicates.length} as rejected`
         );
       }
+    } else {
+      console.log("✅ No duplicate emails found among approved vendors");
     }
 
     console.log("\n✅ Duplicate data cleaned up!");
@@ -272,4 +267,67 @@ const cleanupDuplicateData = async () => {
   }
 };
 
-module.exports = { fixVendorIndexes, cleanupDuplicateData };
+/**
+ * Main migration function that runs only once
+ */
+const runVendorIndexMigration = async () => {
+  const migrationName = "vendor_index_fix_v3"; // Changed version to v3
+
+  try {
+    // Check if migration already ran
+    const existingMigration = await Migration.findOne({ name: migrationName });
+
+    if (existingMigration && existingMigration.success) {
+      console.log(
+        `✅ Migration "${migrationName}" already ran successfully on ${existingMigration.runAt}`
+      );
+      return { success: true, alreadyRan: true };
+    }
+
+    console.log(`\n🚀 Running migration: ${migrationName}\n`);
+
+    // Run cleanup and index fix
+    await cleanupDuplicateData();
+    await fixVendorIndexes();
+
+    // Record successful migration
+    await Migration.create({
+      name: migrationName,
+      description:
+        "Fix vendor indexes to allow duplicate drafts with partial unique constraints (v3 - simplified to only $exists)",
+      success: true,
+      runAt: new Date(),
+    });
+
+    console.log(`\n✅ Migration "${migrationName}" completed successfully!`);
+    return { success: true, alreadyRan: false };
+  } catch (error) {
+    console.error(`❌ Migration "${migrationName}" failed:`, error);
+
+    // Record failed migration
+    try {
+      // Check if we already have a failed record
+      const existingFailed = await Migration.findOne({ name: migrationName });
+      if (!existingFailed) {
+        await Migration.create({
+          name: migrationName,
+          description:
+            "Fix vendor indexes to allow duplicate drafts with partial unique constraints (v3 - simplified to only $exists)",
+          success: false,
+          error: error.message,
+          runAt: new Date(),
+        });
+      }
+    } catch (recordError) {
+      console.error("Failed to record migration error:", recordError);
+    }
+
+    throw error;
+  }
+};
+
+module.exports = {
+  fixVendorIndexes,
+  cleanupDuplicateData,
+  runVendorIndexMigration,
+};
