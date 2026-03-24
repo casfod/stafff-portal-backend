@@ -17,18 +17,26 @@ const getAllVendorsService = async (queryParams, currentUser) => {
   let query = buildQuery(searchTerms, searchFields);
 
   const commonConditions = [
-    { createdBy: currentUser._id },
-    { copiedTo: currentUser._id },
+    { createdBy: currentUser._id }, // Always see own requests
+    { copiedTo: currentUser._id }, // Always see requests copied to you
   ];
 
+  // Role-specific conditions
   let roleSpecificConditions = [];
 
   switch (currentUser.role) {
     case "STAFF":
+      // Staff only get common conditions (no additional access)
       break;
+
     case "ADMIN":
       roleSpecificConditions.push({ approvedBy: currentUser._id });
       break;
+
+    case "REVIEWER":
+      roleSpecificConditions.push({ reviewedBy: currentUser._id });
+      break;
+
     case "SUPER-ADMIN":
       roleSpecificConditions.push({ status: { $exists: true } });
       break;
