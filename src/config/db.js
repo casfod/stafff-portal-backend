@@ -13,7 +13,7 @@ const {
 
 // const { migrateVendorCreatedBy } = require("./migrateVendorCreatedBy");
 
-const { migrateAllVendorsToDraft } = require("./migrateAllVendorsToDraft");
+// const { migrateAllVendorsToDraft } = require("./migrateAllVendorsToDraft");
 // const {
 //   fixVendorIndexes,
 //   cleanupDuplicateData,
