@@ -179,7 +179,7 @@ const vendorSchema = new mongoose.Schema(
   }
 );
 
-// Compound index for uniqueness across statuses
+// Compound index for uniqueness across statuses (only for approved vendors)
 vendorSchema.index(
   { businessName: 1, status: 1 },
   { unique: true, partialFilterExpression: { status: "approved" } }
@@ -194,14 +194,69 @@ vendorSchema.index(
     unique: true,
     partialFilterExpression: {
       status: "approved",
-      email: { $exists: true, $ne: null },
+      email: { $exists: true, $ne: null, $ne: "" },
     },
   }
 );
 
+/**
+ * Generate vendor code from business name
+ * Format: First 3 letters of business name + 3 random digits
+ * Example: TEC123, TES456, etc.
+ */
+async function generateVendorCode(businessName) {
+  if (!businessName || businessName.length < 3) {
+    throw new Error("Business name must be at least 3 characters long");
+  }
+
+  // Extract first 3 letters and convert to uppercase
+  let prefix = businessName
+    .substring(0, 3)
+    .replace(/[^A-Za-z]/g, "") // Remove non-alphabet characters
+    .toUpperCase();
+
+  // If after filtering we have less than 3 characters, pad with 'X'
+  if (prefix.length < 3) {
+    prefix = prefix.padEnd(3, "X");
+  }
+
+  // Generate 3 random digits (100-999)
+  const generateRandomDigits = () => {
+    return Math.floor(100 + Math.random() * 900).toString();
+  };
+
+  let vendorCode;
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  // Keep generating until we get a unique code
+  do {
+    const randomDigits = generateRandomDigits();
+    vendorCode = `${prefix}${randomDigits}`;
+    attempts++;
+
+    // Check if this vendor code already exists
+    const existingVendor = await mongoose
+      .model("Vendor")
+      .findOne({ vendorCode });
+
+    if (!existingVendor) {
+      return vendorCode;
+    }
+
+    // If we've tried too many times, throw an error
+    if (attempts >= maxAttempts) {
+      throw new Error(
+        `Unable to generate unique vendor code after ${maxAttempts} attempts`
+      );
+    }
+  } while (true);
+}
+
 // Pre-save middleware to handle vendor code generation
 vendorSchema.pre("save", async function (next) {
   try {
+    // Generate proper vendor code when being approved
     if (
       this.status === "approved" &&
       (!this.vendorCode || this.vendorCode.startsWith("DRAFT-"))
@@ -209,12 +264,12 @@ vendorSchema.pre("save", async function (next) {
       const generatedCode = await generateVendorCode(this.businessName);
       this.vendorCode = generatedCode;
 
-      if (!this.comments) this.comments = [];
-      this.comments.unshift({
-        user: null,
-        text: `[SYSTEM] Generated permanent vendor code: ${generatedCode}`,
-        createdAt: new Date(),
-      });
+      // if (!this.comments) this.comments = [];
+      // this.comments.unshift({
+      //   user: null,
+      //   text: `[SYSTEM] Generated permanent vendor code: ${generatedCode}`,
+      //   createdAt: new Date(),
+      // });
     }
 
     next();
@@ -241,32 +296,7 @@ vendorSchema.post("save", async function (doc, next) {
   }
 });
 
-async function generateVendorCode(businessName) {
-  const baseCode = businessName
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .substring(0, 5)
-    .toUpperCase();
-
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-
-  let vendorCode = `${baseCode}${timestamp}${random}`;
-
-  const Vendor = mongoose.model("Vendor");
-  let existingVendor = await Vendor.findOne({ vendorCode });
-  let counter = 1;
-
-  while (existingVendor) {
-    vendorCode = `${baseCode}${timestamp}${random}${counter}`;
-    existingVendor = await Vendor.findOne({ vendorCode });
-    counter++;
-  }
-
-  return vendorCode;
-}
-
+// Static method to generate vendor code (can be called from services)
 vendorSchema.statics.generateVendorCode = async function (businessName) {
   return await generateVendorCode(businessName);
 };

@@ -413,11 +413,11 @@ const updateVendorStatusService = async (vendorId, data, currentUser) => {
       );
       vendor.vendorCode = newVendorCode;
 
-      vendor.comments.unshift({
-        user: currentUser._id,
-        text: `[SYSTEM] Generated permanent vendor code: ${newVendorCode} (replaced temporary code: ${vendor.originalVendorCode})`,
-        createdAt: new Date(),
-      });
+      // vendor.comments.unshift({
+      //   user: currentUser._id,
+      //   text: `[SYSTEM] Generated permanent vendor code: ${newVendorCode} (replaced temporary code: ${vendor.originalVendorCode})`,
+      //   createdAt: new Date(),
+      // });
     }
   }
 
