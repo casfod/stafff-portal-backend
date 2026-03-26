@@ -116,7 +116,7 @@ const vendorSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["draft", "pending", "approved", "rejected"],
+      enum: ["draft", "pending", "approved", "rejected", "archived"], // add archived
       default: "pending",
     },
 

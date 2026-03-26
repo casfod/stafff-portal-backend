@@ -45,6 +45,8 @@ const getAllVendorsService = async (queryParams, currentUser) => {
   }
 
   query.$or = [...commonConditions, ...roleSpecificConditions];
+  // Add this line:
+  query.status = { $ne: "archived" };
 
   const sortQuery = buildSortQuery(sort);
 
@@ -393,15 +395,23 @@ const updateVendorStatusService = async (vendorId, data, currentUser) => {
     vendor.approvedBy = currentUser._id;
 
     // Delete any other draft/pending vendors with the same business info
-    await Vendor.deleteMany({
-      _id: { $ne: vendor._id },
-      $or: [
-        { businessName: vendor.businessName },
-        { businessRegNumber: vendor.businessRegNumber },
-        { email: vendor.email },
-      ],
-      status: { $in: ["draft", "pending", "rejected"] },
-    });
+    await Vendor.updateMany(
+      {
+        _id: { $ne: vendor._id },
+        $or: [
+          { businessName: vendor.businessName },
+          { businessRegNumber: vendor.businessRegNumber },
+          { email: vendor.email },
+        ],
+        status: { $in: ["draft", "pending", "rejected"] },
+      },
+      {
+        $set: {
+          status: "archived",
+          updatedAt: new Date(),
+        },
+      }
+    );
 
     if (vendor.vendorCode && vendor.vendorCode.startsWith("DRAFT-")) {
       if (!vendor.originalVendorCode) {
