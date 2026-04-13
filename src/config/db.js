@@ -40,9 +40,9 @@ const connectDB = async () => {
     // console.log("✓ Pending vendors migration completed");
     // cleanupDuplicateData();
     // Run vendor index migration (only once)
-    console.log("\n🔄 Running vendor index migration...");
-    await runVendorIndexMigration();
-    console.log("✅ Vendor index migration completed\n");
+    // console.log("\n🔄 Running vendor index migration...");
+    // await runVendorIndexMigration();
+    // console.log("✅ Vendor index migration completed\n");
 
     // await migrateVendorCreatedBy();
 

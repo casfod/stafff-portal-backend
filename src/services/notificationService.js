@@ -15,6 +15,7 @@ const requestTypePaths = {
   leave: "human-resources/leave",
   staffStrategy: "human-resources/staff-strategy",
   appraisal: "human-resources/appraisals", // FIXED: Added appraisal
+  report: "reporting/report",
 };
 
 class NotificationService {

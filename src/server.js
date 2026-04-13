@@ -17,6 +17,7 @@ const goodsReceivedRoutes = require("./routes/goodsReceivedRoutes.js");
 const paymentVoucherRoutes = require("./routes/paymentVoucherRoutes.js");
 // const fileRoutes = require("./routes/fileRoutes2.js");
 const leaveRoutes = require("./routes/leaveRoutes");
+const reportRoutes = require("./routes/reportRoutes.js");
 const staffStrategyRoutes = require("./routes/staffStrategyRoutes.js");
 const appraisalRoutes = require("./routes/appraisalRoutes.js");
 
@@ -69,6 +70,7 @@ app.use("/api/v1/casfod/vendors", vendorRoutes);
 app.use("/api/v1/casfod/rfqs", rfqRoutes);
 app.use("/api/v1/casfod/purchase-orders", purchaseOrderRoutes);
 app.use("/api/v1/casfod/goods-received", goodsReceivedRoutes);
+app.use("/api/v1/casfod/reports", reportRoutes);
 
 app.use("/api/v1/casfod/files", fileRoutes);
 
