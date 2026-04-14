@@ -50,10 +50,7 @@ const getReports = async (queryParams, currentUser) => {
       roleSpecificConditions.push(
         { status: { $ne: "draft" } },
         {
-          $and: [
-            { createdBy: currentUser._id },
-            { status: "draft" },
-          ],
+          $and: [{ createdBy: currentUser._id }, { status: "draft" }],
         }
       );
       break;
@@ -72,6 +69,7 @@ const getReports = async (queryParams, currentUser) => {
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
     { path: "copiedTo", select: "email first_name last_name role" },
+    { path: "project" }, // Changed from select: "*" to just populate the whole project
   ];
 
   const {
@@ -108,6 +106,7 @@ const getReports = async (queryParams, currentUser) => {
 };
 
 // Get a single report by ID
+// Get a single report by ID
 const getReportById = async (id) => {
   const populateOptions = [
     { path: "createdBy", select: "email first_name last_name role" },
@@ -115,12 +114,21 @@ const getReportById = async (id) => {
     { path: "approvedBy", select: "email first_name last_name role" },
     { path: "comments.user", select: "email first_name last_name role" },
     { path: "copiedTo", select: "email first_name last_name role" },
+    { path: "project" }, // Changed from select: "*" to just populate the whole project
   ];
 
   const report = await Report.findById(id).populate(populateOptions).lean();
 
   if (!report) {
     throw new Error("Report not found");
+  }
+
+  // Ensure project is properly populated
+  if (report.project && typeof report.project === "object") {
+    // Convert project _id to id if needed
+    if (report.project._id && !report.project.id) {
+      report.project.id = report.project._id.toString();
+    }
   }
 
   report.comments = report.comments.filter((comment) => !comment.deleted);

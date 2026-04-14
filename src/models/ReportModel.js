@@ -10,13 +10,32 @@ const reportSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    otherActivitySpecification: {
+      // NEW FIELD
+      type: String,
+      trim: true,
+      required: function () {
+        return this.activityType === "Other";
+      },
+    },
+
     reportType: {
       type: String,
-      enum: ["Weekly Report", "Monthly Report", "Quarterly Report", "Annual Report"],
+      enum: [
+        "Weekly Report",
+        "Monthly Report",
+        "Quarterly Report",
+        "Annual Report",
+        "Activity report",
+      ],
       required: true,
       trim: true,
     },
     reportTitle: { type: String, required: true, trim: true },
+    reportingPeriod: {
+      from: { type: String, required: true, trim: true },
+      to: { type: String, required: true, trim: true },
+    },
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
