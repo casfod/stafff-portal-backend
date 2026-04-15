@@ -6,6 +6,7 @@ const {
   initializeSystemSettings,
 } = require("../services/systemSettingsService");
 const { runVendorIndexMigration } = require("./fixVendorIndexes");
+const { migrateLeaveReviewedStatus } = require("./migrateLeaveReviewedStatus");
 
 // Import the migration function
 // const {
@@ -35,6 +36,9 @@ const connectDB = async () => {
     // Seed super user if not exists
     await seedSuperUserService();
     console.log("✓ Super user seeding completed");
+
+    await migrateLeaveReviewedStatus();
+    console.log("✓ Leave status migration completed");
 
     // await migrateAllVendorsToDraft();
     // console.log("✓ Pending vendors migration completed");

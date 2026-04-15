@@ -10,7 +10,7 @@ const notify = require("../utils/notify");
 const { normalizeId, normalizeFiles } = require("../utils/normalizeData");
 const BaseCopyService = require("./BaseCopyService");
 const searchConfig = require("../utils/searchConfig");
-const statusUpdateService = require("./statusUpdateService");
+const simpleStatusUpdateService = require("./simpleStatusUpdateService");
 
 // Leave type configuration (matching your LEAVE FORM.docx)
 const LEAVE_TYPE_CONFIG = {
@@ -229,7 +229,7 @@ const validateLeaveApplication = async (
   }
 };
 
-// Update leave balances based on status change
+// Update updateLeaveBalances function - remove reviewed status handling
 const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
   try {
     const leave = await Leave.findById(leaveId);
@@ -256,28 +256,21 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
     logger.info(
       `Balance update: ${
         oldStatus || "NEW"
-      } -> ${newStatus} for leave ${leaveId}`,
-      {
-        leaveType: leave.leaveType,
-        daysApplied,
-        currentBalance: { ...(balance.toObject?.() || balance) },
-      }
+      } -> ${newStatus} for leave ${leaveId}`
     );
 
-    // Handle status transitions
+    // Simplified balance logic - no "reviewed" state
     if (!oldStatus && newStatus === "pending") {
       // New leave created as pending
       logger.info(`New pending leave - reserving ${daysApplied} days`);
       balance.totalApplied += daysApplied;
     } else {
-      // Existing leave status change
       switch (oldStatus) {
         case "draft":
           if (newStatus === "pending") {
             logger.info(`Draft submitted - reserving ${daysApplied} days`);
             balance.totalApplied += daysApplied;
           }
-          // Draft to any other status should not happen, but if it does, no change
           break;
 
         case "pending":
@@ -293,40 +286,9 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
               `Pending rejected - releasing ${daysApplied} reserved days`
             );
             balance.totalApplied -= daysApplied;
-          } else if (newStatus === "reviewed") {
-            logger.info(
-              `Pending reviewed - keeping ${daysApplied} days reserved`
-            );
-            // No change
           } else if (newStatus === "draft") {
             logger.info(
               `Pending moved back to draft - releasing ${daysApplied} reserved days`
-            );
-            balance.totalApplied -= daysApplied;
-          }
-          break;
-
-        case "reviewed":
-          if (newStatus === "approved") {
-            logger.info(
-              `Reviewed approved - moving ${daysApplied} from reserved to used`
-            );
-            balance.totalApplied -= daysApplied;
-            balance.accrued += daysApplied;
-            leave.amountAccruedLeave = daysApplied;
-          } else if (newStatus === "rejected") {
-            logger.info(
-              `Reviewed rejected - releasing ${daysApplied} reserved days`
-            );
-            balance.totalApplied -= daysApplied;
-          } else if (newStatus === "pending") {
-            logger.info(
-              `Reviewed moved back to pending - keeping ${daysApplied} days reserved`
-            );
-            // No change
-          } else if (newStatus === "draft") {
-            logger.info(
-              `Reviewed moved to draft - releasing ${daysApplied} reserved days`
             );
             balance.totalApplied -= daysApplied;
           }
@@ -339,7 +301,7 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
             );
             balance.accrued -= daysApplied;
             leave.amountAccruedLeave = 0;
-          } else if (newStatus === "pending" || newStatus === "reviewed") {
+          } else if (newStatus === "pending") {
             logger.info(
               `Approved moved back - moving ${daysApplied} from used to reserved`
             );
@@ -356,7 +318,7 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
           break;
 
         case "rejected":
-          if (newStatus === "pending" || newStatus === "reviewed") {
+          if (newStatus === "pending") {
             logger.info(`Rejected reactivated - reserving ${daysApplied} days`);
             balance.totalApplied += daysApplied;
           } else if (newStatus === "approved") {
@@ -371,11 +333,9 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
     }
 
     // Recalculate balance
-    const previousBalance = balance.balance;
     balance.balance =
       balance.maxDays - (balance.totalApplied + balance.accrued);
 
-    // Validate balance never goes negative
     if (balance.balance < 0) {
       logger.error(`Negative balance detected for ${balanceKey}`, {
         maxDays: balance.maxDays,
@@ -384,20 +344,8 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
         balance: balance.balance,
         leaveId,
       });
-
-      // Option: Set to 0 to prevent negative balances
-      // balance.balance = 0;
-
-      // Option: Throw error to prevent invalid state
       throw new Error(`Balance would become negative for ${leave.leaveType}`);
     }
-
-    logger.debug(`Balance updated for ${balanceKey}`, {
-      previousBalance,
-      newBalance: balance.balance,
-      totalApplied: balance.totalApplied,
-      accrued: balance.accrued,
-    });
 
     await leaveBalance.save();
     await leave.save();
@@ -409,7 +357,7 @@ const updateLeaveBalances = async (leaveId, newStatus, oldStatus) => {
   }
 };
 
-// Get leave statistics
+// Update getAllLeaves function - remove reviewed status from stats and queries
 const getLeaveStats = async (currentUser) => {
   try {
     if (!currentUser?._id) {
@@ -422,7 +370,6 @@ const getLeaveStats = async (currentUser) => {
 
     switch (currentUser.role) {
       case "SUPER-ADMIN":
-        // SUPER-ADMIN sees all non-draft leaves
         break;
       default:
         baseMatch.user = currentUser._id;
@@ -442,10 +389,6 @@ const getLeaveStats = async (currentUser) => {
             { $match: { status: "pending" } },
             { $count: "count" },
           ],
-          totalReviewedRequests: [
-            { $match: { status: "reviewed" } },
-            { $count: "count" },
-          ],
           totalRejectedRequests: [
             { $match: { status: "rejected" } },
             { $count: "count" },
@@ -462,7 +405,6 @@ const getLeaveStats = async (currentUser) => {
       totalRequests: stats[0].totalRequests[0]?.count || 0,
       totalApprovedRequests: stats[0].totalApprovedRequests[0]?.count || 0,
       totalPendingRequests: stats[0].totalPendingRequests[0]?.count || 0,
-      totalReviewedRequests: stats[0].totalReviewedRequests[0]?.count || 0,
       totalRejectedRequests: stats[0].totalRejectedRequests[0]?.count || 0,
       totalDaysApproved: stats[0].totalDaysApproved[0]?.total || 0,
     };
@@ -471,7 +413,6 @@ const getLeaveStats = async (currentUser) => {
     throw error;
   }
 };
-
 // Get user's leave balance
 const getUserLeaveBalance = async (userId) => {
   try {
@@ -595,15 +536,14 @@ const getAllLeaves = async (queryParams, currentUser) => {
   }
 };
 
-// Create leave application (submitted, not draft)
+// Update createLeaveApplication - change to use approvedBy instead of reviewedBy
 const createLeaveApplication = async (currentUser, leaveData, files = []) => {
   try {
-    // Map frontend field names
     const mappedData = mapFormFieldsToBackend(leaveData);
 
     // Validate required fields
-    if (!mappedData.reviewedBy) {
-      throw new Error("ReviewedBy field is required for submission.");
+    if (!mappedData.approvedBy) {
+      throw new Error("ApprovedBy field is required for submission.");
     }
 
     if (!mappedData.leaveType || !LEAVE_TYPE_CONFIG[mappedData.leaveType]) {
@@ -642,6 +582,7 @@ const createLeaveApplication = async (currentUser, leaveData, files = []) => {
         isCalendarDays: config.isCalendarDays,
       },
       status: "pending",
+      approvedBy: mappedData.approvedBy, // Direct approval
     });
 
     await leave.save();
@@ -658,13 +599,13 @@ const createLeaveApplication = async (currentUser, leaveData, files = []) => {
       });
     }
 
-    // Send notifications
-    await notify.notifyReviewers({
+    // Send notifications - notify approver directly
+    await notify.notifyApprovers({
       request: leave,
       currentUser: currentUser,
       requestType: "leave",
       title: "Leave Application",
-      header: "You have been assigned a leave application to review",
+      header: "You have been assigned a leave application to approve",
     });
 
     logger.info(`Leave application created: ${leave.leaveNumber}`);
@@ -735,7 +676,7 @@ const saveLeaveDraft = async (currentUser, leaveData) => {
   }
 };
 
-// Submit a draft (convert to pending)
+// Update submitDraft function
 const submitDraft = async (draftId, currentUser) => {
   try {
     const draft = await Leave.findById(draftId);
@@ -758,7 +699,7 @@ const submitDraft = async (draftId, currentUser) => {
       "startDate",
       "endDate",
       "reasonForLeave",
-      "reviewedBy",
+      "approvedBy",
     ];
     const missingFields = requiredFields.filter((field) => !draft[field]);
 
@@ -784,13 +725,13 @@ const submitDraft = async (draftId, currentUser) => {
     // Reserve days
     await updateLeaveBalances(draftId, "pending", "draft");
 
-    // Send notifications
-    await notify.notifyReviewers({
+    // Send notifications - notify approver directly
+    await notify.notifyApprovers({
       request: draft,
       currentUser: currentUser,
       requestType: "leave",
       title: "Leave Application",
-      header: "You have been assigned a leave application to review",
+      header: "You have been assigned a leave application to approve",
     });
 
     logger.info(`Draft submitted: ${draft.leaveNumber}`);
@@ -836,7 +777,7 @@ const getLeaveById = async (id) => {
   }
 };
 
-// Update leave application
+// Update updateLeaveApplication function - remove reviewed status checks
 const updateLeaveApplication = async (
   id,
   updateData,
@@ -851,18 +792,16 @@ const updateLeaveApplication = async (
       throw new Error("Leave application not found");
     }
 
-    // Check if update is allowed
-    if (!["draft", "pending", "reviewed"].includes(leave.status)) {
+    // Check if update is allowed - now only draft and pending are editable
+    if (!["draft", "pending"].includes(leave.status)) {
       throw new Error(`Cannot update leave in ${leave.status} status`);
     }
 
-    // Check permissions
+    // Check permissions - simplified
     const canUpdate =
       leave.user.toString() === currentUser._id.toString() ||
       currentUser.role === "SUPER-ADMIN" ||
       (leave.status === "pending" &&
-        leave.reviewedBy?.toString() === currentUser._id.toString()) ||
-      (leave.status === "reviewed" &&
         leave.approvedBy?.toString() === currentUser._id.toString());
 
     if (!canUpdate) {
@@ -891,14 +830,12 @@ const updateLeaveApplication = async (
           const dayDifference = newTotalDays - oldDays;
 
           if (dayDifference > 0) {
-            // Requesting more days - validate
             await validateLeaveApplication(
               leave.user,
               leaveType,
               dayDifference
             );
           }
-          // Note: If requesting fewer days, no validation needed
         }
       }
     }
@@ -919,17 +856,6 @@ const updateLeaveApplication = async (
       });
     }
 
-    // Send notification if status changed to reviewed
-    if (oldStatus !== "reviewed" && leave.status === "reviewed") {
-      await notify.notifyApprovers({
-        request: leave,
-        currentUser: currentUser,
-        requestType: "leave",
-        title: "Leave Application",
-        header: "A leave application has been reviewed and needs your approval",
-      });
-    }
-
     logger.info(`Leave application updated: ${leave.leaveNumber}`);
     return leave;
   } catch (error) {
@@ -938,7 +864,8 @@ const updateLeaveApplication = async (
   }
 };
 
-// Update leave status (review/approve/reject)
+// services/leaveService.js - Update updateLeaveStatus to use simpleStatusUpdateService
+
 const updateLeaveStatus = async (id, data, currentUser) => {
   try {
     const leave = await Leave.findById(id);
@@ -949,16 +876,15 @@ const updateLeaveStatus = async (id, data, currentUser) => {
 
     const oldStatus = leave.status;
 
-    // Use status update service
-    const updatedLeave =
-      await statusUpdateService.updateRequestStatusWithComment({
-        Model: Leave,
-        id,
-        data,
-        currentUser,
-        requestType: "leave",
-        title: "Leave Application",
-      });
+    // Use simple status update service (single-step approval)
+    const updatedLeave = await simpleStatusUpdateService.updateStatus({
+      Model: Leave,
+      id,
+      data,
+      currentUser,
+      requestType: "leave",
+      title: "Leave Application",
+    });
 
     // Update balances
     await updateLeaveBalances(id, updatedLeave.status, oldStatus);
@@ -972,7 +898,6 @@ const updateLeaveStatus = async (id, data, currentUser) => {
     throw error;
   }
 };
-
 // Delete leave (soft delete)
 const deleteLeave = async (id) => {
   try {
