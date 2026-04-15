@@ -27,7 +27,7 @@ const getUserLeaveBalance = catchAsync(async (req, res) => {
   handleResponse(res, 200, "User leave balance fetched successfully", balance);
 });
 
-// Create new leave application
+// Create new leave application - UPDATED for single-step approval
 const createLeaveApplication = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
 
@@ -41,32 +41,41 @@ const createLeaveApplication = catchAsync(async (req, res) => {
   // Handle leaveCover - it might be a string or already an object
   if (req.body.leaveCover) {
     try {
-      // If it's a string, try to parse it
       if (typeof req.body.leaveCover === "string") {
         parsedBody.leaveCover = JSON.parse(req.body.leaveCover);
       }
-      // If it's already an object, leave it as is
     } catch (error) {
       console.error("Error parsing leaveCover:", error);
-      // If parsing fails, keep the original
       parsedBody.leaveCover = req.body.leaveCover;
     }
   }
 
   console.log("Parsed body:", parsedBody);
 
-  // Check if reviewedById exists (from frontend) and map to reviewedBy
-  let reviewedBy = null;
-  if (parsedBody.reviewedById) {
-    reviewedBy = parsedBody.reviewedById;
+  // SUPPORT BOTH OLD AND NEW FIELD NAMES FOR BACKWARD COMPATIBILITY
+  // Priority: approvedBy > approvedById > reviewedBy > reviewedById
+  let approverId = null;
+
+  if (parsedBody.approvedBy) {
+    approverId = parsedBody.approvedBy;
+  } else if (parsedBody.approvedById) {
+    approverId = parsedBody.approvedById;
   } else if (parsedBody.reviewedBy) {
-    reviewedBy = parsedBody.reviewedBy;
+    approverId = parsedBody.reviewedBy;
+    console.log(
+      "⚠ Using deprecated reviewedBy field, please update frontend to use approvedBy"
+    );
+  } else if (parsedBody.reviewedById) {
+    approverId = parsedBody.reviewedById;
+    console.log(
+      "⚠ Using deprecated reviewedById field, please update frontend to use approvedBy"
+    );
   }
 
-  // Validate reviewedBy is provided
-  if (!reviewedBy) {
+  // Validate approver is provided
+  if (!approverId) {
     throw new appError(
-      "ReviewedBy field is required for submission. Please select a reviewer.",
+      "Approver field is required for submission. Please select an approver.",
       400
     );
   }
@@ -85,7 +94,7 @@ const createLeaveApplication = catchAsync(async (req, res) => {
     throw new appError("Reason for leave is required", 400);
   }
 
-  // Map frontend field names to backend field names
+  // Map frontend field names to backend field names - USE approvedBy
   const leaveData = {
     leaveType: parsedBody.leaveType,
     startDate: parsedBody.startDate,
@@ -93,7 +102,7 @@ const createLeaveApplication = catchAsync(async (req, res) => {
     reasonForLeave: parsedBody.reasonForLeave,
     contactDuringLeave: parsedBody.contactDuringLeave || "",
     leaveCover: parsedBody.leaveCover,
-    reviewedBy: reviewedBy, // Use the mapped value
+    approvedBy: approverId, // Changed from reviewedBy to approvedBy
   };
 
   const files = req.files || [];
@@ -107,42 +116,40 @@ const createLeaveApplication = catchAsync(async (req, res) => {
   handleResponse(res, 201, "Leave application created successfully", leave);
 });
 
-// Save leave as draft
+// Save leave as draft - UPDATED
 const saveLeaveDraft = catchAsync(async (req, res) => {
   const currentUser = await userByToken(req, res);
 
-  // Log the entire req.body for debugging
   console.log("Raw req.body for draft:", req.body);
 
-  // Parse any JSON fields
   const parsedBody = { ...req.body };
 
   // Handle leaveCover - it might be a string or already an object
   if (req.body.leaveCover) {
     try {
-      // If it's a string, try to parse it
       if (typeof req.body.leaveCover === "string") {
         parsedBody.leaveCover = JSON.parse(req.body.leaveCover);
       }
-      // If it's already an object, leave it as is
     } catch (error) {
       console.error("Error parsing leaveCover for draft:", error);
-      // If parsing fails, keep the original
       parsedBody.leaveCover = req.body.leaveCover;
     }
   }
 
   console.log("Parsed body for draft:", parsedBody);
 
-  // Map reviewedById to reviewedBy if it exists
-  let reviewedBy = null;
-  if (parsedBody.reviewedById) {
-    reviewedBy = parsedBody.reviewedById;
+  // Support both old and new field names (optional for drafts)
+  let approverId = null;
+  if (parsedBody.approvedBy) {
+    approverId = parsedBody.approvedBy;
+  } else if (parsedBody.approvedById) {
+    approverId = parsedBody.approvedById;
   } else if (parsedBody.reviewedBy) {
-    reviewedBy = parsedBody.reviewedBy;
+    approverId = parsedBody.reviewedBy;
+  } else if (parsedBody.reviewedById) {
+    approverId = parsedBody.reviewedById;
   }
 
-  // Map frontend field names to backend field names
   const leaveData = {
     leaveType: parsedBody.leaveType,
     startDate: parsedBody.startDate,
@@ -150,7 +157,7 @@ const saveLeaveDraft = catchAsync(async (req, res) => {
     reasonForLeave: parsedBody.reasonForLeave,
     contactDuringLeave: parsedBody.contactDuringLeave,
     leaveCover: parsedBody.leaveCover,
-    reviewedBy: reviewedBy, // Can be null for drafts
+    approvedBy: approverId, // Can be null for drafts
     status: "draft",
   };
 
@@ -178,97 +185,37 @@ const getLeaveById = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Leave application fetched successfully", leave);
 });
 
-// Update leave application
-// const updateLeaveApplication = catchAsync(async (req, res) => {
-//   const files = req.files || [];
-//   const currentUser = await userByToken(req, res);
-
-//   // Parse any JSON fields
-//   const parsedBody = { ...req.body };
-
-//   // Handle leaveCover - it might be a string or already an object
-//   if (req.body.leaveCover) {
-//     try {
-//       // If it's a string, try to parse it
-//       if (typeof req.body.leaveCover === "string") {
-//         parsedBody.leaveCover = JSON.parse(req.body.leaveCover);
-//       }
-//       // If it's already an object, leave it as is
-//     } catch (error) {
-//       console.error("Error parsing leaveCover for update:", error);
-//       // If parsing fails, keep the original
-//       parsedBody.leaveCover = req.body.leaveCover;
-//     }
-//   }
-
-//   // Map frontend field names to backend field names
-//   let reviewedBy = null;
-//   if (parsedBody.reviewedById) {
-//     reviewedBy = parsedBody.reviewedById;
-//   } else if (parsedBody.reviewedBy) {
-//     reviewedBy = parsedBody.reviewedBy;
-//   }
-
-//   let approvedBy = null;
-//   if (parsedBody.approvedById) {
-//     approvedBy = parsedBody.approvedById;
-//   } else if (parsedBody.approvedBy) {
-//     approvedBy = parsedBody.approvedBy;
-//   }
-
-//   const updateData = {
-//     leaveType: parsedBody.leaveType,
-//     startDate: parsedBody.startDate,
-//     endDate: parsedBody.endDate,
-//     reasonForLeave: parsedBody.reasonForLeave,
-//     contactDuringLeave: parsedBody.contactDuringLeave,
-//     leaveCover: parsedBody.leaveCover,
-//     reviewedBy: reviewedBy,
-//     approvedBy: approvedBy,
-//   };
-
-//   const leave = await leaveService.updateLeaveApplication(
-//     req.params.id,
-//     updateData,
-//     files,
-//     currentUser
-//   );
-
-//   handleResponse(res, 200, "Leave application updated successfully", leave);
-// });
-
-// controllers/leaveController.js
-// ... (keep all the imports and existing code above)
-
-// Update leave application - MODIFIED TO MATCH CONCEPTNOTE
+// Update leave application - UPDATED for single-step approval
 const updateLeaveApplication = catchAsync(async (req, res) => {
   const files = req.files || [];
   const currentUser = await userByToken(req, res);
 
-  // Parse any JSON fields
   const parsedBody = { ...req.body };
 
   // Handle leaveCover - it might be a string or already an object
   if (req.body.leaveCover) {
     try {
-      // If it's a string, try to parse it
       if (typeof req.body.leaveCover === "string") {
         parsedBody.leaveCover = JSON.parse(req.body.leaveCover);
       }
-      // If it's already an object, leave it as is
     } catch (error) {
       console.error("Error parsing leaveCover for update:", error);
-      // If parsing fails, keep the original
       parsedBody.leaveCover = req.body.leaveCover;
     }
   }
 
-  // Map frontend field names to backend field names - SIMPLIFIED LIKE CONCEPTNOTE
-  // ConceptNote just passes req.body directly, so we should too
-  const updateData = {
-    ...parsedBody,
-    // Only map if needed, but prefer to keep as is
-  };
+  // Support both old and new field names for backward compatibility
+  const updateData = { ...parsedBody };
+
+  // Map old field names to new ones if they exist
+  if (parsedBody.reviewedBy && !parsedBody.approvedBy) {
+    updateData.approvedBy = parsedBody.reviewedBy;
+    console.log("⚠ Mapping reviewedBy to approvedBy in update");
+  }
+  if (parsedBody.reviewedById && !parsedBody.approvedById) {
+    updateData.approvedById = parsedBody.reviewedById;
+    console.log("⚠ Mapping reviewedById to approvedById in update");
+  }
 
   const leave = await leaveService.updateLeaveApplication(
     req.params.id,
@@ -280,9 +227,7 @@ const updateLeaveApplication = catchAsync(async (req, res) => {
   handleResponse(res, 200, "Leave application updated successfully", leave);
 });
 
-// ... (keep all the other functions)
-
-// Update leave status
+// Update leave status - UPDATED for single-step approval
 const updateLeaveStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const data = req.body;

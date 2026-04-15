@@ -80,22 +80,30 @@ const logger = {
 };
 
 // Map form fields from frontend to backend
+// Map form fields from frontend to backend - UPDATED
 const mapFormFieldsToBackend = (data) => {
   const mappedData = { ...data };
 
+  // Map reviewedById to reviewedBy (backward compatibility)
   if (data.reviewedById !== undefined) {
     mappedData.reviewedBy = data.reviewedById;
     delete mappedData.reviewedById;
   }
 
+  // Map approvedById to approvedBy
   if (data.approvedById !== undefined) {
     mappedData.approvedBy = data.approvedById;
     delete mappedData.approvedById;
   }
 
+  // If reviewedBy exists but approvedBy doesn't, copy for backward compatibility
+  if (data.reviewedBy !== undefined && data.approvedBy === undefined) {
+    mappedData.approvedBy = data.reviewedBy;
+    logger.debug("Copied reviewedBy to approvedBy for backward compatibility");
+  }
+
   return mappedData;
 };
-
 // Copy service class
 class CopyService extends BaseCopyService {
   constructor() {
@@ -425,6 +433,7 @@ const getUserLeaveBalance = async (userId) => {
 };
 
 // Get all leaves with filtering and pagination
+// Get all leaves with filtering and pagination - UPDATED for single-step approval
 const getAllLeaves = async (queryParams, currentUser) => {
   try {
     const { search, sort, page = 1, limit = Infinity } = queryParams;
@@ -439,34 +448,36 @@ const getAllLeaves = async (queryParams, currentUser) => {
     const searchTerms = search ? search.trim().split(/\s+/) : [];
     const query = buildQuery(searchTerms, searchFields);
 
-    // Apply role-based access control
+    // Apply role-based access control - UPDATED for single-step approval
     switch (currentUser.role) {
       case "STAFF":
         query.$or = [{ user: currentUser._id }, { copiedTo: currentUser._id }];
         break;
 
       case "ADMIN":
+        // ADMIN can see leaves they created, approved, or were copied to
         query.$or = [
           { user: currentUser._id },
-          { reviewedBy: currentUser._id },
-          { approvedBy: currentUser._id },
+          { approvedBy: currentUser._id }, // Changed from reviewedBy
           { copiedTo: currentUser._id },
         ];
         break;
 
       case "REVIEWER":
+        // REVIEWER role now acts as approver in the new flow
         query.$or = [
           { user: currentUser._id },
-          { reviewedBy: currentUser._id },
+          { approvedBy: currentUser._id }, // Changed from reviewedBy
           { copiedTo: currentUser._id },
         ];
         break;
 
       case "SUPER-ADMIN":
+        // SUPER-ADMIN can see all non-draft leaves plus their own drafts
         query.$or = [
           { status: { $ne: "draft" } },
           { user: currentUser._id, status: "draft" },
-          { reviewedBy: currentUser._id },
+          { approvedBy: currentUser._id }, // Changed from reviewedBy
           { copiedTo: currentUser._id },
         ];
         break;
@@ -479,7 +490,7 @@ const getAllLeaves = async (queryParams, currentUser) => {
 
     const populateOptions = [
       { path: "user", select: "email first_name last_name role" },
-      { path: "reviewedBy", select: "email first_name last_name role" },
+      { path: "reviewedBy", select: "email first_name last_name role" }, // Keep for backward compatibility
       { path: "approvedBy", select: "email first_name last_name role" },
       { path: "comments.user", select: "email first_name last_name role" },
       { path: "copiedTo", select: "email first_name last_name role" },
@@ -616,7 +627,7 @@ const createLeaveApplication = async (currentUser, leaveData, files = []) => {
   }
 };
 
-// Save leave as draft (no balance impact)
+// Save leave as draft - UPDATED to use approvedBy
 const saveLeaveDraft = async (currentUser, leaveData) => {
   try {
     const mappedData = mapFormFieldsToBackend(leaveData);
@@ -630,14 +641,15 @@ const saveLeaveDraft = async (currentUser, leaveData) => {
       leaveBalanceAtApplication: 0, // Default for drafts
     };
 
-    // Only add fields that are provided
+    // Only add fields that are provided - UPDATED field list
     const optionalFields = [
       "leaveType",
       "startDate",
       "endDate",
       "reasonForLeave",
       "contactDuringLeave",
-      "reviewedBy",
+      "approvedBy", // Changed from reviewedBy
+      "reviewedBy", // Keep for backward compatibility
       "leaveCover",
     ];
 
@@ -675,7 +687,6 @@ const saveLeaveDraft = async (currentUser, leaveData) => {
     throw error;
   }
 };
-
 // Update submitDraft function
 const submitDraft = async (draftId, currentUser) => {
   try {
@@ -898,7 +909,7 @@ const updateLeaveStatus = async (id, data, currentUser) => {
     throw error;
   }
 };
-// Delete leave (soft delete)
+// Delete leave (soft delete) - UPDATED
 const deleteLeave = async (id) => {
   try {
     const leave = await Leave.findById(id);
@@ -907,12 +918,12 @@ const deleteLeave = async (id) => {
       throw new Error("Leave application not found");
     }
 
-    // If leave is pending or reviewed, release reserved days
-    if (leave.status === "pending" || leave.status === "reviewed") {
+    // If leave is pending, release reserved days (removed reviewed reference)
+    if (leave.status === "pending") {
       await updateLeaveBalances(id, "deleted", leave.status);
     }
 
-    // If leave is approved, we need to handle that too
+    // If leave is approved, handle that too
     if (leave.status === "approved") {
       await updateLeaveBalances(id, "deleted", leave.status);
     }
@@ -932,7 +943,6 @@ const deleteLeave = async (id) => {
     throw error;
   }
 };
-
 // Copy leave to other users
 const copyLeave = async ({ currentUser, requestId, recipients }) => {
   try {
@@ -952,7 +962,7 @@ const copyLeave = async ({ currentUser, requestId, recipients }) => {
   }
 };
 
-// Add comment
+// Add comment - UPDATED to prioritize approvedBy
 const addComment = async (id, currentUser, text) => {
   try {
     const leave = await Leave.findById(id);
@@ -962,14 +972,14 @@ const addComment = async (id, currentUser, text) => {
       throw new Error("Leave application not found");
     }
 
-    // Check permissions
+    // Check permissions - prioritize approvedBy over reviewedBy
     const canComment =
       leave.user.toString() === userId.toString() ||
       leave.copiedTo?.some(
         (copiedId) => copiedId.toString() === userId.toString()
       ) ||
-      (leave.reviewedBy && leave.reviewedBy.toString() === userId.toString()) ||
       (leave.approvedBy && leave.approvedBy.toString() === userId.toString()) ||
+      (leave.reviewedBy && leave.reviewedBy.toString() === userId.toString()) || // Keep for backward compatibility
       currentUser.role === "SUPER-ADMIN";
 
     if (!canComment) {
