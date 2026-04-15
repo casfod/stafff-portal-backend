@@ -79,6 +79,34 @@ class SimpleStatusUpdateService {
   }
 
   /**
+   * Determine the creator field name for any document type
+   * @private
+   */
+  _getCreatorField(document) {
+    // Order matters - check most specific first
+    if (document.user) return "user"; // Leave model
+    if (document.preparedBy) return "preparedBy"; // Concept Note
+    if (document.createdBy) return "createdBy"; // Generic
+    if (document.requestedBy) return "requestedBy"; // Generic
+    return null;
+  }
+
+  /**
+   * Get creator ID from document
+   * @private
+   */
+  _getCreatorId(document) {
+    const creatorField = this._getCreatorField(document);
+    if (!creatorField) return null;
+
+    const creator = document[creatorField];
+    if (!creator) return null;
+
+    // Handle populated object vs ID
+    return creator._id ? creator._id.toString() : creator.toString();
+  }
+
+  /**
    * Send appropriate notifications for simple approval flow
    * @private
    */
@@ -93,19 +121,14 @@ class SimpleStatusUpdateService {
     // Don't notify if status hasn't changed
     if (previousStatus === newStatus) return;
 
-    // Determine creator field (try different possible field names)
-    let creatorId =
-      document.createdBy || document.preparedBy || document.requestedBy;
-
-    // If creatorId is an object with _id, extract it
-    if (creatorId && creatorId._id) {
-      creatorId = creatorId._id;
-    }
+    // Get creator ID using the helper method
+    const creatorId = this._getCreatorId(document);
+    const currentUserId = currentUser._id.toString();
 
     switch (newStatus) {
       case "approved":
-        // Notify creator
-        if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
+        // Notify creator (if not the one who approved)
+        if (creatorId && creatorId !== currentUserId) {
           await notify.notifyCreator({
             request: document,
             currentUser,
@@ -115,19 +138,17 @@ class SimpleStatusUpdateService {
           });
         }
 
-        // Notify anyone who commented
+        // Notify anyone who commented (excluding creator and current user)
         if (document.comments && document.comments.length > 0) {
           const uniqueCommenters = [
             ...new Set(document.comments.map((c) => c.user?.toString())),
           ].filter(Boolean);
+
           const recipientsToNotify = uniqueCommenters.filter(
-            (id) =>
-              id !== currentUser._id.toString() &&
-              (!creatorId || id !== creatorId.toString())
+            (id) => id !== currentUserId && (!creatorId || id !== creatorId)
           );
 
           if (recipientsToNotify.length > 0) {
-            // Check if notify has notifyMultipleUsers method
             if (typeof notify.notifyMultipleUsers === "function") {
               await notify.notifyMultipleUsers({
                 request: document,
@@ -138,7 +159,6 @@ class SimpleStatusUpdateService {
                 recipientIds: recipientsToNotify,
               });
             } else {
-              // Fallback to notifying each user individually
               for (const recipientId of recipientsToNotify) {
                 await notify.notifyCreator({
                   request: document,
@@ -155,8 +175,8 @@ class SimpleStatusUpdateService {
         break;
 
       case "rejected":
-        // Notify creator
-        if (creatorId && creatorId.toString() !== currentUser._id.toString()) {
+        // Notify creator (if not the one who rejected)
+        if (creatorId && creatorId !== currentUserId) {
           await notify.notifyCreator({
             request: document,
             currentUser,
@@ -166,15 +186,14 @@ class SimpleStatusUpdateService {
           });
         }
 
-        // Notify anyone who commented
+        // Notify anyone who commented (excluding creator and current user)
         if (document.comments && document.comments.length > 0) {
           const uniqueCommenters = [
             ...new Set(document.comments.map((c) => c.user?.toString())),
           ].filter(Boolean);
+
           const recipientsToNotify = uniqueCommenters.filter(
-            (id) =>
-              id !== currentUser._id.toString() &&
-              (!creatorId || id !== creatorId.toString())
+            (id) => id !== currentUserId && (!creatorId || id !== creatorId)
           );
 
           if (recipientsToNotify.length > 0) {
@@ -207,7 +226,7 @@ class SimpleStatusUpdateService {
         // When moving from draft to pending, notify the approver
         if (
           document.approvedBy &&
-          document.approvedBy.toString() !== currentUser._id.toString()
+          document.approvedBy.toString() !== currentUserId
         ) {
           await notify.notifyApprovers({
             request: document,
