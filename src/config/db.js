@@ -37,8 +37,8 @@ const connectDB = async () => {
     await seedSuperUserService();
     console.log("✓ Super user seeding completed");
 
-    await migrateLeaveReviewedStatus();
-    console.log("✓ Leave status migration completed");
+    // await migrateLeaveReviewedStatus();
+    // console.log("✓ Leave status migration completed");
 
     // await migrateAllVendorsToDraft();
     // console.log("✓ Pending vendors migration completed");
