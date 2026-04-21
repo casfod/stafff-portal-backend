@@ -51,7 +51,8 @@ const protect = catchAsync(async (req, res, next) => {
   // console.log(currentUser);
 
   // Granting access to the protected route
-  req.User = currentUser;
+  req.User = currentUser; // Keep existing for backward compatibility
+  req.user = currentUser;
 
   next();
 });

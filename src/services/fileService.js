@@ -11,6 +11,10 @@ const {
   generateSafeFilename,
 } = require("../utils/fileUtils");
 
+// Add to fileService.js
+const PDFDocument = require("pdfkit");
+const sharp = require("sharp");
+
 /**
  * File Service - Handles all file operations
  */
@@ -203,6 +207,75 @@ class FileService {
     await Promise.all(deletionPromises);
 
     return associations.length;
+  }
+
+  /**
+   * Generate PDF with signature overlay
+   * @param {Object} data - Document data (can include source PDF URL or content)
+   * @param {string} signatureUrl - URL of signature image
+   * @param {Object} signaturePosition - Position settings { x, y, width, height }
+   * @returns {Buffer} - PDF buffer
+   */
+  async generateSignedPdf(data, signatureUrl, signaturePosition = {}) {
+    const { x = 400, y = 700, width = 150, height = 60 } = signaturePosition;
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        const PDFDocument = require("pdfkit");
+        const doc = new PDFDocument({ margin: 50, size: "A4" });
+        const buffers = [];
+
+        doc.on("data", buffers.push.bind(buffers));
+        doc.on("end", () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          resolve(pdfBuffer);
+        });
+
+        // Add document header
+        doc.fontSize(16).text("SIGNED DOCUMENT", { align: "center" });
+        doc.moveDown();
+        doc
+          .fontSize(12)
+          .text(`Generated on: ${new Date().toLocaleDateString()}`);
+        doc.moveDown();
+
+        doc
+          .fontSize(10)
+          .text(
+            "This document has been electronically signed by the authorized party."
+          );
+        doc.moveDown();
+
+        // Add signature image if provided
+        if (signatureUrl) {
+          doc.moveDown();
+          doc.fontSize(10).text("Signature:", { continued: false });
+
+          // Fetch and add signature image
+          const fetch = require("node-fetch");
+          const response = await fetch(signatureUrl);
+          const signatureBuffer = await response.buffer();
+
+          doc.image(signatureBuffer, x, y, { width, height });
+        }
+
+        // Add footer
+        const pageCount = doc.bufferedPageRange().count;
+        for (let i = 0; i < pageCount; i++) {
+          doc.switchToPage(i);
+          doc
+            .fontSize(8)
+            .text(`Page ${i + 1} of ${pageCount}`, 50, doc.page.height - 50, {
+              align: "center",
+            });
+        }
+
+        doc.end();
+      } catch (error) {
+        console.error("Error generating signed PDF:", error);
+        reject(error);
+      }
+    });
   }
 }
 

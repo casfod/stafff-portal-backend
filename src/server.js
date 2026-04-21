@@ -28,6 +28,7 @@ const swaggerUi = require("swagger-ui-express");
 const globalErrorHandler = require("./controllers/errorController");
 const AppError = require("./utils/appError.js");
 const fileRoutes = require("./routes/fileRoutes");
+const signatureRoutes = require("./routes/signatureRoutes.js");
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use("/casfod/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Routes
 app.use("/api/v1/casfod/users", userRoutes);
 app.use("/api/v1/casfod/employment-info", employmentInfoRoutes);
+app.use("/api/v1/casfod/signatures", signatureRoutes);
 app.use("/api/v1/casfod/leave", leaveRoutes);
 app.use("/api/v1/casfod/staff-Strategy", staffStrategyRoutes);
 app.use("/api/v1/casfod/appraisals", appraisalRoutes);

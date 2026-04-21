@@ -2,68 +2,44 @@
 const mongoose = require("mongoose");
 
 /**
- * Signature Schema for storing user digital signatures
- * This schema stores signature images and metadata
+ * Signature Schema for storing user signatures
+ * Each user can have one active signature
+ * Signature image is stored as a File reference
  */
 const signatureSchema = new mongoose.Schema(
   {
-    // Reference to the user
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       unique: true, // One signature per user
     },
-
-    // Signature image URL (Cloudinary)
-    signatureUrl: {
-      type: String,
+    // Reference to the File model containing the signature image
+    file: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "File",
       required: true,
-      trim: true,
     },
-
-    // Cloudinary public ID for management
-    cloudinaryId: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
     // Signature metadata
-    originalName: {
-      type: String,
-      trim: true,
-    },
-
-    // Signature type (drawn, uploaded)
-    signatureType: {
-      type: String,
-      enum: ["drawn", "uploaded", "typed"],
-      default: "uploaded",
-    },
-
-    // Whether this is the active signature
     isActive: {
       type: Boolean,
       default: true,
     },
-
-    // Signature settings
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    lastUsedAt: {
+      type: Date,
+      default: null,
+    },
+    // Optional: signature settings
     settings: {
-      width: { type: Number, default: 200 },
-      height: { type: Number, default: 80 },
-      scale: { type: Number, default: 1 },
-    },
-
-    // Timestamps
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
-
-    updatedAt: {
-      type: Date,
-      default: Date.now,
+      defaultPosition: {
+        x: { type: Number, default: 50 }, // percentage
+        y: { type: Number, default: 85 }, // percentage
+        width: { type: Number, default: 150 }, // pixels
+      },
     },
   },
   {
@@ -81,8 +57,17 @@ const signatureSchema = new mongoose.Schema(
 );
 
 // Indexes for faster queries
-signatureSchema.index({ user: 1 });
+// signatureSchema.index({ user: 1 });
 signatureSchema.index({ isActive: 1 });
+signatureSchema.index({ user: 1, isActive: 1 });
+
+// Virtual to get the signature image URL
+signatureSchema.virtual("imageUrl").get(function () {
+  if (this.file && this.file.url) {
+    return this.file.url;
+  }
+  return null;
+});
 
 const Signature = mongoose.model("Signature", signatureSchema);
 
