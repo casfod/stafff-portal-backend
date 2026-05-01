@@ -92,8 +92,14 @@ const updateVendor = catchAsync(async (req, res) => {
   const { vendorId } = req.params;
   const updateData = req.body;
   const files = req.files || [];
+  const currentUser = await userByToken(req, res);
 
-  const vendor = await updateVendorService(vendorId, updateData, files);
+  const vendor = await updateVendorService(
+    vendorId,
+    updateData,
+    files,
+    currentUser
+  );
   handleResponse(res, 200, "Vendor updated successfully", { vendor });
 });
 
