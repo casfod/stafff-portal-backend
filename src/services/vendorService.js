@@ -288,13 +288,18 @@ const createVendorService = async (
   return vendor;
 };
 
-const updateVendorService = async (vendorId, updateData, files = []) => {
+const updateVendorService = async (
+  vendorId,
+  updateData,
+  files = [],
+  currentUser
+) => {
   const vendor = await Vendor.findById(vendorId);
   if (!vendor) {
     throw new AppError("Vendor not found", 404);
   }
 
-  if (vendor.status === "approved") {
+  if (vendor.status === "approved" && currentUser.role !== "SUPER-ADMIN") {
     throw new AppError("Cannot update approved vendors", 400);
   }
 
