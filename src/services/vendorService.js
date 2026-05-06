@@ -9,6 +9,85 @@ const fileService = require("./fileService");
 const notify = require("../utils/notify");
 const searchConfig = require("../utils/searchConfig");
 
+// const getAllVendorsService = async (queryParams, currentUser) => {
+//   const { search, sort, page = 1, limit = 8 } = queryParams;
+
+//   const searchFields = searchConfig.vendor;
+//   const searchTerms = search ? search.trim().split(/\s+/) : [];
+//   let query = buildQuery(searchTerms, searchFields);
+
+//   const commonConditions = [
+//     { createdBy: currentUser._id }, // Always see own requests
+//     { copiedTo: currentUser._id }, // Always see requests copied to you
+//   ];
+
+//   // Role-specific conditions
+//   let roleSpecificConditions = [];
+
+//   switch (currentUser.role) {
+//     case "STAFF":
+//       // Staff only get common conditions (no additional access)
+//       break;
+
+//     case "ADMIN":
+//       roleSpecificConditions.push({ approvedBy: currentUser._id });
+//       break;
+
+//     case "REVIEWER":
+//       roleSpecificConditions.push({ reviewedBy: currentUser._id });
+//       break;
+
+//     case "SUPER-ADMIN":
+//       roleSpecificConditions.push({ status: { $exists: true } });
+//       break;
+//     default:
+//       throw new Error("Invalid user role");
+//   }
+
+//   query.$or = [...commonConditions, ...roleSpecificConditions];
+//   // Add this line:
+//   query.status = { $ne: "archived" };
+
+//   const sortQuery = buildSortQuery(sort);
+
+//   const populateOptions = [
+//     { path: "createdBy", select: "email first_name last_name role id _id" },
+//     { path: "approvedBy", select: "email first_name last_name role id _id" },
+//     { path: "comments.user", select: "email first_name last_name role" },
+//     { path: "copiedTo", select: "email first_name last_name role" },
+//   ];
+
+//   const {
+//     results: vendors,
+//     total,
+//     totalPages,
+//     currentPage,
+//   } = await paginate(
+//     Vendor,
+//     query,
+//     { page, limit },
+//     sortQuery,
+//     populateOptions
+//   );
+
+//   const vendorsWithFiles = await Promise.all(
+//     vendors.map(async (vendor) => {
+//       const files = await fileService.getFilesByDocument("Vendors", vendor._id);
+//       return {
+//         ...vendor.toJSON(),
+//         files,
+//       };
+//     })
+//   );
+
+//   return {
+//     vendors: vendorsWithFiles,
+//     totalVendors: total,
+//     totalPages,
+//     currentPage,
+//   };
+// };
+
 const getAllVendorsService = async (queryParams, currentUser) => {
   const { search, sort, page = 1, limit = 8 } = queryParams;
 
@@ -21,12 +100,15 @@ const getAllVendorsService = async (queryParams, currentUser) => {
     { copiedTo: currentUser._id }, // Always see requests copied to you
   ];
 
+  // Add condition for approved vendors (visible to everyone)
+  const approvedCondition = { status: "approved" };
+
   // Role-specific conditions
   let roleSpecificConditions = [];
 
   switch (currentUser.role) {
     case "STAFF":
-      // Staff only get common conditions (no additional access)
+      // Staff get common conditions + approved vendors
       break;
 
     case "ADMIN":
@@ -44,8 +126,14 @@ const getAllVendorsService = async (queryParams, currentUser) => {
       throw new Error("Invalid user role");
   }
 
-  query.$or = [...commonConditions, ...roleSpecificConditions];
-  // Add this line:
+  // Combine conditions: approved vendors OR (common conditions OR role-specific conditions)
+  query.$or = [
+    approvedCondition, // Approved vendors are visible to everyone
+    ...commonConditions,
+    ...roleSpecificConditions,
+  ];
+
+  // Exclude archived vendors
   query.status = { $ne: "archived" };
 
   const sortQuery = buildSortQuery(sort);
