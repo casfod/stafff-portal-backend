@@ -30,6 +30,7 @@ const getReports = async (queryParams, currentUser) => {
   const commonConditions = [
     { createdBy: currentUser._id },
     { copiedTo: currentUser._id },
+    { reviewedBy: currentUser._id },
   ];
 
   let roleSpecificConditions = [];
