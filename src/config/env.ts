@@ -82,7 +82,7 @@ export const env = {
   // https://myaccount.google.com/apppasswords
   MAIL_APP_USER: process.env.MAIL_APP_USER || "",
   MAIL_APP_PASSWORD: process.env.MAIL_APP_PASSWORD || "",
-  MAIL_FROM_NAME: process.env.MAIL_FROM_NAME || "Casfod Possibity Hub",
+  MAIL_FROM_NAME: process.env.MAIL_FROM_NAME || "Casfod Possibility Hub",
 
   // ── Cloudinary ──────────────────────────────────────────────────────────────
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,

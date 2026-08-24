@@ -50,7 +50,7 @@ function layout(title: string, body: string): string {
           };border-radius:8px 8px 0 0;padding:24px 32px;">
             <h1 style="margin:0;font-size:20px;font-weight:600;color:#fff;">CASFOD</h1>
             <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.8);letter-spacing:0.05em;text-transform:uppercase;">
-             Casfod Possibity Hub
+             Casfod Possibility Hub
             </p>
           </td>
         </tr>
