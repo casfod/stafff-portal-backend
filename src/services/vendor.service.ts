@@ -16,6 +16,7 @@ const svc = createWorkflowService({
   label: "Vendor",
   requestType: "vendor",
   fileModelName: "Vendors",
+  useRoleVisibilityQuery: false,
   submissionApproverField: "approvedBy",
   notifyApproverOnSubmit: true,
   searchFields: ["businessName", "vendorCode", "email", "contactPerson", "businessRegNumber"],
