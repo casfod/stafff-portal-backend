@@ -55,6 +55,7 @@ export interface WorkflowServiceConfig<TDoc extends WorkflowDocument = WorkflowD
   populate?: PopulateOptions[];
   searchFields?: string[];
   filterableFields?: FilterFieldConfig[];
+  useRoleVisibilityQuery?: boolean;
   allowAnyReviewer?: boolean;
   submissionApproverField?: string;
   notifyApproverOnSubmit?: boolean;
@@ -102,6 +103,7 @@ export function createWorkflowService<TDoc extends WorkflowDocument = WorkflowDo
     ownerField = "createdBy",
     searchFields = ["status"],
     filterableFields = [],
+    useRoleVisibilityQuery = true,
     allowAnyReviewer = false,
     submissionApproverField = "reviewedBy",
     notifyApproverOnSubmit = false,
@@ -274,7 +276,9 @@ export function createWorkflowService<TDoc extends WorkflowDocument = WorkflowDo
     }
 
     Object.assign(query, buildStructuredFilters(params));
-    Object.assign(query, buildRoleVisibilityQuery(currentUser, ownerField, reviewSteps));
+    if (useRoleVisibilityQuery) {
+      Object.assign(query, buildRoleVisibilityQuery(currentUser, ownerField, reviewSteps));
+    }
 
     const [items, total] = await Promise.all([
       model
