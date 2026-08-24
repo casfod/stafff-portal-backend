@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { sendSuccess, sendCreated } from '../utils/responseHandler';
 import { toStringId } from '../utils/idConverter';
 import type { CurrentUser } from '../services/shared/types';
+import 'multer';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;

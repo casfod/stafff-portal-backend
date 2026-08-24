@@ -1,6 +1,7 @@
 // src/config/upload.config.ts
 import multer from 'multer';
 import { Request } from 'express';
+import 'multer';
 
 // Supported file types
 export const ALLOWED_MIME_TYPES = {
