@@ -16,8 +16,9 @@ const SPECIAL_PREFIXES = ["page.", "layout.", "loading.", "error."];
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ▼ Choose one of the two:
+
 // 1) Scan your whole project root:
-const projectRoot = path.join(__dirname, "../../stafff-portal-backend");
+const projectRoot = path.join(__dirname, "../../ngo_backend_ts");
 // 2) Scan only the Next.js “app” directory:
 // const projectRoot = path.join(__dirname, "../../Thrift-Pool-Web/app");
 
