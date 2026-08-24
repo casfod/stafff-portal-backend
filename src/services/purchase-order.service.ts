@@ -308,8 +308,8 @@ export const createIndependentPurchaseOrder = async (
 
   // Apply VAT if provided
   const vat = data.vat || 0;
-  const vatAmount = (totalAmount * vat) / 100;
-  const finalTotal = totalAmount + vatAmount;
+  // const vatAmount = (totalAmount * vat) / 100;
+  // const finalTotal = totalAmount - vatAmount;
 
   // Create the purchase order
   const poData = {
@@ -320,7 +320,7 @@ export const createIndependentPurchaseOrder = async (
     deliveryDate: data.deliveryDate || "",
     poDate: data.poDate || new Date().toISOString().split("T")[0],
     casfodAddressId: data.casfodAddressId || "",
-    totalAmount: finalTotal,
+    totalAmount,
     vat: vat,
     createdBy: currentUser._id,
     status: "pending" as const,
