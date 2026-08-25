@@ -76,7 +76,7 @@ router.use('/rfqs', rfqRouter);
 // ═══════════════════════════════════════════════════════════════════════════════
 const poRouter = Router();
 
-poRouter.get ('/',                          procurement.getAllPurchaseOrders);
+poRouter.get ('/', procurement.getAllPurchaseOrders);
 // Create from RFQ: POST /purchase-orders/rfq/:rfqId/vendor/:vendorId
 poRouter.post(
   '/rfq/:rfqId/vendor/:vendorId',
@@ -103,6 +103,8 @@ poRouter.post(
   procurement.sendPurchaseOrderToVendor,
 );
 poRouter.post  ('/:id/comments', validate(addCommentSchema), procurement.addPurchaseOrderComment);
+poRouter.patch ('/:id/comments/:commentId', validate(updateCommentSchema), procurement.updatePurchaseOrderComment);
+poRouter.delete('/:id/comments/:commentId', procurement.deletePurchaseOrderComment);
 poRouter.delete('/:id',          procurement.deletePurchaseOrder);
 
 router.use('/purchase-orders', poRouter);

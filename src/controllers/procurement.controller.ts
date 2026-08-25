@@ -235,7 +235,17 @@ export const addPurchaseOrderComment = catchAsync(async (req: AuthRequest, res: 
   const po = await purchaseOrderService.addCommentToPurchaseOrder(
     req.params.id, currentUser(req), req.body.text,
   );
-  sendSuccess(res, po, 'Comment added');
+  sendCreated(res, po, 'Comment added');
+});
+
+export const updatePurchaseOrderComment = catchAsync(async (req: AuthRequest, res: Response) => {
+  const comment = await purchaseOrderService.updatePurchaseOrderComment(req.params.id, req.params.commentId, currentUser(req)._id, req.body.text);
+  sendSuccess(res, comment, 'Comment updated');
+});
+
+export const deletePurchaseOrderComment = catchAsync(async (req: AuthRequest, res: Response) => {
+  const result = await purchaseOrderService.deletePurchaseOrderComment(req.params.id, req.params.commentId, currentUser(req));
+  sendSuccess(res, result, 'Comment deleted');
 });
 
 export const deletePurchaseOrder = catchAsync(async (req: AuthRequest, res: Response) => {

@@ -218,6 +218,8 @@ export const {
   updateStatus: updatePurchaseOrderStatus,
   remove: deletePurchaseOrder,
   addComment: addCommentToPurchaseOrder,
+  updateComment: updatePurchaseOrderComment,
+  deleteComment: deletePurchaseOrderComment
 } = purchaseOrderService;
 
 
