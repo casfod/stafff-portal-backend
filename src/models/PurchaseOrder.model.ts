@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { toJsonTransform } from './shared/toJson';
 import { generateDocNumber } from '../utils/generateDocNumber';
+import { commentSchema } from './shared/comment.schema';
 
 export interface IPOItemGroup {
   description?: string;
@@ -10,6 +11,12 @@ export interface IPOItemGroup {
   unit: string;
   unitCost: number;
   total: number;
+}
+
+export interface IPOComment {
+  _id: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId;
+  text: string;
 }
 
 export interface IPurchaseOrder extends Document {
@@ -29,7 +36,7 @@ export interface IPurchaseOrder extends Document {
   createdBy: mongoose.Types.ObjectId;
   status: 'pending' | 'approved' | 'rejected';
   isFromRfq: boolean;
-  comments: Array<{ user: mongoose.Types.ObjectId; text: string }>;
+  comments: IPOComment[];
   approvedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -69,13 +76,7 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
       default: 'pending',
     },
     isFromRfq: { type: Boolean, default: true },
-    comments: [
-      {
-        user: { type: Schema.Types.ObjectId, ref: 'User', default: null },
-        text: { type: String, required: true, trim: true },
-        _id: false,
-      },
-    ],
+    comments: [commentSchema],
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true },

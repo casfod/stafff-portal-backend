@@ -38,6 +38,17 @@ export function transformDocument<T = any>(doc: any): T {
   
   // Remove __v if present
   delete obj.__v;
+
+  // Parse comments if they exist and are an array
+  if (obj.comments && Array.isArray(obj.comments)) {
+    obj.comments = obj.comments.map((comment: any) => {
+      if (comment._id) {
+        comment.id = comment._id.toString();
+        delete comment._id;
+      }
+      return comment;
+    });
+  }
   
   // Don't include empty files array - let the caller add it if needed
   if (obj.files && Array.isArray(obj.files) && obj.files.length === 0) {
