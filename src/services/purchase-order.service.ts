@@ -13,6 +13,7 @@ import {
   sumItemTotals,
   notifyStatusChange,
 } from "./shared/procurement.helpers";
+import { notify } from "./notifications/notification.service";
 
 const purchaseOrderService = createWorkflowService({
   model: PurchaseOrder,
@@ -120,7 +121,6 @@ const purchaseOrderService = createWorkflowService({
     if (!result) throw new AppError(`Purchase Order ${cleanId} not found`, 404);
     return result;
   },
-
   
 });
 
@@ -248,19 +248,18 @@ export const createPurchaseOrderFromRFQ = async (
 
   // Apply VAT if provided
   const vat = data.vat || 0;
-  const vatAmount = (totalAmount * vat) / 100;
-  const finalTotal = totalAmount + vatAmount;
+  const label = "Purchase Order";
 
   // Create the purchase order
   const poData = {
-    rfqTitle: data.rfqTitle || rfq.rfqTitle || "Purchase Order",
+    rfqTitle: data.rfqTitle || rfq.rfqTitle || label,
     rfqCode: rfq.rfqCode || "",
     itemGroups,
     selectedVendor: vendorId,
     deliveryDate: data.deliveryDate || "",
     poDate: data.poDate || new Date().toISOString().split("T")[0],
     casfodAddressId: data.casfodAddressId || "",
-    totalAmount: finalTotal,
+    totalAmount,
     vat: vat,
     createdBy: currentUser._id,
     status: "pending" as const,
@@ -287,6 +286,14 @@ export const createPurchaseOrderFromRFQ = async (
       { path: "selectedVendor", select: VENDOR_SELECT },
     ]);
 
+  await notify.notifyApprovers({
+    request: po,
+    currentUser,
+    requestType: "purchaseOrder",
+    title: label,
+    header: `You have been assigned to approve this ${label}`,
+  });
+
   return ResponseBuilder.operation(populated, "Purchase order created from RFQ successfully");
 };
 
@@ -308,12 +315,11 @@ export const createIndependentPurchaseOrder = async (
 
   // Apply VAT if provided
   const vat = data.vat || 0;
-  // const vatAmount = (totalAmount * vat) / 100;
-  // const finalTotal = totalAmount - vatAmount;
+  const label = "Purchase Order";
 
   // Create the purchase order
   const poData = {
-    rfqTitle: data.rfqTitle || "Purchase Order",
+    rfqTitle: data.rfqTitle || label,
     rfqCode: "",
     itemGroups,
     selectedVendor: data.selectedVendor,
@@ -346,6 +352,14 @@ export const createIndependentPurchaseOrder = async (
       { path: "copiedTo", select: VENDOR_SELECT },
       { path: "selectedVendor", select: VENDOR_SELECT },
     ]);
+
+  await notify.notifyApprovers({
+          request: po,
+          currentUser,
+          requestType: "purchaseOrder",
+          title: label,
+          header: `You have been assigned to approve this ${label}`,
+        });
 
   return ResponseBuilder.operation(populated, "Purchase order created successfully");
 };
