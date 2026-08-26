@@ -40,7 +40,7 @@ export const updateCommentSchema = z.object({
 // ─── Item group (procurement line items) ─────────────────────────────────────
 const itemGroupSchema = z.object({
   itemName:    z.string().optional(),
-  description: z.string().min(1),
+  description: z.string().min(1, 'Description is required'),
   frequency:   z.number().int().min(1),
   quantity:    z.number().int().min(1),
   unit:        z.string().optional(),

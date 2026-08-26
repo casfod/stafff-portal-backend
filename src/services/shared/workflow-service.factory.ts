@@ -68,6 +68,7 @@ export interface WorkflowServiceConfig<TDoc extends WorkflowDocument = WorkflowD
   customGetStats?: (currentUser: CurrentUser) => Promise<any>;
   customCreate?: (data: unknown, currentUser: CurrentUser) => Promise<any>;
   customUpdate?: (id: string, data: unknown, currentUser: CurrentUser) => Promise<any>;
+  skipStatusTransitionOnUpdate?: (data: unknown) => boolean;
   customDelete?: (id: string) => Promise<any>;
   customUpdateStatus?: (id: string, data: StatusUpdatePayload, currentUser: CurrentUser) => Promise<any>;
 }
@@ -110,6 +111,7 @@ export function createWorkflowService<TDoc extends WorkflowDocument = WorkflowDo
     reviewSteps = [],
     customStatusTransition,
     customNotifyReviewers,
+    skipStatusTransitionOnUpdate,
     customGetAll,
     customGetById,
     customGetStats,
@@ -446,7 +448,8 @@ export function createWorkflowService<TDoc extends WorkflowDocument = WorkflowDo
     // Handle status transitions
     if (isMultiStep) {
       const newStatus = determineNextStatus(doc);
-      if (newStatus !== doc.status) {
+      const skipStatusTransition = skipStatusTransitionOnUpdate?.(payload) ?? false;
+      if (!skipStatusTransition && newStatus !== doc.status) {
         doc.status = newStatus;
         await doc.save();
       }

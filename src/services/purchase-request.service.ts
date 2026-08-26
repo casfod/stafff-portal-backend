@@ -21,6 +21,12 @@ const reviewSteps: ReviewStep[] = [
   },
 ];
 
+const isApproverAssignmentOnly = (data: unknown): boolean => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  const keys = Object.keys(data);
+  return keys.length > 0 && keys.every(key => key === 'approvedBy');
+};
+
 // Custom status transition for purchase requests
 //
 // State machine (matches the original purchase-request.service V1 intent):
@@ -82,6 +88,7 @@ const svc = createWorkflowService({
   allowAnyReviewer: false,
   reviewSteps: reviewSteps,
   customStatusTransition: purchaseRequestStatusTransition,
+  skipStatusTransitionOnUpdate: isApproverAssignmentOnly,
   customNotifyReviewers: notifyPurchaseRequestReviewers,
   searchFields: ["pcrNumber", "department", "suggestedSupplier", "createdBy", "status"],
   filterableFields: [
