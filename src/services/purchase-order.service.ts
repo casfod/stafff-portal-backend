@@ -240,7 +240,7 @@ export const createPurchaseOrderFromRFQ = async (
   // Calculate total amount from item groups
   let totalAmount = 0;
   const itemGroups = data.itemGroups?.map((item: any) => {
-    const total = item.quantity * item.unitCost;
+    const total = item.quantity * item.unitCost * (item.frequency || 1);
     totalAmount += total;
     return {
       ...item,
@@ -307,7 +307,7 @@ export const createIndependentPurchaseOrder = async (
   // Calculate total amount from item groups
   let totalAmount = 0;
   const itemGroups = data.itemGroups?.map((item: any) => {
-    const total = item.quantity * item.unitCost;
+    const total = item.quantity * item.unitCost * (item.frequency || 1);
     totalAmount += total;
     return {
       ...item,
