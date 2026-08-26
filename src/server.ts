@@ -46,6 +46,7 @@ export function createApp(): Express {
     max: env.RATE_LIMIT_MAX,
     message: "Too many requests from this IP, please try again later.",
   });
+
   app.use("/api/v1", limiter);
 
   // Body parsing
