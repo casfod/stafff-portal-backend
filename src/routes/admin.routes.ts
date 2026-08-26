@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { protect, restrictTo } from '../middleware/auth.middleware';
+import { protect, restrictTo, restrictByPermission } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import {
   createProjectSchema,
@@ -83,7 +83,7 @@ vendorRouter.post(
 );
 vendorRouter.post(
   '/',
-  restrictTo('ADMIN', 'SUPER-ADMIN'),
+  restrictByPermission('procurement', ['ADMIN', 'SUPER-ADMIN', 'REVIEWER']),
   debugRequest("createVendor"),
   validate(createVendorSchema),
   admin.createVendor,

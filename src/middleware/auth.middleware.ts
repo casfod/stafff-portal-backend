@@ -59,3 +59,34 @@ export const restrictTo = (...roles: string[]) => {
     next();
   };
 };
+
+export const restrictByPermission = (section: 'finance' | 'procurement', roles: string[]) => {
+  return (req: AuthRequest, _res: Response, next: NextFunction) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      throw new AppError("User not found.", 403);
+    }
+
+    if (!roles.includes(req.user.role)) {
+      throw new AppError(
+        "You do not have permission to perform this action.",
+        403
+      );
+    }
+
+    if (section === 'finance' && !req.user.financeRole?.canCreate) {
+      throw new AppError(
+        "You do not have permission to access finance section.",
+        403
+      );
+    }
+
+    if (section === 'procurement' && !req.user.procurementRole?.canCreate) {
+      throw new AppError(
+        "You do not have permission to access procurement section.",
+        403
+      );
+    }
+
+    next();
+  };
+};
