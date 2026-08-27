@@ -83,6 +83,8 @@ export const env = {
   MAIL_APP_USER: process.env.MAIL_APP_USER || "",
   MAIL_APP_PASSWORD: process.env.MAIL_APP_PASSWORD || "",
   MAIL_FROM_NAME: process.env.MAIL_FROM_NAME || "Casfod Possibility Hub",
+  PROCUREMENT_MAIL: process.env.PROCUREMENT_MAIL || "",
+  PROCUREMENT_MAIL_PASSWORD: process.env.PROCUREMENT_MAIL_PASSWORD || "",
 
   // ── Cloudinary ──────────────────────────────────────────────────────────────
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
