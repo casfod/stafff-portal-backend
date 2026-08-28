@@ -257,7 +257,7 @@ export const copyRFQToVendors = async (opts: {
         bccEmails,
         rfqCode: rfq.rfqCode,
         rfqTitle: rfq.rfqTitle,
-        deadlineDate: rfq.deadlineDate,
+        deadlineDate: rfq.deadlineDate ? new Date(rfq.deadlineDate).toDateString() : undefined,
         fileDownloads, // Now includes all files with download URLs
         // Pass additional file info for the email template
         fileCount: fileDownloads.length,
