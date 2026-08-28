@@ -490,7 +490,7 @@ async sendRFQNotification(opts: {
   );
 
   await this.send({
-    to: process.env.PROCUREMENT_MAIL ?? env.MAIL_APP_USER,
+    to: env.PROCUREMENT_MAIL ?? env.MAIL_APP_USER,
     bcc: opts.bccEmails,
     subject: `📄 Request for Quotation: ${opts.rfqCode} - ${opts.rfqTitle}`,
     html,
