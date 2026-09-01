@@ -20,6 +20,7 @@ export interface IPurchaseRequest extends Document {
   finalDeliveryPoint: string;
   city: string;
   periodOfActivity: IActivityPeriod;
+  purchaseRequestDate?: string;
   activityDescription: string;
   expenseChargedTo: string;
   accountCode: string;
@@ -51,6 +52,7 @@ const purchaseRequestSchema = new Schema<IPurchaseRequest>(
       from: { type: String, required: true, trim: true },
       to:   { type: String, required: true, trim: true },
     },
+    purchaseRequestDate:  { type: String, default: () => new Date().toISOString() },
     activityDescription:  { type: String, default: '' },
     expenseChargedTo:     { type: String, required: true, trim: true },
     accountCode:          { type: String, required: true, trim: true },

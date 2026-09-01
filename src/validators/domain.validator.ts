@@ -228,6 +228,7 @@ const purchaseRequestBase = z.object({
   finalDeliveryPoint:  z.string().min(1),
   city:                z.string().min(1),
   periodOfActivity:    dateRange,
+  purchaseRequestDate: z.string().optional(),
   activityDescription: z.string().optional(),
   expenseChargedTo:    z.string().min(1),
   accountCode:         z.string().min(1),
