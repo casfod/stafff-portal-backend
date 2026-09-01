@@ -319,6 +319,7 @@ class UserService {
           { firstName: new RegExp(escapedSearch, "i") },
           { lastName: new RegExp(escapedSearch, "i") },
           { email: new RegExp(escapedSearch, "i") },
+          { role: new RegExp(escapedSearch, "i") }
         ];
       }
 
