@@ -31,6 +31,7 @@ export interface BaseQueryParams extends PaginationParams {
   sort?: string;
   status?: string;
   period?: string;
+  createdBy?: string;
 }
 
 // ─── Current user shape (from auth middleware) ────────────────────────────────

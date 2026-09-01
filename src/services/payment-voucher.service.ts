@@ -1,6 +1,6 @@
 // payment-voucher.service.ts - Fixed version with TypeScript fixes and no file logic
 import type { PopulateOptions } from "mongoose";
-import { PaymentVoucher, IPaymentVoucher } from "../models";
+import { PaymentVoucher, IPaymentVoucher, User } from "../models";
 import { BaseCopyService } from "./base-copy.service";
 import { notify } from "./notifications/notification.service";
 import { cleanObjectId, parsePaginationParams, filterDeleted, transformDocument } from "./shared/helpers";
@@ -110,38 +110,89 @@ export async function getPaymentVoucherStats(currentUser: CurrentUser): Promise<
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 export async function getPaymentVouchers(params: BaseQueryParams, currentUser: CurrentUser): Promise<any> {
-  const { search, sort = "-createdAt", page, limit } = params;
+  const { search, sort = "-createdAt", page, limit, createdBy } = params;
   const { page: parsedPage, limit: parsedLimit, skip } = parsePaginationParams(page, limit);
 
-  const query: Record<string, unknown> = {};
-  
-  // Free-text search
+  // Build query conditions using $and to combine all filters properly
+  const andConditions: Record<string, unknown>[] = [];
+
+  // Free-text search (if provided)
   if (search) {
     const re = new RegExp(search.trim().split(/\s+/).join("|"), "i");
-    query.$or = [{ pvNumber: re }, { payTo: re }, { being: re }, { accountCode: re }, { status: re }];
+    andConditions.push({
+      $or: [{ pvNumber: re }, { payTo: re }],
+    });
   }
 
-  // Structured filters
+  // Handle createdBy name lookup: convert user name to ID
+  let createdByCondition: Record<string, unknown> | null = null;
+  if (params.createdBy) {
+    const createdByParam = String(params.createdBy).trim();
+    if (createdByParam) {
+      const matchingUsers = await User.find({
+        $or: [
+          { firstName: new RegExp(createdByParam, "i") },
+          { lastName: new RegExp(createdByParam, "i") },
+        ],
+      }).select("_id");
+
+      if (matchingUsers.length > 0) {
+        const userIds = matchingUsers.map((u) => u._id);
+        createdByCondition = { createdBy: { $in: userIds } };
+      }
+    }
+  }
+
+  // Structured filters (status, dates, etc.)
   const filterParams: Record<string, unknown> = { ...params };
-  Object.assign(query, buildStructuredFilters(filterParams));
+  delete filterParams.createdBy; // Remove so buildStructuredFilters doesn't process it
+  const structuredFilters = buildStructuredFilters(filterParams);
+  if (Object.keys(structuredFilters).length > 0) {
+    andConditions.push(structuredFilters);
+  }
+
+  // Add createdBy filter if we found matching users
+  if (createdByCondition) {
+    andConditions.push(createdByCondition);
+  }
 
   // Role-based visibility
+  let roleBasedCondition: Record<string, unknown>;
   switch (currentUser.role) {
     case "STAFF":
-      query.createdBy = currentUser._id;
+      roleBasedCondition = { createdBy: currentUser._id };
       break;
     case "ADMIN":
-      query.$or = [{ createdBy: currentUser._id }, { approvedBy: currentUser._id }];
+      roleBasedCondition = {
+        $or: [
+          { createdBy: currentUser._id },
+          { approvedBy: currentUser._id },
+        ],
+      };
       break;
     case "REVIEWER":
-      query.$or = [{ createdBy: currentUser._id }, { reviewedBy: currentUser._id }];
+      roleBasedCondition = {
+        $or: [
+          { createdBy: currentUser._id },
+          { reviewedBy: currentUser._id },
+        ],
+      };
       break;
     case "SUPER-ADMIN":
-      query.$or = [{ status: { $ne: "draft" } }, { createdBy: currentUser._id, status: "draft" }];
+      roleBasedCondition = {
+        $or: [
+          { status: { $ne: "draft" } },
+          { createdBy: currentUser._id, status: "draft" },
+        ],
+      };
       break;
     default:
       throw new Error("Invalid user role");
   }
+  andConditions.push(roleBasedCondition);
+
+  // Combine all conditions
+  const query = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
 
   const [items, total] = await Promise.all([
     PaymentVoucher.find(query)
