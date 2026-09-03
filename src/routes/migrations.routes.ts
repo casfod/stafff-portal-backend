@@ -21,6 +21,7 @@ import { migrateRFQs } from '../migrations/16-migrate-rfqs-schema';
 import { migrateStaffStrategies } from '../migrations/17-migrate-staffstrategies-schema';
 import { migrateTravelRequests } from '../migrations/18-migrate-travelrequests-schema';
 import { migrateVendors } from '../migrations/19-migrate-vendors-schema';
+import { migrateUserSupervisorField } from '../migrations/21-migrate-user-supervisor-field';
 import { runPurchaseOrderCommentIdsMigration } from '../controllers/migration.controller';
 
 const router = Router();
@@ -60,7 +61,7 @@ router.post('/rfqs', runMigration(migrateRFQs, 'RFQs'));
 router.post('/staff-strategies', runMigration(migrateStaffStrategies, 'Staff strategies'));
 router.post('/travel-requests', runMigration(migrateTravelRequests, 'Travel requests'));
 router.post('/vendors', runMigration(migrateVendors, 'Vendors'));
-// NOT YET RUN
 router.post('/purchase-order-comment-ids', runPurchaseOrderCommentIdsMigration);
+router.post('/user-supervisor-field', runMigration(migrateUserSupervisorField, 'User supervisor field'));
 
 export default router;

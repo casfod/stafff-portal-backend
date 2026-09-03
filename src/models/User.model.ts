@@ -41,7 +41,6 @@ export interface IJobDetails {
   workCellPhone?: string;
   startDate?: Date;
   endDate?: Date;
-  supervisor?: string;
   supervisorId?: mongoose.Types.ObjectId;
 }
 
@@ -154,7 +153,6 @@ const jobDetailsSchema = new Schema<IJobDetails>(
     workCellPhone: { type: String },
     startDate:     { type: Date },
     endDate:       { type: Date },
-    supervisor:    { type: String },
     supervisorId:  { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { _id: false },

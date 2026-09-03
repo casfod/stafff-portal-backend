@@ -84,7 +84,7 @@ export async function generateUsersExcelReport(res: Response): Promise<void> {
       ei?.jobDetails?.workPhone      ?? '',
       dateStr(ei?.jobDetails?.startDate),
       dateStr(ei?.jobDetails?.endDate),
-      ei?.jobDetails?.supervisor     ?? '',
+      ei?.jobDetails?.supervisorId?.toString() ?? '',
       ei?.personalDetails?.fullName       ?? '',
       ei?.personalDetails?.stateOfOrigin  ?? '',
       ei?.personalDetails?.lga            ?? '',
