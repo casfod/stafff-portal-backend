@@ -49,7 +49,6 @@ export const updateEmploymentInfoSchema = z.object({
     workCellPhone: z.string().optional(),
     startDate:     z.coerce.date().optional(),
     endDate:       z.coerce.date().optional(),
-    supervisor:    z.string().optional(),
     supervisorId:  z.string().optional(),
   }).optional(),
 
