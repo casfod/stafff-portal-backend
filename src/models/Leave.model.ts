@@ -28,8 +28,6 @@ export interface ILeaveCover {
 export interface ILeave extends Document {
   leaveNumber: string;
   user: mongoose.Types.ObjectId;
-  staffName: string;
-  staffRole: string;
   leaveType: LeaveType;
   leaveTypeConfig: ILeaveTypeConfig;
   startDate: Date;
@@ -58,8 +56,6 @@ const leaveSchema = new Schema<ILeave>(
       ref: 'User',
       required: true,
     },
-    staffName: { type: String, required: true, trim: true },
-    staffRole: { type: String, required: true, trim: true },
     leaveType: {
       type: String,
       enum: [

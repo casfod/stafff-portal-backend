@@ -18,6 +18,7 @@ import {
   buildLeaveListQuery,
   buildLeaveDraftData,
   getOrCreateLeaveBalance,
+  transformDocument,
 } from "./leave.helpers";
 
 export { LEAVE_TYPE_CONFIG, calculateDaysBetween, validateLeaveApplication } from "./leave.helpers";
@@ -91,7 +92,7 @@ export async function getAllLeaves(params: BaseQueryParams, currentUser: Current
     items.map(async (doc) => {
       doc.comments = filterDeleted(doc.comments as any) as any;
       const files = await fileService.getFilesByModel("Leaves", String(doc._id));
-      return { ...doc.toJSON(), files };
+      return { ...transformDocument(doc), files };
     })
   );
 
@@ -196,7 +197,10 @@ export async function getLeaveById(id: string): Promise<any> {
 
   (leave as any).comments = filterDeleted((leave as any).comments ?? []);
   const files = await fileService.getFilesByModel("Leaves", id);
-  return ResponseBuilder.single({ ...leave, files }, "Leave application retrieved successfully");
+  return ResponseBuilder.single(
+    { ...transformDocument(leave), files },
+    "Leave application retrieved successfully"
+  );
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────
