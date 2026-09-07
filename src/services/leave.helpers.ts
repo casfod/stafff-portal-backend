@@ -64,33 +64,28 @@ export const LEAVE_TYPE_CONFIG: Record<LeaveType, LeaveTypeConfig> = {
 };
 
 /**
- * Transform a single document to replace _id with id and remove __v
+ * Transform a document and its populated nested values to replace _id with id.
  */
 export function transformDocument<T = any>(doc: T): T {
-  if (!doc) return null as T;
-  
-  // If it's a Mongoose document with toJSON method
-  if (typeof doc === 'object' && doc !== null && 'toJSON' in doc && typeof (doc as any).toJSON === 'function') {
-    const json = (doc as any).toJSON();
-    // If the document already has an id property from toJSON, use it
-    if (json.id) return json;
-    // Otherwise convert _id to id
-    if (json._id) {
-      json.id = json._id.toString();
-      delete json._id;
-    }
-    delete json.__v;
-    return json;
+  if (doc === null || doc === undefined) return null as T;
+  if (Array.isArray(doc)) return doc.map((item) => transformDocument(item)) as T;
+  if (typeof doc !== "object") return doc;
+
+  if (typeof (doc as any).toJSON === "function") {
+    return transformDocument((doc as any).toJSON());
   }
 
-  // For plain objects
-  const result = { ...doc } as any;
-  if (result._id) {
-    result.id = result._id.toString();
-    delete result._id;
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(doc as Record<string, any>)) {
+    if (key === "__v") continue;
+    if (key === "_id") {
+      result.id = value?.toString ? value.toString() : value;
+      continue;
+    }
+    result[key] = transformDocument(value);
   }
-  delete result.__v;
-  return result;
+
+  return result as T;
 }
 
 /**

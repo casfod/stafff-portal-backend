@@ -22,6 +22,7 @@ import { migrateStaffStrategies } from '../migrations/17-migrate-staffstrategies
 import { migrateTravelRequests } from '../migrations/18-migrate-travelrequests-schema';
 import { migrateVendors } from '../migrations/19-migrate-vendors-schema';
 import { migrateUserSupervisorField } from '../migrations/21-migrate-user-supervisor-field';
+import { migrateLeaveStaffFields } from '../migrations/22-migrate-leave-staff-fields';
 import { runPurchaseOrderCommentIdsMigration } from '../controllers/migration.controller';
 
 const router = Router();
@@ -63,5 +64,6 @@ router.post('/travel-requests', runMigration(migrateTravelRequests, 'Travel requ
 router.post('/vendors', runMigration(migrateVendors, 'Vendors'));
 router.post('/purchase-order-comment-ids', runPurchaseOrderCommentIdsMigration);
 router.post('/user-supervisor-field', runMigration(migrateUserSupervisorField, 'User supervisor field'));
+router.post('/leave-staff-fields', runMigration(migrateLeaveStaffFields, 'Leave staff fields'));
 
 export default router;
