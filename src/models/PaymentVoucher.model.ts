@@ -95,10 +95,9 @@ paymentVoucherSchema.pre('save', async function (next) {
 
     const startOfMonth = new Date(year, pvDate.getMonth(), 1);
     const endOfMonth   = new Date(year, pvDate.getMonth() + 1, 0, 23, 59, 59, 999);
-    console.log('startOfMonth:', startOfMonth.toISOString());
-    console.log('endOfMonth:', endOfMonth.toISOString());
+    let currentCount = 0;
 
-    const count = await mongoose.model('PaymentVoucher').countDocuments({
+    const lastDocument = await mongoose.model('PaymentVoucher').findOne({
       projectCode: this.projectCode,
       pvDate: {
         $gte: startOfMonth.toISOString().split('T')[0],
@@ -106,12 +105,15 @@ paymentVoucherSchema.pre('save', async function (next) {
       },
       status: { $ne: 'draft' },
       pvNumber: { $not: /PV-DRAFT/ },
-    });
+    })
+    .sort({ _id: -1 });
 
-    console.log(`Count of existing PVs:`, count);
-    const serial = (count + 1).toString().padStart(3, '0');
+    if (lastDocument) {
+      currentCount = parseInt(lastDocument.pvNumber.split('/').pop() || '0', 10);
+    }
+
+    const serial = (currentCount + 1).toString().padStart(3, '0');
     this.pvNumber = `CASFOD/${formattedCode}/${month}/${year}/${serial}`;
-    console.log(`Generated PV number: ${this.pvNumber}`);
     next();
   } catch (err) {
     next(err as Error);
