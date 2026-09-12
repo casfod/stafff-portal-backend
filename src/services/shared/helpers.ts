@@ -82,6 +82,7 @@ export function buildRoleVisibilityQuery(
       const conditions: any[] = [
         { [ownerField]: uid },
         { approvedBy: uid },
+        { reviewedBy: uid },
         { copiedTo: uid }
       ];
       
