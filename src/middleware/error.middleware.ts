@@ -31,6 +31,7 @@ export const errorHandler = (err: any, _req: Request, res: Response, _next: Next
   const statusCode = error.statusCode || 500;
   const status = statusCode >= 500 ? 'error' : 'fail';
 
+  console.log('Tracer Error ===> ', error.message);
   res.status(statusCode).json({
     status,
     message: error.isOperational ? error.message : 'Something went very wrong!',
