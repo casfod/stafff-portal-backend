@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { toJsonTransform } from './shared/toJson';
-import { generateDocNumber } from '../utils/generateDocNumber';
+import { generateDocNumber, generateDraftCode } from '../utils/generateDocNumber';
 import { commentSchema } from './shared/comment.schema';
 
 export interface IPOItemGroup {
@@ -34,7 +34,7 @@ export interface IPurchaseOrder extends Document {
   pdfUrl: string;
   cloudinaryId: string;
   createdBy: mongoose.Types.ObjectId;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'draft' | 'pending' | 'approved' | 'rejected';
   isFromRfq: boolean;
   comments: IPOComment[];
   approvedBy?: mongoose.Types.ObjectId;
@@ -72,8 +72,8 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     createdBy:       { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending',
+      enum: ['draft', 'pending', 'approved', 'rejected'],
+      default: 'draft',
     },
     isFromRfq: { type: Boolean, default: true },
     comments: [commentSchema],
@@ -85,18 +85,16 @@ const purchaseOrderSchema = new Schema<IPurchaseOrder>(
 // ─── Doc number generation ────────────────────────────────────────────────────
 
 purchaseOrderSchema.pre('save', async function (next) {
-  if (!this.isNew || this.poCode) return next();
-
-  try {
-    this.poCode = await generateDocNumber({
-      modelName: 'PurchaseOrder',
-      prefix: 'PO-CASFOD',
-      countFilter: {},  // count all POs
-    });
-    next();
-  } catch (err) {
-    next(err as Error);
+  if (this.isModified('status') && this.status === 'pending' && !this.poCode) {
+      try {
+        this.poCode = await generateDocNumber({ modelName: 'PurchaseOrder', prefix: 'PO-CASFOD' });
+      } catch (err) {
+        return next(err as Error);
+      }
+  } else if (this.status === 'draft' && !this.poCode) {
+    this.poCode = generateDraftCode('PO');
   }
+  next();
 });
 
 purchaseOrderSchema.set('toJSON', toJsonTransform());

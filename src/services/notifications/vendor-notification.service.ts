@@ -69,7 +69,6 @@ export async function notifyVendorStatusChange(
     );
 
     console.log(`✅ Vendor ${status} notification sent to: ${vendor.email}`);
-    console.log(`🔗 Vendor URL: ${vendorUrl}`);
   } catch (error) {
     console.error(`Failed to send vendor ${status} notification:`, error);
     // Don't throw - notifications are best-effort
@@ -114,7 +113,6 @@ export async function sendVendorWelcomeEmail(vendor: any): Promise<void> {
     );
 
     console.log(`✅ Vendor welcome email sent to: ${vendor.email}`);
-    console.log(`🔗 Vendor URL: ${vendorUrl}`);
   } catch (error) {
     console.error('Failed to send vendor welcome email:', error);
   }

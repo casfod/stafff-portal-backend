@@ -177,11 +177,29 @@ export const createPurchaseOrderFromRFQ = catchAsync(async (req: AuthRequest, re
   sendCreated(res, po, 'Purchase order created from RFQ');
 });
 
+export const savePurchaseOrderDraftFromRFQ = catchAsync(async (req: AuthRequest, res: Response) => {
+  const po = await purchaseOrderService.savePurchaseOrderDraftFromRFQ(
+    req.params.rfqId,
+    req.params.vendorId,
+    req.body,
+    currentUser(req),
+  );
+  sendCreated(res, po, 'Purchase order draft saved');
+});
+
 export const createIndependentPurchaseOrder = catchAsync(async (req: AuthRequest, res: Response) => {
   const po = await purchaseOrderService.createIndependentPurchaseOrder(
     req.body, currentUser(req),
   );
   sendCreated(res, po, 'Purchase order created');
+});
+
+export const saveIndependentPurchaseOrderDraft = catchAsync(async (req: AuthRequest, res: Response) => {
+  const po = await purchaseOrderService.saveIndependentPurchaseOrderDraft(
+    req.body,
+    currentUser(req),
+  );
+  sendCreated(res, po, 'Purchase order draft saved');
 });
 
 export const updatePurchaseOrder = catchAsync(async (req: AuthRequest, res: Response) => {

@@ -101,8 +101,6 @@ async function streamFileDownload(file: any, res: Response): Promise<void> {
         throw new Error('No URL found in metadata');
       }
 
-      console.log('🔄 Using authenticated URL:', secureUrl);
-
       const finalResponse = await fetch(secureUrl, {
         headers: { 'Accept': '*/*' },
       });

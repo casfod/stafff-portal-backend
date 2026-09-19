@@ -7,7 +7,6 @@ export async function initializeSystemSettings(): Promise<void> {
   const count = await SystemSettings.countDocuments();
   if (count === 0) {
     await SystemSettings.create({ globalEmploymentInfoLock: false, lastUpdatedAt: new Date() });
-    console.log("✓ System settings initialized");
   } else {
     await migrateEmploymentInfoLockFields();
   }
