@@ -77,11 +77,23 @@ router.use('/rfqs', rfqRouter);
 const poRouter = Router();
 
 poRouter.get ('/', procurement.getAllPurchaseOrders);
+// Save an independent PO as a draft
+poRouter.post(
+  '/draft',
+  validate(createIndependentPOSchema),
+  procurement.saveIndependentPurchaseOrderDraft,
+);
 // Create from RFQ: POST /purchase-orders/rfq/:rfqId/vendor/:vendorId
 poRouter.post(
   '/rfq/:rfqId/vendor/:vendorId',
   validate(createPOFromRFQSchema),
   procurement.createPurchaseOrderFromRFQ,
+);
+// Save a PO created from an RFQ as a draft
+poRouter.post(
+  '/rfq/:rfqId/vendor/:vendorId/draft',
+  validate(createPOFromRFQSchema),
+  procurement.savePurchaseOrderDraftFromRFQ,
 );
 // Create independent PO
 poRouter.post(

@@ -59,6 +59,13 @@ const purchaseOrderService = createWorkflowService({
       payload.totalAmount = sumItemTotals(items);
     }
 
+    if (existing.status == 'draft' && payload.approvedBy) {
+      if (payload.isFromRfq) {
+        return createPurchaseOrderFromRFQ(payload.rfqCode, payload.selectedVendor, payload, currentUser);
+      }
+      return createIndependentPurchaseOrder(payload, currentUser);
+    }
+
     const updated = await PurchaseOrder.findByIdAndUpdate(cleanId, payload, {
       new: true,
       runValidators: true,
@@ -364,6 +371,91 @@ export const createIndependentPurchaseOrder = async (
         });
 
   return ResponseBuilder.operation(populated, "Purchase order created successfully");
+};
+
+export const savePurchaseOrderDraftFromRFQ = async (
+  rfqId: string,
+  vendorId: string,
+  data: any,
+  currentUser: CurrentUser,
+): Promise<any> => {
+  const rfq = await RFQ.findById(rfqId).lean();
+  if (!rfq) throw new AppError("RFQ not found", 404);
+
+  let totalAmount = 0;
+  const itemGroups = data.itemGroups?.map((item: any) => {
+    const total = item.quantity * item.unitCost * (item.frequency || 1);
+    totalAmount += total;
+    return { ...item, total };
+  }) || [];
+
+  const po = new PurchaseOrder({
+    rfqTitle: data.rfqTitle || rfq.rfqTitle || "Purchase Order",
+    rfqCode: rfq.rfqCode || "",
+    itemGroups,
+    selectedVendor: vendorId,
+    deliveryDate: data.deliveryDate || "",
+    poDate: data.poDate || new Date().toISOString().split("T")[0],
+    casfodAddressId: data.casfodAddressId || "",
+    totalAmount,
+    vat: data.vat || 0,
+    createdBy: currentUser._id,
+    status: "draft",
+    isFromRfq: true,
+    comments: [],
+    approvedBy: data.approvedBy || null,
+    copiedTo: data.copiedTo || [],
+  });
+  await po.save();
+
+  const populated = await PurchaseOrder.findById(po._id).populate([
+    { path: "createdBy", select: USER_SELECT },
+    { path: "approvedBy", select: USER_SELECT },
+    { path: "copiedTo", select: VENDOR_SELECT },
+    { path: "selectedVendor", select: VENDOR_SELECT },
+  ]);
+
+  return ResponseBuilder.operation(populated, "Purchase order draft saved successfully");
+};
+
+export const saveIndependentPurchaseOrderDraft = async (
+  data: any,
+  currentUser: CurrentUser,
+): Promise<any> => {
+  let totalAmount = 0;
+  const itemGroups = data.itemGroups?.map((item: any) => {
+    const total = item.quantity * item.unitCost * (item.frequency || 1);
+    totalAmount += total;
+    return { ...item, total };
+  }) || [];
+
+  const po = new PurchaseOrder({
+    rfqTitle: data.rfqTitle || "Purchase Order",
+    rfqCode: "",
+    itemGroups,
+    selectedVendor: data.selectedVendor,
+    deliveryDate: data.deliveryDate || "",
+    poDate: data.poDate || new Date().toISOString().split("T")[0],
+    casfodAddressId: data.casfodAddressId || "",
+    totalAmount,
+    vat: data.vat || 0,
+    createdBy: currentUser._id,
+    status: "draft",
+    isFromRfq: false,
+    comments: [],
+    approvedBy: data.approvedBy || null,
+    copiedTo: data.copiedTo || [],
+  });
+  await po.save();
+
+  const populated = await PurchaseOrder.findById(po._id).populate([
+    { path: "createdBy", select: USER_SELECT },
+    { path: "approvedBy", select: USER_SELECT },
+    { path: "copiedTo", select: VENDOR_SELECT },
+    { path: "selectedVendor", select: VENDOR_SELECT },
+  ]);
+
+  return ResponseBuilder.operation(populated, "Purchase order draft saved successfully");
 };
 
 // ─── Backward compatibility ──────────────────────────────────────────────────
