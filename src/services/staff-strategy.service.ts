@@ -102,8 +102,10 @@ export async function getStaffStrategies(params: BaseQueryParams, currentUser: C
   }
 
   const uid = currentUser._id;
+  console.log("Current user role:", currentUser.role, "ID:", uid.toString());
   switch (currentUser.role) {
     case "STAFF":
+    case "REVIEWER":
       filters.push({ $or: [{ createdBy: uid }, { copiedTo: uid }] });
       break;
     case "ADMIN":
