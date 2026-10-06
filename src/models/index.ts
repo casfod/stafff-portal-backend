@@ -44,6 +44,8 @@ export { ExpenseClaims, IExpenseClaim }          from './ExpenseClaims.model';
 
 export { TravelRequest, ITravelRequest }         from './TravelRequest.model';
 
+export { StoreRequest, IStoreRequest }           from './StoreRequest.model';
+
 export { LeaveBalance, ILeaveBalance,
          ILeaveTypeBalance }                     from './LeaveBalance.model';
 
