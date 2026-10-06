@@ -123,11 +123,13 @@ export async function getAppraisals(
       ],
     });
   }
+
   if (status) filters.push({ status });
   if (period) filters.push({ appraisalPeriod: period });
 
   switch (currentUser.role) {
     case "STAFF":
+    case "REVIEWER":
       filters.push({ $or: [{ staffId: currentUser._id }, { createdBy: currentUser._id }] });
       break;
     case "ADMIN":

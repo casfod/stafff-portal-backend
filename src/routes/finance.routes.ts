@@ -21,6 +21,8 @@ import {
   savePaymentRequestDraftSchema,
   createPaymentVoucherSchema,
   savePaymentVoucherDraftSchema,
+  saveStoreRequestDraftSchema,
+  createStoreRequestSchema,
 } from '../validators/domain.validator';
 import * as finance from '../controllers/finance.controller';
 import { debugRequest } from '../middleware/debug.middleware';
@@ -146,5 +148,25 @@ pvRouter.delete('/:id',                           finance.deletePaymentVoucher);
 pvRouter.post  ('/:id/copy',   validate(copyDocumentSchema), finance.copyPaymentVoucher);
 
 router.use('/payment-vouchers', pvRouter);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STORE REQUEST  /finance/store-requests
+// ═══════════════════════════════════════════════════════════════════════════════
+const srRouter = Router();
+
+srRouter.get   ('/stats',                        finance.getStoreRequestStats);
+srRouter.get   ('/',                             finance.getAllStoreRequests);
+srRouter.post  ('/draft', validate(saveStoreRequestDraftSchema), finance.saveStoreRequestDraft);
+srRouter.post  ('/',      validate(createStoreRequestSchema),    finance.createStoreRequest);
+srRouter.get   ('/:id',                          finance.getStoreRequestById);
+srRouter.patch ('/:id',   finance.updateStoreRequest);
+srRouter.patch ('/:id/status', validate(statusUpdateSchema),  finance.updateStoreRequestStatus);
+srRouter.delete('/:id',                          finance.deleteStoreRequest);
+srRouter.post  ('/:id/copy',   validate(copyDocumentSchema), finance.copyStoreRequest);
+srRouter.post  ('/:id/comments',            validate(addCommentSchema),    finance.addStoreRequestComment);
+srRouter.patch ('/:id/comments/:commentId', validate(updateCommentSchema), finance.updateStoreRequestComment);
+srRouter.delete('/:id/comments/:commentId', finance.deleteStoreRequestComment);
+
+router.use('/store-requests', srRouter);
 
 export default router;

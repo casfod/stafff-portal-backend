@@ -59,6 +59,17 @@ const expenseItemSchema = z.object({
   total:       z.number().min(0),
 });
 
+const storeItemGroupSchema = z.object({
+  itemName:         z.string().min(1),
+  department:       z.string().optional(),
+  description:      z.string().optional(),
+  frequency:        z.number().int().min(1),
+  quantity:         z.number().int().min(1),
+  unit:             z.string().optional(),
+  dispatchRemarks:  z.string().optional(),
+  returnRemarks:    z.string().optional(),
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONCEPT NOTE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -185,6 +196,30 @@ export const createPaymentRequestSchema = paymentRequestBase.extend({
   reviewedBy: objectId,
 });
 export const savePaymentRequestDraftSchema = paymentRequestBase;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STORE REQUEST
+// ═══════════════════════════════════════════════════════════════════════════════
+const storeRequestBase = z.object({
+  destination:  z.string().min(1),
+  warehouse:    z.string().min(1),
+  warehouseCode: z.string().min(1),
+  requestType:  z.enum(['dispatch', 'return']).default('dispatch'),
+  requestedAt:   z.string().optional(),
+  dispatchDate:  z.string().min(1),
+  recipient: objectId,
+  warehouseOfficer: objectId,
+  assignedDriver: z.string().optional(),
+  items:         z.array(storeItemGroupSchema).min(1),
+  copiedTo:       z.array(objectId).optional(),
+  reviewedBy:         optionalId,
+  approvedBy:         optionalId,
+});
+
+export const createStoreRequestSchema = storeRequestBase.extend({
+  reviewedBy: objectId,
+});
+export const saveStoreRequestDraftSchema = storeRequestBase;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYMENT VOUCHER

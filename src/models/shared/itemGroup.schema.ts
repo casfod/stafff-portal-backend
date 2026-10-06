@@ -10,6 +10,7 @@ export interface IItemGroup {
   total: number;
 }
 
+
 /** Base procurement line-item (purchase request, advance request, etc.) */
 export const itemGroupSchema = new Schema<IItemGroup>(
   {
@@ -44,6 +45,32 @@ export const expenseItemSchema = new Schema<IExpenseItem>(
     unit: { type: String, default: "" },
     unitCost: { type: Number, required: true },
     total: { type: Number, required: true },
+  },
+  { _id: false }
+);
+
+export interface IStoreItemGroup {
+  itemName: string;
+  department?: string;
+  description?: string;
+  frequency: number;
+  quantity: number;
+  unit: string;
+  dispatchRemarks?: string;
+  returnRemarks?: string;
+}
+
+/** Base store request line-item */
+export const storeItemGroupSchema = new Schema<IStoreItemGroup>(
+  {
+    itemName: { type: String, trim: true },
+    department: { type: String, trim: true },
+    description: { type: String, trim: true },
+    frequency: { type: Number, required: true },
+    quantity: { type: Number, required: true },
+    unit: { type: String, default: "" },
+    dispatchRemarks: { type: String, trim: true },
+    returnRemarks: { type: String, trim: true },
   },
   { _id: false }
 );

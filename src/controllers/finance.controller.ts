@@ -9,6 +9,7 @@ import * as expenseClaimsService  from '../services/expense-claims.service';
 import * as travelRequestService  from '../services/travel-request.service';
 import * as paymentRequestService from '../services/payment-request.service';
 import * as paymentVoucherService from '../services/payment-voucher.service';
+import * as storeRequestsService  from '../services/store-request.service';
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -437,4 +438,77 @@ export const copyPaymentVoucher = catchAsync(async (req: AuthRequest, res: Respo
     requestType: 'paymentVoucher', requestTitle: 'Payment Voucher', recipients: req.body.recipients,
   });
   sendSuccess(res, doc, 'Payment voucher copied');
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STORE REQUEST
+// ═══════════════════════════════════════════════════════════════════════════════
+export const getStoreRequestStats = catchAsync(async (req: AuthRequest, res: Response) => {
+  const stats = await storeRequestsService.getStoreRequestStats(currentUser(req));
+  sendSuccess(res, stats, 'Store request stats retrieved');
+});
+
+export const getAllStoreRequests = catchAsync(async (req: AuthRequest, res: Response) => {
+  const result = await storeRequestsService.getStoreRequests(queryParams(req), currentUser(req));
+  sendSuccess(res, result, 'Store requests retrieved');
+});
+
+export const getStoreRequestById = catchAsync(async (req: AuthRequest, res: Response) => {
+  const request = await storeRequestsService.getStoreRequestById(req.params.id);
+  sendSuccess(res, request, 'Store request retrieved');
+});
+
+export const saveStoreRequestDraft = catchAsync(async (req: AuthRequest, res: Response) => {
+  const request = await storeRequestsService.saveStoreRequest(req.body, currentUser(req));
+  sendCreated(res, request, 'Store request draft saved');
+});
+
+export const createStoreRequest = catchAsync(async (req: AuthRequest, res: Response) => {
+  const request = await storeRequestsService.saveAndSendStoreRequest(
+    req.body, currentUser(req), 
+  );
+  sendCreated(res, request, 'Store request submitted');
+});
+
+export const updateStoreRequest = catchAsync(async (req: AuthRequest, res: Response) => {
+  const request = await storeRequestsService.updateStoreRequest(
+    req.params.id, req.body, currentUser(req), 
+  );
+  sendSuccess(res, request, 'Store request updated');
+});
+
+export const updateStoreRequestStatus = catchAsync(async (req: AuthRequest, res: Response) => {
+  const request = await storeRequestsService.updateStoreRequestStatus(
+    req.params.id, req.body, currentUser(req),
+  );
+  sendSuccess(res, request, 'Store request status updated');
+});
+
+export const deleteStoreRequest = catchAsync(async (req: AuthRequest, res: Response) => {
+  await storeRequestsService.deleteStoreRequest(req.params.id);
+  sendNoContent(res);
+});
+
+export const addStoreRequestComment = catchAsync(async (req: AuthRequest, res: Response) => {
+  const comment = await storeRequestsService.addComment(req.params.id, currentUser(req), req.body.text);
+  sendCreated(res, comment, 'Comment added');
+});
+
+export const updateStoreRequestComment = catchAsync(async (req: AuthRequest, res: Response) => {
+  const comment = await storeRequestsService.updateComment(req.params.id, req.params.commentId, currentUser(req)._id, req.body.text);
+  sendSuccess(res, comment, 'Comment updated');
+});
+
+export const deleteStoreRequestComment = catchAsync(async (req: AuthRequest, res: Response) => {
+  const result = await storeRequestsService.deleteComment(req.params.id, req.params.commentId, currentUser(req));
+  sendSuccess(res, result, 'Comment deleted');
+});
+
+export const copyStoreRequest = catchAsync(async (req: AuthRequest, res: Response) => {
+  const doc = await storeRequestsService.storeRequestCopyService.copyDocument({
+    currentUser: currentUser(req), requestId: req.params.id,
+    requestType: 'storeRequest', requestTitle: 'Store Request', recipients: req.body.recipients,
+  });
+  sendSuccess(res, doc, 'Store request copied');
 });
