@@ -22,7 +22,8 @@ const svc = createWorkflowService({
     { path: "approvedBy", select: "email firstName lastName role" },
     { path: "comments.user", select: "email firstName lastName role" },
     { path: "copiedTo", select: "email firstName lastName role" },
-    { path: "recipient", select: "email firstName lastName role" }
+    { path: "recipient", select: "email firstName lastName role" },
+    { path: "warehouseOfficer", select: "firstName lastName" },
   ],
 });
 
