@@ -7,7 +7,7 @@ const svc = createWorkflowService({
   model: StoreRequest,
   label: "Store Request",
   requestType: "storeRequest",
-  fileModelName: "StoreRequests",
+  fileModelName: "StoreRequest",
   searchFields: ["srCode", "destination", "warehouse", "requestType", "status"],
   filterableFields: [
     { key: "status", type: "exact" },

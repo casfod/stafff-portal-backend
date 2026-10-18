@@ -43,6 +43,10 @@ const ADMIN_ONLY_MODELS = new Set<string>(['Projects']);
 // Roles that can manage attachments on any document, regardless of ownership.
 const BYPASS_ROLES = new Set(['SUPER-ADMIN']);
 
+function getAssociatedDocumentModel(modelName: string) {
+  return mongoose.models[modelName];
+}
+
 /**
  * Throws a 403 AppError unless `currentUser` is the creator of
  * `documentId` (in collection `modelName`) or holds a bypass role.
@@ -69,7 +73,7 @@ export async function assertCanManageDocumentFiles(
     );
   }
 
-  const Model = mongoose.models[modelName];
+  const Model = getAssociatedDocumentModel(modelName);
   if (!Model) {
     throw new AppError(`Unknown document type '${modelName}'`, 400);
   }
@@ -116,7 +120,7 @@ export async function assertCanAccessDocumentFiles(
   if (BYPASS_ROLES.has(currentUser.role)) return;
   if (OPEN_ACCESS_MODELS.has(modelName)) return;
 
-  const Model = mongoose.models[modelName];
+  const Model = getAssociatedDocumentModel(modelName);
   if (!Model) {
     throw new AppError(`Unknown document type '${modelName}'`, 400);
   }
