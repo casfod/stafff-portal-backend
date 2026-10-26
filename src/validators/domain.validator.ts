@@ -205,6 +205,7 @@ const storeRequestBase = z.object({
   warehouse:    z.string().min(1),
   warehouseCode: z.string().min(1),
   requestType:  z.enum(['dispatch', 'return']).default('dispatch'),
+  returnedRequestId: optionalId,
   requestedAt:   z.string().optional(),
   dispatchDate:  z.string().min(1),
   recipient: objectId,

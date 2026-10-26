@@ -2,6 +2,7 @@ import { StoreRequest } from "../models";
 import { createWorkflowService } from "./shared/workflow-service.factory";
 import { BaseQueryParams, CurrentUser } from "./shared/types";
 import { ResponseBuilder } from "./shared/response-builder";
+import { AppError } from "../utils/AppError";
 
 const svc = createWorkflowService({
   model: StoreRequest,
@@ -45,13 +46,104 @@ export const getStoreRequestById = async (id: string) => {
   return data
 };
 
+const reserveReturnRequestSource = async (data: any, user: CurrentUser): Promise<string | undefined> => {
+  if (data?.requestType !== "return") return undefined;
+  if (!data.returnedRequestId) {
+    throw new AppError("A source store request is required for a return request", 400);
+  }
+
+  const sourceRequest = await StoreRequest.findById(data.returnedRequestId)
+    .select("status createdBy requestType isReturned returnedRequestId")
+    .lean();
+  if (!sourceRequest) {
+    throw new AppError("Source store request not found", 404);
+  }
+  if (sourceRequest.requestType !== "dispatch") {
+    throw new AppError("Return requests must be linked to a dispatch request", 400);
+  }
+  if (sourceRequest.status !== "approved") {
+    throw new AppError("Only approved store requests can have return requests", 400);
+  }
+  if (String(sourceRequest.createdBy) !== user._id.toString()) {
+    throw new AppError("Only the creator can create a return request", 403);
+  }
+
+  const reserved = await StoreRequest.findOneAndUpdate(
+    {
+      _id: data.returnedRequestId,
+      requestType: "dispatch",
+      status: "approved",
+      createdBy: user._id,
+      isReturned: { $ne: true },
+      returnedRequestId: null,
+    },
+    { $set: { isReturned: true } },
+    { new: true, projection: { _id: 1 } },
+  ).lean();
+
+  if (!reserved) {
+    throw new AppError("A return request has already been created for this dispatch request", 409);
+  }
+
+  return String(reserved._id);
+};
+
+const createStoreRequestWithReturnSource = async (
+  data: any,
+  user: CurrentUser,
+  createRequest: () => Promise<any>,
+) => {
+  const sourceRequestId = await reserveReturnRequestSource(data, user);
+  let result: any;
+
+  try {
+    result = await createRequest();
+  } catch (error) {
+    if (sourceRequestId) {
+      const persistedReturn = await StoreRequest.findOne({
+        requestType: "return",
+        returnedRequestId: sourceRequestId,
+        createdBy: user._id,
+      })
+        .select("_id")
+        .lean();
+
+      if (persistedReturn) {
+        await StoreRequest.updateOne(
+          { _id: sourceRequestId, isReturned: true, returnedRequestId: null },
+          { $set: { returnedRequestId: persistedReturn._id } },
+        );
+      } else {
+        await StoreRequest.updateOne(
+          { _id: sourceRequestId, isReturned: true, returnedRequestId: null },
+          { $set: { isReturned: false } },
+        );
+      }
+    }
+    throw error;
+  }
+
+  if (sourceRequestId) {
+    const createdRequest = result?.data?.data ?? result?.data ?? result;
+    const returnRequestId = createdRequest?.id ?? createdRequest?._id;
+    if (returnRequestId) {
+      await StoreRequest.updateOne(
+        { _id: sourceRequestId, isReturned: true, returnedRequestId: null },
+        { $set: { returnedRequestId: returnRequestId } },
+      );
+    }
+  }
+
+  return result;
+};
+
 export const saveStoreRequestDraft = async (data: any, user: CurrentUser) => {
-  const result = await svc.saveDraft(data, user);
+  const result = await createStoreRequestWithReturnSource(data, user, () => svc.saveDraft(data, user));
   return ResponseBuilder.operation(result, "Store request draft submitted successfully");
 };
 
 export const submitStoreRequest = async (data: any, user: CurrentUser) => {
-  const result = await svc.saveAndSubmit(data, user);
+  const result = await createStoreRequestWithReturnSource(data, user, () => svc.saveAndSubmit(data, user));
   return ResponseBuilder.operation(result, "Store request submitted successfully");
 };
 
