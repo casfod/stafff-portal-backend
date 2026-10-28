@@ -50,8 +50,8 @@ export function createApp(): Express {
   app.use("/api/v1", limiter);
 
   // Body parsing
-  app.use(express.json({ limit: "10kb" }));
-  app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+  app.use(express.json({ limit: "500kb" }));
+  app.use(express.urlencoded({ extended: true, limit: "500kb" }));
 
   // Compression
   app.use(compression());
