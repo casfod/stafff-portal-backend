@@ -10,7 +10,6 @@ export interface IItemGroup {
   total: number;
 }
 
-
 /** Base procurement line-item (purchase request, advance request, etc.) */
 export const itemGroupSchema = new Schema<IItemGroup>(
   {
